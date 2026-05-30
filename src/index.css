@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer utilities {
+  .subtle-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes glow {
+  from {
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.2), 0 0 10px rgba(119, 185, 252, 0.2);
+  }
+  to {
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.4), 0 0 20px rgba(119, 185, 252, 0.6);
+  }
+}
+
+body {
+  @apply bg-gray-50 flex flex-col min-h-screen text-gray-900;
+}
+
+#root {
+  @apply min-h-screen flex flex-col;
+}

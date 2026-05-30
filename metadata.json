@@ -1,0 +1,8 @@
+{
+  "name": "ACT Apprentice Cell Katihar",
+  "description": "Government Railway Recruitment style portal for NFR Katihar Division.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
