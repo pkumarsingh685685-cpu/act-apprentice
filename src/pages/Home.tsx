@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useStore } from "../store/useStore";
 import { DocumentPanel } from "../components/DocumentPanel";
 import { FileText, Award, Bell, ExternalLink, X } from "lucide-react";
@@ -167,6 +167,22 @@ export default function Home() {
               color="bg-orange-50 text-orange-700"
             />
           </div>
+
+          {/* Disclosures & Disclaimer */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+              <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Disclosures</h3>
+              <p className="text-sm text-gray-600">
+                Public disclosure, through the portal, of scores of candidates not recommended by the Board against the result of an examination
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+              <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Disclaimer</h3>
+              <p className="text-sm text-gray-600">
+                The contents of this site should not be construed as an exhaustive statement of the law.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Right Col: Notice Board */}
@@ -198,11 +214,11 @@ export default function Home() {
 
       {/* Important Links */}
       <div className="max-w-7xl mx-auto px-4 w-full mt-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-4 font-semibold text-gray-800 bg-gray-50 border-b border-gray-200">
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <div className="p-5 font-bold text-white bg-gradient-to-r from-blue-800 to-blue-600 border-b border-blue-900 tracking-wide uppercase text-lg shadow-inner">
             <h3>Railways Website Link</h3>
           </div>
-          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 bg-gray-50">
             {links
               .sort((a, b) => a.order - b.order)
               .map((link) => (
@@ -211,12 +227,12 @@ export default function Home() {
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 border border-gray-100 rounded-md hover:bg-blue-50 hover:border-blue-200 transition-colors group"
+                  className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:bg-gradient-to-r hover:from-blue-600 hover:to-blue-700 hover:border-transparent transition-all duration-300 shadow-sm hover:shadow-md group transform hover:-translate-y-1"
                 >
-                  <span className="text-sm font-medium text-gray-700 group-hover:text-blue-700">
+                  <span className="text-sm font-bold text-gray-800 group-hover:text-white tracking-wider flex-1 pr-2">
                     {link.name}
                   </span>
-                  <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
+                  <ExternalLink className="w-5 h-5 text-blue-600 group-hover:text-white flex-shrink-0" />
                 </a>
               ))}
           </div>

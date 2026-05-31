@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Shield, Lock, ExternalLink } from "lucide-react";
 import { useStore } from "../store/useStore";
 

@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 export async function uploadToStorage(file: File, folder: string = 'uploads'): Promise<string> {
   if (!file) throw new Error("No file provided");
 

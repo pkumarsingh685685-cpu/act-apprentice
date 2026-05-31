@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useStore } from "../store/useStore";
 import { useNavigate } from "react-router-dom";
 import { uploadToStorage } from "../utils/upload";
@@ -781,7 +781,7 @@ function SettingsForm() {
   const handleSave = () => {
     const promise = new Promise((resolve) => {
       Object.entries(localConfig).forEach(([k, v]) => {
-        updateConfig(k as keyof SiteConfig, v);
+        updateConfig(k as keyof SiteConfig, v as string);
       });
       setTimeout(resolve, 300);
     });

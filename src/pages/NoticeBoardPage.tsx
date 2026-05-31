@@ -52,7 +52,7 @@ export default function NoticeBoardPage() {
                 <td className="p-3">
                   <div className="flex items-start">
                     <a
-                      href={item.url}
+                      href={item.viewLink || item.downloadLink}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[#0000ee] hover:underline flex-1 text-[15px]"
