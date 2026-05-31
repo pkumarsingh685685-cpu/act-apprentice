@@ -833,6 +833,36 @@ function SettingsForm() {
             className="w-full p-2 border rounded"
           />
         </div>
+        
+        {/* Cloudinary Settings */}
+        <div className="md:col-span-2 mt-4 pt-4 border-t">
+          <h4 className="text-md font-semibold mb-3">Cloudinary Setup (For Image/PDF Uploads)</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Cloud Name</label>
+              <input
+                name="cloudinaryName"
+                value={localConfig.cloudinaryName || ''}
+                onChange={handleChange}
+                placeholder="e.g. dxyz123"
+                className="w-full p-2 border rounded"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Upload Preset</label>
+              <input
+                name="cloudinaryPreset"
+                value={localConfig.cloudinaryPreset || ''}
+                onChange={handleChange}
+                placeholder="e.g. my_preset"
+                className="w-full p-2 border rounded"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            These settings locally override environment variables.
+          </p>
+        </div>
         <div>
           <label className="block text-sm font-medium mb-1">
             Contact Mobile

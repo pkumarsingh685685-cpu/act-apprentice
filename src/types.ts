@@ -36,6 +36,8 @@ export interface SiteConfig {
   contactMobile: string;
   contactEmail: string;
   contactAddress: string;
+  cloudinaryName?: string;
+  cloudinaryPreset?: string;
 }
 
 export interface LogoItem {
