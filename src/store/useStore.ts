@@ -1,43 +1,8 @@
 import { create } from "zustand";
-import { persist, StateStorage, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
 import { AppState, DocumentCategory, DocumentItem, LinkItem } from "../types";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "../firebase";
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
-
-// Custom Firestore Storage to sync state globally for all users
-const firestoreStorage: StateStorage = {
-  getItem: async (name): Promise<string | null> => {
-    try {
-      const docRef = doc(db, "global", name);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists() && docSnap.data().value) {
-        return docSnap.data().value;
-      }
-      // Fallback to local storage for migration
-      const local = localStorage.getItem(name);
-      if (local) return local;
-    } catch (e) {
-      console.error("Firestore getItem error:", e);
-      return localStorage.getItem(name);
-    }
-    return null;
-  },
-  setItem: async (name, value): Promise<void> => {
-    try {
-      const docRef = doc(db, "global", name);
-      await setDoc(docRef, { value }, { merge: true });
-      localStorage.setItem(name, value); // Keep local backup
-    } catch (e) {
-      console.error("Firestore setItem error:", e);
-      localStorage.setItem(name, value);
-    }
-  },
-  removeItem: async (name): Promise<void> => {
-    localStorage.removeItem(name);
-  },
-};
 
 export const useStore = create<AppState>()(
   persist(
@@ -327,7 +292,6 @@ export const useStore = create<AppState>()(
     }),
     {
       name: "railway-portal-storage",
-      storage: createJSONStorage(() => firestoreStorage),
     },
   ),
 );

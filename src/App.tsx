@@ -46,6 +46,7 @@ function Layout() {
 }
 
 import { Toaster } from "sonner";
+import { FirebaseSync } from "./components/FirebaseSync";
 
 export default function App() {
   const checkSession = useStore((state) => state.checkSession);
@@ -61,6 +62,7 @@ export default function App() {
 
   return (
     <>
+      <FirebaseSync />
       <Toaster position="top-right" richColors />
       <Router>
         <Routes>
