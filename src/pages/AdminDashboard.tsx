@@ -198,16 +198,9 @@ function LogoManager() {
             const ctx = canvas.getContext("2d");
             if (ctx) {
               ctx.drawImage(img, 0, 0, width, height);
-              canvas.toBlob(async (blob) => {
-                if (!blob) return reject(new Error("Failed to create blob"));
-                try {
-                  const url = await uploadToStorage(new File([blob], file.name, { type: 'image/webp' }), 'logos');
-                  updateLogo(key as any, { image: url });
-                  resolve(true);
-                } catch (err) {
-                  reject(err);
-                }
-              }, "image/webp", 0.8);
+              const url = canvas.toDataURL("image/webp", 0.8);
+              updateLogo(key as any, { image: url });
+              resolve(true);
             } else {
               reject();
             }
@@ -360,16 +353,9 @@ function NoticeImageManager() {
             const ctx = canvas.getContext("2d");
             if (ctx) {
               ctx.drawImage(img, 0, 0, width, height);
-              canvas.toBlob(async (blob) => {
-                if (!blob) return reject(new Error("Failed to create blob"));
-                try {
-                  const url = await uploadToStorage(new File([blob], file.name, { type: 'image/webp' }), 'notices');
-                  updateNoticeImage({ image: url });
-                  resolve(true);
-                } catch (err) {
-                  reject(err);
-                }
-              }, "image/webp", 0.8);
+              const url = canvas.toDataURL("image/webp", 0.7);
+              updateNoticeImage({ image: url });
+              resolve(true);
             } else {
               reject();
             }
@@ -552,22 +538,15 @@ function SliderManager() {
             const ctx = canvas.getContext("2d");
             if (ctx) {
               ctx.drawImage(img, 0, 0, width, height);
-              canvas.toBlob(async (blob) => {
-                if (!blob) return reject(new Error("Failed to create blob"));
-                try {
-                  const url = await uploadToStorage(new File([blob], file.name, { type: 'image/webp' }), 'sliders');
-                  addSliderImage({
-                    title: "New Slider Banner",
-                    description: "",
-                    image: url,
-                    enabled: true,
-                    order: sliderImages.length + 1,
-                  });
-                  resolve(true);
-                } catch (err) {
-                  reject(err);
-                }
-              }, "image/webp", 0.8);
+              const url = canvas.toDataURL("image/webp", 0.7);
+              addSliderImage({
+                title: "New Slider Banner",
+                description: "",
+                image: url,
+                enabled: true,
+                order: sliderImages.length + 1,
+              });
+              resolve(true);
             } else {
               reject();
             }
