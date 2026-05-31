@@ -47,16 +47,10 @@ export function Footer() {
       <div className="max-w-7xl mx-auto px-4 mt-8 pt-6 border-t border-[#15304a] flex flex-col md:flex-row justify-between items-center text-xs">
         <p>Copyright &copy; {new Date().getFullYear()} NFR Katihar Division. All rights reserved.</p>
         
-        <div className="mt-4 md:mt-0 animate-rapid-blink border-4 rounded-lg px-4 py-2">
-          <p className="text-white font-medium text-base">
-            Developer Credit:{' '}
-            <span 
-              className="text-2xl" 
-              style={{ fontFamily: "'Dancing Script', cursive", textShadow: "1px 1px 2px rgba(0,0,0,0.8)" }}
-            >
-              Prashant Kumar Singh
-            </span>
-            , Sr.Clerk/Katihar Div.
+        <div className="mt-4 md:mt-0 flex items-center space-x-2">
+          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
+          <p className="text-red-400 font-semibold text-sm animate-pulse tracking-wide">
+            Developer Credit: Prashant Kumar Singh, Sr.Clerk/Katihar Div.
           </p>
         </div>
       </div>
