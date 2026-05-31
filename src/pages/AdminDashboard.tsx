@@ -225,7 +225,7 @@ function LogoManager() {
     toast.promise(promise, {
       loading: "Uploading...",
       success: "Logo Uploaded Successfully",
-      error: "Upload Failed",
+      error: (err: any) => err.message || "Upload Failed",
     });
   };
 
@@ -985,20 +985,20 @@ function DocumentManager({
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium mb-1">
-              Upload Document (PDF/Image) to Firebase
+              Upload Document (PDF/Image) to Cloudinary
             </label>
             <input
               type="file"
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
-                const toastId = toast.loading("Uploading attached document to Firebase...");
+                const toastId = toast.loading("Uploading attached document to Cloudinary...");
                 try {
                   const url = await uploadToStorage(file, "documents");
                   setNewDoc({ ...newDoc, viewLink: url, downloadLink: url });
                   toast.success("Document uploaded successfully", { id: toastId });
-                } catch (err) {
-                  toast.error("Document upload failed", { id: toastId });
+                } catch (err: any) {
+                  toast.error(err.message || "Document upload failed", { id: toastId });
                 }
               }}
               className="w-full p-2 border rounded bg-white"
@@ -1711,7 +1711,7 @@ function AudioManager() {
     toast.promise(promise, {
       loading: "Uploading...",
       success: "Audio Uploaded Successfully",
-      error: "Upload Failed",
+      error: (err: any) => err.message || "Upload Failed",
     });
   };
 
