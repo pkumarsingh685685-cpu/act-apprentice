@@ -4,7 +4,7 @@ export function NewBadge() {
   return (
     <div className="relative inline-flex items-center justify-center w-8 h-8 shrink-0 ml-1 align-middle">
       <div
-        className="absolute inset-0 flex items-center justify-center text-yellow-500 fast-blink drop-shadow-sm"
+        className="absolute inset-0 flex items-center justify-center text-red-600 fast-blink drop-shadow-sm"
       >
         <style>
           {`

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useStore } from "../store/useStore";
 import { useNavigate } from "react-router-dom";
+import { uploadToStorage } from "../utils/upload";
 import {
   LogOut,
   Plus,
@@ -197,9 +198,16 @@ function LogoManager() {
             const ctx = canvas.getContext("2d");
             if (ctx) {
               ctx.drawImage(img, 0, 0, width, height);
-              const dataUrl = canvas.toDataURL("image/webp", 0.8);
-              updateLogo(key as any, { image: dataUrl });
-              setTimeout(resolve, 500); // fake delay
+              canvas.toBlob(async (blob) => {
+                if (!blob) return reject(new Error("Failed to create blob"));
+                try {
+                  const url = await uploadToStorage(new File([blob], file.name, { type: 'image/webp' }), 'logos');
+                  updateLogo(key as any, { image: url });
+                  resolve(true);
+                } catch (err) {
+                  reject(err);
+                }
+              }, "image/webp", 0.8);
             } else {
               reject();
             }
@@ -352,9 +360,16 @@ function NoticeImageManager() {
             const ctx = canvas.getContext("2d");
             if (ctx) {
               ctx.drawImage(img, 0, 0, width, height);
-              const dataUrl = canvas.toDataURL("image/webp", 0.8);
-              updateNoticeImage({ image: dataUrl });
-              setTimeout(resolve, 500);
+              canvas.toBlob(async (blob) => {
+                if (!blob) return reject(new Error("Failed to create blob"));
+                try {
+                  const url = await uploadToStorage(new File([blob], file.name, { type: 'image/webp' }), 'notices');
+                  updateNoticeImage({ image: url });
+                  resolve(true);
+                } catch (err) {
+                  reject(err);
+                }
+              }, "image/webp", 0.8);
             } else {
               reject();
             }
@@ -537,15 +552,22 @@ function SliderManager() {
             const ctx = canvas.getContext("2d");
             if (ctx) {
               ctx.drawImage(img, 0, 0, width, height);
-              const dataUrl = canvas.toDataURL("image/webp", 0.8);
-              addSliderImage({
-                title: "New Slider Banner",
-                description: "",
-                image: dataUrl,
-                enabled: true,
-                order: sliderImages.length + 1,
-              });
-              setTimeout(resolve, 500);
+              canvas.toBlob(async (blob) => {
+                if (!blob) return reject(new Error("Failed to create blob"));
+                try {
+                  const url = await uploadToStorage(new File([blob], file.name, { type: 'image/webp' }), 'sliders');
+                  addSliderImage({
+                    title: "New Slider Banner",
+                    description: "",
+                    image: url,
+                    enabled: true,
+                    order: sliderImages.length + 1,
+                  });
+                  resolve(true);
+                } catch (err) {
+                  reject(err);
+                }
+              }, "image/webp", 0.8);
             } else {
               reject();
             }
@@ -961,9 +983,30 @@ function DocumentManager({
               className="w-full p-2 border rounded"
             />
           </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium mb-1">
+              Upload Document (PDF/Image) to Firebase
+            </label>
+            <input
+              type="file"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const toastId = toast.loading("Uploading attached document to Firebase...");
+                try {
+                  const url = await uploadToStorage(file, "documents");
+                  setNewDoc({ ...newDoc, viewLink: url, downloadLink: url });
+                  toast.success("Document uploaded successfully", { id: toastId });
+                } catch (err) {
+                  toast.error("Document upload failed", { id: toastId });
+                }
+              }}
+              className="w-full p-2 border rounded bg-white"
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium mb-1">
-              Drive View Link
+              File View Link (Auto-filled on upload)
             </label>
             <input
               value={newDoc.viewLink}
@@ -971,12 +1014,12 @@ function DocumentManager({
                 setNewDoc({ ...newDoc, viewLink: e.target.value })
               }
               className="w-full p-2 border rounded"
-              placeholder="https://drive.google.com/..."
+              placeholder="https://..."
             />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">
-              Drive Download Link
+              File Download Link (Auto-filled on upload)
             </label>
             <input
               value={newDoc.downloadLink}
@@ -984,7 +1027,7 @@ function DocumentManager({
                 setNewDoc({ ...newDoc, downloadLink: e.target.value })
               }
               className="w-full p-2 border rounded"
-              placeholder="https://drive.google.com/..."
+              placeholder="https://..."
             />
           </div>
           <div className="md:col-span-2 flex items-center gap-2">
@@ -1654,14 +1697,14 @@ function AudioManager() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const promise = new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        updateAudioAnnouncement({ audio: event.target?.result as string });
-        setTimeout(resolve, 500);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+    const promise = new Promise(async (resolve, reject) => {
+      try {
+        const url = await uploadToStorage(file, 'audio');
+        updateAudioAnnouncement({ audio: url });
+        resolve(true);
+      } catch (err) {
+        reject(err);
+      }
       e.target.value = "";
     });
 
