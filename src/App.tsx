@@ -8,12 +8,15 @@ import {
   Routes,
   Route,
   Outlet,
+  useLocation,
+  useNavigate,
 } from "react-router-dom";
 import { useEffect } from "react";
 import { useStore } from "./store/useStore";
 import { Header } from "./components/Header";
 import { Navigation } from "./components/Navigation";
 import { Footer } from "./components/Footer";
+import { ArrowLeft } from "lucide-react";
 
 // Pages
 import Home from "./pages/Home";
@@ -33,11 +36,26 @@ import LinksPage from "./pages/LinksPage";
 import InternalLinksPage from "./pages/InternalLinksPage";
 
 function Layout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isHome = location.pathname === "/";
+
   return (
     <>
       <Header />
       <Navigation />
-      <main className="flex-1 flex flex-col w-full">
+      <main className="flex-1 flex flex-col w-full relative">
+        {!isHome && (
+          <div className="w-full max-w-7xl mx-auto px-4 md:px-8 mt-4 -mb-2">
+            <button 
+              onClick={() => navigate(-1)} 
+              className="flex items-center gap-2 text-[#152060] hover:bg-blue-50 font-semibold transition-colors bg-white px-3 py-1.5 rounded border border-gray-200 shadow-sm w-fit"
+            >
+              <ArrowLeft size={16} />
+              <span>Back</span>
+            </button>
+          </div>
+        )}
         <Outlet />
       </main>
       <Footer />

@@ -77,7 +77,7 @@ export default function InternalLinksPage() {
 
   return (
     <div className="flex-1 w-full bg-slate-50 py-10 min-h-[500px] animate-fade-in">
-      <div className="max-w-7xl mx-auto px-4 w-full">
+      <div className="w-full px-4">
         <h1 className="text-2xl md:text-3xl font-bold text-[#1c3f60] mb-8 flex items-center gap-2 border-b pb-4">
           <Shield className="text-[#e31837] w-8 h-8" /> Internal Department
           Links

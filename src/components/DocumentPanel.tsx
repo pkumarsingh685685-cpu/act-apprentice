@@ -5,10 +5,104 @@ import { NewBadge } from "./NewBadge";
 interface DocumentPanelProps {
   title: string;
   items: DocumentItem[];
-  theme?: "blue" | "red";
+  theme?: "blue" | "red" | "emerald" | "amber" | "purple" | "teal" | "orange" | "rose" | "indigo" | "news";
   isMarquee?: boolean;
   scrollSpeed?: string;
+  className?: string; // Add className
 }
+
+const themeStyles = {
+  blue: {
+    header: "bg-[#1c3f60] text-white",
+    containerBg: "bg-white",
+    containerBorder: "border-[#1c3f60]/20",
+    itemBg: "bg-white",
+    itemHover: "hover:bg-gray-50",
+    itemBorder: "border-gray-100",
+    text: "text-gray-900",
+  },
+  red: {
+    header: "bg-[#b91c1c] text-white",
+    containerBg: "bg-[#fffdf0]",
+    containerBorder: "border-[#e31837]/30",
+    itemBg: "bg-[#fffdf0]",
+    itemHover: "hover:bg-[#fff5c2]",
+    itemBorder: "border-[#f0e6b2]",
+    text: "text-gray-900",
+  },
+  emerald: {
+    header: "bg-emerald-600 text-white",
+    containerBg: "bg-emerald-50",
+    containerBorder: "border-emerald-200",
+    itemBg: "bg-emerald-50",
+    itemHover: "hover:bg-emerald-100",
+    itemBorder: "border-emerald-200",
+    text: "text-emerald-900",
+  },
+  amber: {
+    header: "bg-amber-600 text-white",
+    containerBg: "bg-amber-50",
+    containerBorder: "border-amber-200",
+    itemBg: "bg-amber-50",
+    itemHover: "hover:bg-amber-100",
+    itemBorder: "border-amber-200",
+    text: "text-black font-bold text-base sm:text-lg",
+  },
+  purple: {
+    header: "bg-purple-600 text-white",
+    containerBg: "bg-purple-50",
+    containerBorder: "border-purple-200",
+    itemBg: "bg-purple-50",
+    itemHover: "hover:bg-purple-100",
+    itemBorder: "border-purple-200",
+    text: "text-purple-900",
+  },
+  teal: {
+    header: "bg-teal-600 text-white",
+    containerBg: "bg-teal-50",
+    containerBorder: "border-teal-200",
+    itemBg: "bg-teal-50",
+    itemHover: "hover:bg-teal-100",
+    itemBorder: "border-teal-200",
+    text: "text-teal-900",
+  },
+  orange: {
+    header: "bg-orange-600 text-white",
+    containerBg: "bg-orange-50",
+    containerBorder: "border-orange-200",
+    itemBg: "bg-orange-50",
+    itemHover: "hover:bg-orange-100",
+    itemBorder: "border-orange-200",
+    text: "text-orange-900",
+  },
+  rose: {
+    header: "bg-rose-600 text-white",
+    containerBg: "bg-rose-50",
+    containerBorder: "border-rose-200",
+    itemBg: "bg-rose-50",
+    itemHover: "hover:bg-rose-100",
+    itemBorder: "border-rose-200",
+    text: "text-rose-900",
+  },
+  indigo: {
+    header: "bg-indigo-600 text-white",
+    containerBg: "bg-indigo-50",
+    containerBorder: "border-indigo-200",
+    itemBg: "bg-indigo-50",
+    itemHover: "hover:bg-indigo-100",
+    itemBorder: "border-indigo-200",
+    text: "text-indigo-900",
+  },
+  news: {
+    header: "bg-slate-800 text-white shadow-md",
+    containerBg: "bg-slate-50",
+    containerBorder: "border-slate-300",
+    itemBg: "bg-white",
+    itemHover: "hover:bg-slate-100",
+    itemBorder: "border-slate-200",
+    text: "text-black text-[14px] sm:text-[15px] leading-snug",
+  }
+};
 
 export function DocumentPanel({
   title,
@@ -16,8 +110,9 @@ export function DocumentPanel({
   theme = "blue",
   isMarquee = false,
   scrollSpeed = "20s",
+  className = "",
 }: DocumentPanelProps) {
-  const isBlue = theme === "blue";
+  const currentTheme = themeStyles[theme] || themeStyles.blue;
 
   // Sort items by order, then by date descending
   const sortedItems = [...items].sort((a, b) => {
@@ -34,15 +129,11 @@ export function DocumentPanel({
       sortedItems.map((item) => (
         <div
           key={item.id}
-          className={`p-4 transition-colors flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center border-b last:border-0 relative ${
-            isBlue
-              ? "bg-white hover:bg-gray-50 border-gray-100"
-              : "bg-[#fffdf0] hover:bg-[#fff5c2] border-[#f0e6b2]"
-          }`}
+          className={`p-4 transition-colors flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center border-b last:border-0 relative ${currentTheme.itemBg} ${currentTheme.itemHover} ${currentTheme.itemBorder}`}
         >
           <div className="flex-1 space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-medium text-gray-900 leading-tight">
+              <h3 className={`font-medium leading-tight ${currentTheme.text}`}>
                 {item.title}
               </h3>
               {item.isNew && <NewBadge />}
@@ -85,16 +176,10 @@ export function DocumentPanel({
 
   return (
     <div
-      className={`rounded-lg shadow-sm border overflow-hidden flex flex-col ${
-        isBlue
-          ? "bg-white border-[#1c3f60]/20"
-          : "bg-[#fffdf0] border-[#e31837]/30"
-      } ${isMarquee ? "h-[380px]" : ""}`}
+      className={`rounded-lg shadow-sm border overflow-hidden flex flex-col ${currentTheme.containerBg} ${currentTheme.containerBorder} ${className || (isMarquee ? "h-[380px]" : "")}`}
     >
       <div
-        className={`p-4 font-semibold text-white flex items-center justify-between shrink-0 relative z-20 ${
-          isBlue ? "bg-[#1c3f60]" : "bg-[#b91c1c]"
-        }`}
+        className={`p-4 font-semibold flex items-center justify-between shrink-0 relative z-20 ${currentTheme.header}`}
       >
         <h2 className="flex items-center gap-2">
           <FileText className="w-5 h-5" />
@@ -107,9 +192,7 @@ export function DocumentPanel({
 
       {isMarquee ? (
         <div
-          className={`flex-1 relative overflow-hidden ${
-            isBlue ? "bg-white" : "bg-[#fffdf0]"
-          }`}
+          className={`flex-1 relative overflow-hidden ${currentTheme.containerBg}`}
         >
           <style>{`
             @keyframes marqueeVertical {

@@ -27,6 +27,12 @@ export function FirebaseSync() {
             isUpdatingFromFirebase.current = false;
           }, 500);
         }
+      } else if (isAdmin) {
+        // Seed initial state if the document does not exist
+        const state = useStore.getState();
+        const cleanState = JSON.parse(JSON.stringify(state));
+        setDoc(docRef, { state: cleanState }, { merge: true })
+          .catch(err => console.error("Initial seed error", err));
       }
     });
 

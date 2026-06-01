@@ -1,3 +1,10 @@
+declare global {
+  interface Window {
+    googleTranslateElementInit: () => void;
+    google: any;
+  }
+}
+
 export interface DocumentItem {
   id: string;
   title: string;
@@ -74,6 +81,16 @@ export interface SiteImages {
   heroBanner: string;
 }
 
+export interface WarningConfig {
+  text: string;
+  enabled: boolean;
+}
+
+export interface VideoConfig {
+  url: string;
+  enabled: boolean;
+}
+
 export interface AppState {
   isAdmin: boolean;
   sessionExpiry: number | null;
@@ -109,6 +126,12 @@ export interface AppState {
   addSliderImage: (image: Omit<SliderImageItem, "id">) => void;
   updateSliderImage: (id: string, image: Partial<SliderImageItem>) => void;
   deleteSliderImage: (id: string) => void;
+
+  warningConfig: WarningConfig;
+  updateWarningConfig: (data: Partial<WarningConfig>) => void;
+
+  videoConfig: VideoConfig;
+  updateVideoConfig: (data: Partial<VideoConfig>) => void;
 
   notices: DocumentItem[];
   notifications: DocumentItem[];

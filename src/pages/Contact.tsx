@@ -5,11 +5,11 @@ export default function Contact() {
   const config = useStore((state) => state.config);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 w-full">
+    <div className="w-full px-4 py-8">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="bg-[#1c3f60] p-6 text-white">
           <h1 className="text-2xl font-bold">Contact Us</h1>
-          <p className="opacity-80 mt-2">Get in touch with the ACT Apprentice Cell Katihar</p>
+          <p className="opacity-80 mt-2">Get in touch with the ACT Apprentice Cell</p>
         </div>
         
         <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">

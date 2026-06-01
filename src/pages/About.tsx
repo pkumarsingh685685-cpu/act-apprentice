@@ -2,16 +2,15 @@ import React from 'react';
 
 export default function About() {
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 w-full">
+    <div className="w-full px-4 py-8">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden text-gray-800 leading-relaxed">
          <div className="bg-[#1c3f60] p-6 text-white border-b-4 border-[#e31837]">
-          <h1 className="text-2xl font-bold">About ACT Apprentice Cell Katihar</h1>
-          <p className="opacity-90 mt-2 font-medium">Northeast Frontier Railway, Katihar Division</p>
+          <h1 className="text-2xl font-bold">About ACT Apprentice Cell</h1>
         </div>
         
         <div className="p-6 md:p-8 space-y-6 text-sm md:text-base">
           <p>
-            Welcome to the official portal of the ACT Apprentice Cell part of the Personnel Branch, Katihar Division (Northeast Frontier Railway). This portal has been designed to provide seamless access to recruitment notices, merit panels, circulars, and other updates relevant to Act Apprentices out of our division.
+            Welcome to the official portal of the ACT Apprentice Cell part of the Personnel Branch. This portal has been designed to provide seamless access to recruitment notices, merit panels, circulars, and other updates relevant to Act Apprentices out of our division.
           </p>
 
           <h2 className="text-xl font-bold text-[#1c3f60] mt-8 mb-4 border-b pb-2">Our Objective</h2>

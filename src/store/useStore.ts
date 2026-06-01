@@ -28,7 +28,7 @@ export const useStore = create<AppState>()(
         email: "info@nfr.railnet.gov.in",
         address: "DRM Office, Katihar",
         marqueeText:
-          "Welcome to ACT Apprentice Cell Katihar. Latest merit panel for 2025 has been published.",
+          "Welcome to ACT Apprentice Cell. Latest merit panel for 2025 has been published.",
         contactMobile: "8709796234",
         contactEmail: "actadmin.kir@gmail.com",
         contactAddress:
@@ -38,16 +38,16 @@ export const useStore = create<AppState>()(
         set((state) => ({ config: { ...state.config, [key]: value } })),
 
       headerConfig: {
-        mainTitleText: "ACT Apprentice Cell Katihar",
+        mainTitleText: "ACT APPRENTICE CELL",
         mainTitleEnabled: true,
-        railwayHindiText: "पूर्व सीमांत रेलवे",
-        railwayHindiEnabled: true,
-        railwayEnglishText: "Northeast Frontier Railway",
-        railwayEnglishEnabled: true,
-        divisionHindiText: "कटिहार मंडल",
-        divisionHindiEnabled: true,
-        divisionEnglishText: "Katihar Division",
-        divisionEnglishEnabled: true,
+        railwayHindiText: "",
+        railwayHindiEnabled: false,
+        railwayEnglishText: "",
+        railwayEnglishEnabled: false,
+        divisionHindiText: "",
+        divisionHindiEnabled: false,
+        divisionEnglishText: "",
+        divisionEnglishEnabled: false,
       },
       updateHeaderConfig: (config) => set({ headerConfig: config }),
 
@@ -93,6 +93,24 @@ export const useStore = create<AppState>()(
       deleteSliderImage: (id) =>
         set((state) => ({
           sliderImages: state.sliderImages.filter((img) => img.id !== id),
+        })),
+
+      warningConfig: {
+        text: "Please be aware of fake job offers. Railway recruitment is done only through official channels.",
+        enabled: true,
+      },
+      updateWarningConfig: (data) =>
+        set((state) => ({
+          warningConfig: { ...state.warningConfig, ...data },
+        })),
+
+      videoConfig: {
+        url: "",
+        enabled: true,
+      },
+      updateVideoConfig: (data) =>
+        set((state) => ({
+          videoConfig: { ...state.videoConfig, ...data },
         })),
 
       images: {

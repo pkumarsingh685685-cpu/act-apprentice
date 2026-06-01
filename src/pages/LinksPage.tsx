@@ -5,7 +5,7 @@ export default function LinksPage() {
   const links = useStore((state) => state.externalLinks);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 w-full">
+    <div className="w-full px-4 py-8">
       <div className="bg-white rounded-lg shadow-sm border border-[#1c3f60]/20 overflow-hidden">
         <div className="p-4 font-semibold text-white flex items-center justify-between bg-[#1c3f60]">
           <h2>Important Links</h2>

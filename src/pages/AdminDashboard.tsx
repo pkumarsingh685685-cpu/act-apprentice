@@ -54,6 +54,8 @@ export default function AdminDashboard() {
     { id: "logo", name: "Logo Management", icon: ImageIcon },
     { id: "slider", name: "Banner & Slider Management", icon: ImageIcon },
     { id: "noticeImage", name: "Homepage Image Management", icon: ImageIcon },
+    { id: "video", name: "Video Management", icon: ImageIcon },
+    { id: "warning", name: "Warning Management", icon: Settings },
     { id: "notices", name: "Notices", icon: FileText },
     { id: "notifications", name: "Notifications", icon: FileText },
     { id: "meritPanels", name: "Merit Panels", icon: List },
@@ -139,6 +141,8 @@ export default function AdminDashboard() {
           {activeTab === "logo" && <LogoManager />}
           {activeTab === "slider" && <SliderManager />}
           {activeTab === "noticeImage" && <NoticeImageManager />}
+          {activeTab === "warning" && <WarningManager />}
+          {activeTab === "video" && <VideoManager />}
           {[
             "notices",
             "notifications",
@@ -156,6 +160,152 @@ export default function AdminDashboard() {
           {activeTab === "externalLinks" && <ExternalLinksManager />}
           {activeTab === "internalLinks" && <InternalLinksManager />}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Warning Manager
+function WarningManager() {
+  const warningConfig = useStore((state) => state.warningConfig);
+  const updateWarningConfig = useStore((state) => state.updateWarningConfig);
+
+  const handleSave = () => {
+    toast.success("Warning config saved successfully!");
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="border-b pb-2">
+        <h3 className="text-lg font-semibold">Warning Management</h3>
+        <p className="text-sm text-gray-500">
+          Set up the warning box that appears on the homepage to alert users regarding important notices.
+        </p>
+      </div>
+
+      <div className="border rounded p-4 bg-white shadow-sm space-y-4">
+        <label className="flex items-center gap-2 cursor-pointer mb-2">
+          <input
+            type="checkbox"
+            checked={warningConfig.enabled}
+            onChange={(e) => updateWarningConfig({ enabled: e.target.checked })}
+            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+          />
+          <span className="font-semibold text-gray-700">Enable Warning Box</span>
+        </label>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">
+            Warning Text
+          </label>
+          <textarea
+            value={warningConfig.text}
+            onChange={(e) => updateWarningConfig({ text: e.target.value })}
+            rows={4}
+            className="w-full p-2 border rounded text-gray-700 focus:ring-2 focus:ring-blue-500"
+            placeholder="Warning message to display..."
+          />
+        </div>
+
+        <button
+          onClick={handleSave}
+          className="bg-[#1c3f60] text-white px-4 py-2 rounded font-medium hover:bg-blue-900 transition shadow"
+        >
+          Save Warning
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Video Manager
+function VideoManager() {
+  const videoConfig = useStore((state) => state.videoConfig);
+  const updateVideoConfig = useStore((state) => state.updateVideoConfig);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("video/")) {
+      toast.error("Please select a valid video file.");
+      return;
+    }
+
+    const toastId = toast.loading("Uploading video to Cloudinary...");
+    try {
+      const url = await uploadToStorage(file, "videos");
+      updateVideoConfig({ url });
+      toast.success("Video uploaded successfully!", { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || "Video upload failed", { id: toastId });
+    }
+  };
+
+  const handleSave = () => {
+    toast.success("Video config saved successfully!");
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="border-b pb-2">
+        <h3 className="text-lg font-semibold">Video Management</h3>
+        <p className="text-sm text-gray-500">
+          Upload an information video to be displayed directly on the homepage.
+        </p>
+      </div>
+
+      <div className="border rounded p-4 bg-white shadow-sm space-y-4">
+        <label className="flex items-center gap-2 cursor-pointer mb-2">
+          <input
+            type="checkbox"
+            checked={videoConfig.enabled}
+            onChange={(e) => updateVideoConfig({ enabled: e.target.checked })}
+            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+          />
+          <span className="font-semibold text-gray-700">Enable Video Player</span>
+        </label>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">
+            Video URL (Cloudinary or Direct Link)
+          </label>
+          <input
+            type="url"
+            value={videoConfig.url}
+            onChange={(e) => updateVideoConfig({ url: e.target.value })}
+            className="w-full p-2 border rounded font-medium text-gray-700 mb-3"
+            placeholder="https://..."
+          />
+
+          <label className="cursor-pointer bg-emerald-600 text-white px-4 py-2 rounded font-medium hover:bg-emerald-700 transition shadow inline-flex items-center gap-2">
+            <Upload size={18} /> Upload Video
+            <input
+              type="file"
+              accept="video/mp4, video/webm, video/ogg"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </label>
+        </div>
+
+        {videoConfig.url && (
+          <div className="mt-4 border rounded p-2 bg-gray-50">
+            <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Video Preview Preview</h4>
+            <video
+              src={videoConfig.url}
+              controls
+              className="w-full max-h-64 object-contain rounded bg-black"
+            />
+          </div>
+        )}
+
+        <button
+          onClick={handleSave}
+          className="bg-[#1c3f60] text-white px-4 py-2 rounded font-medium hover:bg-blue-900 transition shadow"
+        >
+          Save Video Configuration
+        </button>
       </div>
     </div>
   );

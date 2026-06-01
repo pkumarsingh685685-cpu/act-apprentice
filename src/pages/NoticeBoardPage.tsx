@@ -23,7 +23,7 @@ export default function NoticeBoardPage() {
   });
 
   return (
-    <div className="flex-1 w-full bg-white px-2 py-4 sm:px-4 sm:py-8 max-w-7xl mx-auto">
+    <div className="flex-1 w-full bg-white px-2 py-4 sm:px-4 sm:py-8">
       <div className="border border-[#b5c5d5] rounded-sm shadow-sm overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[600px]">
           <thead>

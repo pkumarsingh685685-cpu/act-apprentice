@@ -6,8 +6,10 @@ import { Link } from "react-router-dom";
 import { PlaceholderImage } from "../components/PlaceholderImage";
 
 import { HeroSlider } from "../components/HeroSlider";
+import { WarningBox } from "../components/WarningBox";
+import { VideoPlayerBox } from "../components/VideoPlayerBox";
 
-function NoticeBoardImage() {
+function NoticeBoardImage({ className }: { className?: string }) {
   const noticeImage = useStore((state) => state.noticeImage);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -21,7 +23,7 @@ function NoticeBoardImage() {
           100% { transform: rotate(360deg); }
         }
       `}</style>
-      <div className="w-full rounded-lg shadow-sm bg-white group relative overflow-hidden p-[2px]">
+      <div className={`w-full h-full rounded-lg shadow-sm bg-white group relative overflow-hidden p-[2px] flex flex-col min-h-[150px] ${className || ""}`}>
         <div
           className="absolute top-1/2 left-1/2 w-[200%] h-[200%] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
           style={{
@@ -30,16 +32,16 @@ function NoticeBoardImage() {
             animation: "spin-slow 3s linear infinite",
           }}
         />
-        <div className="relative z-10 bg-white w-full rounded-md overflow-hidden">
+        <div className="relative z-10 bg-white w-full h-full rounded-md overflow-hidden flex flex-col flex-1">
           {noticeImage.image ? (
             <div
               onClick={() => setIsModalOpen(true)}
-              className="relative w-full aspect-[4/3] bg-gray-100 overflow-hidden text-center flex flex-col items-center justify-center cursor-pointer block"
+              className="relative w-full h-full bg-gray-100 overflow-hidden text-center flex flex-col items-center justify-center cursor-pointer block flex-1"
             >
               <img
                 src={noticeImage.image}
                 alt={noticeImage.title}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
               {(noticeImage.title || noticeImage.description) && (
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 text-left pointer-events-none">
@@ -57,10 +59,10 @@ function NoticeBoardImage() {
               )}
             </div>
           ) : (
-            <div className="relative w-full aspect-[4/3] bg-gray-100 flex items-center justify-center">
+            <div className="relative w-full h-full bg-gray-100 flex items-center justify-center flex-1">
               <PlaceholderImage
                 text="Railway Notice Image"
-                className="!bg-transparent text-gray-400 border-none w-full h-full opacity-50"
+                className="!bg-transparent text-gray-400 border-none w-full h-full opacity-50 absolute inset-0"
               />
             </div>
           )}
@@ -116,10 +118,16 @@ export default function Home() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
 
+  const videoConfig = useStore((state) => state.videoConfig);
+
+  // Determine grid sizing based on video presence
+  const showVideoConfig = videoConfig?.enabled && videoConfig?.url;
+  const leftColSpan = showVideoConfig ? "lg:col-span-2" : "lg:col-span-3";
+
   return (
     <div className="flex-1 flex flex-col pt-4 pb-8 space-y-6">
       {/* Marquee Section */}
-      <div className="max-w-7xl mx-auto px-4 w-full">
+      <div className="w-full mx-auto px-4 md:px-8">
         <div className="bg-red-50 border border-red-200 px-4 py-2 flex items-center rounded-md font-medium text-sm shadow-sm overflow-hidden">
           <div className="shrink-0 font-bold bg-[#e31837] text-white px-3 py-1 rounded shadow-sm mr-3 uppercase tracking-wider text-xs">
             Latest Updates
@@ -136,9 +144,9 @@ export default function Home() {
       </div>
 
       {/* Hero / Dashboard Grid */}
-      <div className="max-w-7xl mx-auto px-4 w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="w-full mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch">
         {/* Left Col: Hero Image & Quick Links */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
+        <div className={`${leftColSpan} flex flex-col gap-6 h-full`}>
           <HeroSlider />
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -170,55 +178,64 @@ export default function Home() {
 
           {/* Disclosures & Disclaimer */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-              <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Disclosures</h3>
-              <p className="text-sm text-gray-600">
+            <div className="bg-rose-50 p-4 rounded-xl shadow-sm border border-rose-200">
+              <h3 className="font-semibold text-rose-900 border-b border-rose-200 pb-2 mb-2">Disclosures</h3>
+              <p className="text-sm text-rose-800">
                 Public disclosure, through the portal, of scores of candidates not recommended by the Board against the result of an examination
               </p>
             </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-              <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Disclaimer</h3>
-              <p className="text-sm text-gray-600">
+            <div className="bg-orange-50 p-4 rounded-xl shadow-sm border border-orange-200 h-full">
+              <h3 className="font-semibold text-orange-900 border-b border-orange-200 pb-2 mb-2">Disclaimer</h3>
+              <p className="text-sm text-orange-800">
                 The contents of this site should not be construed as an exhaustive statement of the law.
               </p>
             </div>
           </div>
         </div>
 
+        {/* Middle Col: Video Info */}
+        {showVideoConfig && (
+          <div className="lg:col-span-1 flex flex-col gap-6 h-full">
+            <VideoPlayerBox />
+          </div>
+        )}
+
         {/* Right Col: Notice Board */}
-        <div className="lg:col-span-1 flex flex-col gap-6">
+        <div className="lg:col-span-1 flex flex-col gap-6 h-full">
           <DocumentPanel
-            title="Notice Board"
+            title="LATEST NEWS"
             items={top5Recent}
-            theme="red"
+            theme="news"
             isMarquee={true}
             scrollSpeed="10s"
+            className="flex-[2] w-full min-h-0"
           />
-          <NoticeBoardImage />
+          <WarningBox className="shrink-0 w-full flex flex-col justify-center min-h-[60px]" />
+          <NoticeBoardImage className="flex-[1.2] w-full flex flex-col" />
         </div>
       </div>
 
       {/* Circulars Section */}
-      <div className="max-w-7xl mx-auto px-4 w-full grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+      <div className="w-full mx-auto px-4 md:px-8 grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
         <DocumentPanel
           title="Latest DAR Circulars"
           items={darCirculars}
-          theme="blue"
+          theme="teal"
         />
         <DocumentPanel
           title="Latest Act Apprentice Circulars"
           items={actCirculars}
-          theme="blue"
+          theme="purple"
         />
       </div>
 
       {/* Important Links */}
-      <div className="max-w-7xl mx-auto px-4 w-full mt-4">
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-          <div className="p-5 font-bold text-white bg-gradient-to-r from-blue-800 to-blue-600 border-b border-blue-900 tracking-wide uppercase text-lg shadow-inner">
+      <div className="w-full mx-auto px-4 md:px-8 mt-4">
+        <div className="bg-emerald-50 rounded-xl shadow-md border border-emerald-200 overflow-hidden">
+          <div className="p-5 font-bold text-white bg-emerald-600 tracking-wide uppercase text-lg shadow-inner">
             <h3>Railways Website Link</h3>
           </div>
-          <div className="p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 bg-gray-50">
+          <div className="p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 bg-emerald-50">
             {links
               .sort((a, b) => a.order - b.order)
               .map((link) => (
@@ -227,12 +244,12 @@ export default function Home() {
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:bg-gradient-to-r hover:from-blue-600 hover:to-blue-700 hover:border-transparent transition-all duration-300 shadow-sm hover:shadow-md group transform hover:-translate-y-1"
+                  className="flex items-center justify-between p-4 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-100 hover:border-emerald-300 transition-all duration-300 shadow-sm hover:shadow-md group transform hover:-translate-y-1"
                 >
-                  <span className="text-sm font-bold text-gray-800 group-hover:text-white tracking-wider flex-1 pr-2">
+                  <span className="text-sm font-bold text-emerald-900 group-hover:text-emerald-700 tracking-wider flex-1 pr-2">
                     {link.name}
                   </span>
-                  <ExternalLink className="w-5 h-5 text-blue-600 group-hover:text-white flex-shrink-0" />
+                  <ExternalLink className="w-5 h-5 text-emerald-600 group-hover:text-emerald-800 flex-shrink-0" />
                 </a>
               ))}
           </div>

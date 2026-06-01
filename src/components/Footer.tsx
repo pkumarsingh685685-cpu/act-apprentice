@@ -8,7 +8,7 @@ export function Footer() {
   
   return (
     <footer className="bg-[#1c3f60] text-gray-200 mt-12 py-8 mt-auto">
-      <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="w-full mx-auto px-4 sm:px-8 grid grid-cols-1 md:grid-cols-3 gap-8">
         <div>
           <h3 className="text-lg font-semibold text-white border-b border-gray-600 pb-2 mb-4">
             Contact Information
@@ -39,17 +39,23 @@ export function Footer() {
             About Portal
           </h3>
           <p className="text-sm leading-relaxed">
-            Official recruitment portal for ACT Apprentices in Northeast Frontier Railway, Katihar Division.
+            Official recruitment portal for ACT Apprentices.
           </p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 mt-8 pt-6 border-t border-[#15304a] flex flex-col md:flex-row justify-between items-center text-xs">
-        <p>Copyright &copy; {new Date().getFullYear()} NFR Katihar Division. All rights reserved.</p>
+      <div className="w-full mx-auto px-4 sm:px-8 mt-8 pt-6 border-t border-[#15304a] flex flex-col md:flex-row justify-between items-center text-xs">
+        <p>Copyright &copy; {new Date().getFullYear()} ACT Apprentice Cell. All rights reserved.</p>
         
-        <div className="mt-4 md:mt-0 flex items-center space-x-2">
-          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
-          <p className="text-red-400 font-semibold text-sm animate-pulse tracking-wide">
+        <div className="mt-4 md:mt-0 relative px-4 py-2 rounded flex items-center overflow-hidden">
+          <style>{`
+            @keyframes bg-bhuk-bhak {
+              0%, 100% { background-color: transparent; }
+              50% { background-color: rgba(220, 38, 38, 0.9); }
+            }
+          `}</style>
+          <div className="absolute inset-0" style={{ animation: "bg-bhuk-bhak 1s infinite" }}></div>
+          <p className="relative z-10 text-white font-bold text-base md:text-[17px] tracking-wide drop-shadow-md">
             Developer Credit: Prashant Kumar Singh, Sr.Clerk/Katihar Div.
           </p>
         </div>

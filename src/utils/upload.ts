@@ -15,9 +15,6 @@ export async function uploadToStorage(file: File, folder: string = 'uploads'): P
   const formData = new FormData();
   formData.append("file", file);
   formData.append("upload_preset", uploadPreset);
-  if (folder) {
-    formData.append("folder", folder);
-  }
 
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
