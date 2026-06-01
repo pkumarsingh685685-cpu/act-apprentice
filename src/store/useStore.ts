@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AppState, DocumentCategory, DocumentItem, LinkItem } from "../types";
+import { db } from "../firebase";
+import { doc, setDoc, deleteDoc } from "firebase/firestore";
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -34,8 +36,11 @@ export const useStore = create<AppState>()(
         contactAddress:
           "DRM Office, Katihar, Bihar 854105, Personnel Branch, Act Apprentice Cell",
       },
-      updateConfig: (key, value) =>
-        set((state) => ({ config: { ...state.config, [key]: value } })),
+      updateConfig: (key, value) => set((state) => {
+        const newConfig = { ...state.config, [key]: value };
+        setDoc(doc(db, "settings", "config"), newConfig).catch(console.error);
+        return { config: newConfig };
+      }),
 
       headerConfig: {
         mainTitleText: "ACT APPRENTICE CELL",
@@ -49,17 +54,28 @@ export const useStore = create<AppState>()(
         divisionEnglishText: "",
         divisionEnglishEnabled: false,
       },
-      updateHeaderConfig: (config) => set({ headerConfig: config }),
+      updateHeaderConfig: (config) => set((state) => {
+        setDoc(doc(db, "settings", "headerConfig"), config).catch(console.error);
+        return { headerConfig: config };
+      }),
 
       logos: {
         railwayLogo: { image: "", enabled: true },
         govLogo: { image: "", enabled: true },
         nationalEmblem: { image: "", enabled: true },
       },
-      updateLogo: (key, data) =>
-        set((state) => ({
-          logos: { ...state.logos, [key]: { ...state.logos[key], ...data } },
-        })),
+      updateLogo: (key, data) => set((state) => {
+        const newLogos = { ...state.logos, [key]: { ...state.logos[key], ...data } };
+        setDoc(doc(db, "logos", key), {
+          id: key,
+          title: key,
+          url: newLogos[key].image,
+          type: "image",
+          enabled: newLogos[key].enabled,
+          createdAt: new Date().toISOString()
+        }).catch(console.error);
+        return { logos: newLogos };
+      }),
 
       noticeImage: {
         image: "",
@@ -67,51 +83,95 @@ export const useStore = create<AppState>()(
         description: "Updates and information.",
         enabled: true,
       },
-      updateNoticeImage: (data) =>
-        set((state) => ({ noticeImage: { ...state.noticeImage, ...data } })),
+      updateNoticeImage: (data) => set((state) => {
+        const newNoticeImage = { ...state.noticeImage, ...data };
+        setDoc(doc(db, "images", "homepage_notice"), {
+          id: "homepage_notice",
+          category: "noticeImage",
+          title: newNoticeImage.title,
+          description: newNoticeImage.description,
+          url: newNoticeImage.image || "",
+          type: "image",
+          enabled: newNoticeImage.enabled,
+          createdAt: new Date().toISOString()
+        }).catch(console.error);
+        return { noticeImage: newNoticeImage };
+      }),
 
       audioAnnouncement: {
         audio: "",
         enabled: true,
       },
-      updateAudioAnnouncement: (data) =>
-        set((state) => ({
-          audioAnnouncement: { ...state.audioAnnouncement, ...data },
-        })),
+      updateAudioAnnouncement: (data) => set((state) => {
+        const newAudioAnnouncement = { ...state.audioAnnouncement, ...data };
+        setDoc(doc(db, "settings", "audioAnnouncement"), newAudioAnnouncement).catch(console.error);
+        return { audioAnnouncement: newAudioAnnouncement };
+      }),
 
       sliderImages: [],
-      addSliderImage: (image) =>
-        set((state) => ({
-          sliderImages: [...state.sliderImages, { ...image, id: generateId() }],
-        })),
-      updateSliderImage: (id, data) =>
-        set((state) => ({
-          sliderImages: state.sliderImages.map((img) =>
-            img.id === id ? { ...img, ...data } : img,
-          ),
-        })),
-      deleteSliderImage: (id) =>
-        set((state) => ({
-          sliderImages: state.sliderImages.filter((img) => img.id !== id),
-        })),
+      addSliderImage: (image) => set((state) => {
+        const id = generateId();
+        const newImage = { ...image, id };
+        setDoc(doc(db, "images", id), {
+          id,
+          category: "slider",
+          title: newImage.title,
+          description: newImage.description,
+          url: newImage.image,
+          type: "image",
+          enabled: newImage.enabled,
+          order: newImage.order,
+          createdAt: new Date().toISOString()
+        }).catch(console.error);
+        return { sliderImages: [...state.sliderImages, newImage] };
+      }),
+      updateSliderImage: (id, data) => set((state) => {
+        const updatedImages = state.sliderImages.map((img) => img.id === id ? { ...img, ...data } : img);
+        const newImage = updatedImages.find((img) => img.id === id);
+        if (newImage) setDoc(doc(db, "images", id), {
+          id,
+          category: "slider",
+          title: newImage.title,
+          description: newImage.description,
+          url: newImage.image,
+          type: "image",
+          enabled: newImage.enabled,
+          order: newImage.order,
+          createdAt: new Date().toISOString()
+        }).catch(console.error);
+        return { sliderImages: updatedImages };
+      }),
+      deleteSliderImage: (id) => set((state) => {
+        deleteDoc(doc(db, "images", id)).catch(console.error);
+        return { sliderImages: state.sliderImages.filter((img) => img.id !== id) };
+      }),
 
       warningConfig: {
         text: "Please be aware of fake job offers. Railway recruitment is done only through official channels.",
         enabled: true,
       },
-      updateWarningConfig: (data) =>
-        set((state) => ({
-          warningConfig: { ...state.warningConfig, ...data },
-        })),
+      updateWarningConfig: (data) => set((state) => {
+        const newWarningConfig = { ...state.warningConfig, ...data };
+        setDoc(doc(db, "settings", "warningConfig"), newWarningConfig).catch(console.error);
+        return { warningConfig: newWarningConfig };
+      }),
 
       videoConfig: {
         url: "",
         enabled: true,
       },
-      updateVideoConfig: (data) =>
-        set((state) => ({
-          videoConfig: { ...state.videoConfig, ...data },
-        })),
+      updateVideoConfig: (data) => set((state) => {
+        const newVideoConfig = { ...state.videoConfig, ...data };
+        setDoc(doc(db, "videos", "homepage_video"), {
+           id: "homepage_video",
+           title: "Homepage Video",
+           url: newVideoConfig.url,
+           type: "video",
+           enabled: newVideoConfig.enabled,
+           createdAt: new Date().toISOString()
+        }).catch(console.error);
+        return { videoConfig: newVideoConfig };
+      }),
 
       images: {
         railwayLogo: "",
@@ -119,8 +179,11 @@ export const useStore = create<AppState>()(
         nationalEmblem: "",
         heroBanner: "",
       },
-      updateImage: (key, base64) =>
-        set((state) => ({ images: { ...state.images, [key]: base64 } })),
+      updateImage: (key, base64) => set((state) => {
+        const newImages = { ...state.images, [key]: base64 };
+        setDoc(doc(db, "settings", "images"), newImages).catch(console.error);
+        return { images: newImages };
+      }),
 
       notices: [
         {
@@ -234,79 +297,105 @@ export const useStore = create<AppState>()(
         },
       ],
 
-      addDocument: (type, doc) =>
-        set((state) => ({
-          [type]: [...state[type], { ...doc, id: generateId() }],
-        })),
+      addDocument: (type, docData) => set((state) => {
+        const id = generateId();
+        const newDoc = { ...docData, id };
+        setDoc(doc(db, "documents", id), {
+          id,
+          category: type,
+          title: newDoc.title,
+          url: newDoc.downloadLink || newDoc.viewLink,
+          viewLink: newDoc.viewLink,
+          downloadLink: newDoc.downloadLink,
+          type: "pdf",
+          date: newDoc.date,
+          isNew: newDoc.isNew,
+          order: newDoc.order,
+          createdAt: new Date().toISOString()
+        }).catch(console.error);
+        return { [type]: [...state[type], newDoc] };
+      }),
 
-      updateDocument: (type, id, updatedDoc) =>
-        set((state) => ({
-          [type]: state[type].map((doc) =>
-            doc.id === id ? { ...doc, ...updatedDoc } : doc,
-          ),
-        })),
+      updateDocument: (type, id, updatedDoc) => set((state) => {
+        const updatedDocs = state[type].map((d) => d.id === id ? { ...d, ...updatedDoc } : d);
+        const newDoc = updatedDocs.find((d) => d.id === id);
+        if (newDoc) setDoc(doc(db, "documents", id), {
+          id,
+          category: type,
+          title: newDoc.title,
+          url: newDoc.downloadLink || newDoc.viewLink,
+          viewLink: newDoc.viewLink,
+          downloadLink: newDoc.downloadLink,
+          type: "pdf",
+          date: newDoc.date,
+          isNew: newDoc.isNew,
+          order: newDoc.order,
+          createdAt: new Date().toISOString()
+        }).catch(console.error);
+        return { [type]: updatedDocs };
+      }),
 
-      deleteDocument: (type, id) =>
-        set((state) => ({
-          [type]: state[type].filter((doc) => doc.id !== id),
-        })),
+      deleteDocument: (type, id) => set((state) => {
+        deleteDoc(doc(db, "documents", id)).catch(console.error);
+        return { [type]: state[type].filter((d) => d.id !== id) };
+      }),
 
-      addLink: (link) =>
-        set((state) => ({
-          links: [...state.links, { ...link, id: generateId() }],
-        })),
+      addLink: (link) => set((state) => {
+        const id = generateId();
+        const newLink = { ...link, id };
+        setDoc(doc(db, "links", id), newLink).catch(console.error);
+        return { links: [...state.links, newLink] };
+      }),
 
-      updateLink: (id, updatedLink) =>
-        set((state) => ({
-          links: state.links.map((link) =>
-            link.id === id ? { ...link, ...updatedLink } : link,
-          ),
-        })),
+      updateLink: (id, updatedLink) => set((state) => {
+        const updatedLinks = state.links.map((link) => link.id === id ? { ...link, ...updatedLink } : link);
+        const newLink = updatedLinks.find((link) => link.id === id);
+        if (newLink) setDoc(doc(db, "links", id), newLink).catch(console.error);
+        return { links: updatedLinks };
+      }),
 
-      deleteLink: (id) =>
-        set((state) => ({
-          links: state.links.filter((link) => link.id !== id),
-        })),
+      deleteLink: (id) => set((state) => {
+        deleteDoc(doc(db, "links", id)).catch(console.error);
+        return { links: state.links.filter((link) => link.id !== id) };
+      }),
 
-      addExternalLink: (link) =>
-        set((state) => ({
-          externalLinks: [
-            ...state.externalLinks,
-            { ...link, id: generateId() },
-          ],
-        })),
+      addExternalLink: (link) => set((state) => {
+        const id = generateId();
+        const newLink = { ...link, id };
+        setDoc(doc(db, "externalLinks", id), newLink).catch(console.error);
+        return { externalLinks: [...state.externalLinks, newLink] };
+      }),
 
-      updateExternalLink: (id, updatedLink) =>
-        set((state) => ({
-          externalLinks: state.externalLinks.map((link) =>
-            link.id === id ? { ...link, ...updatedLink } : link,
-          ),
-        })),
+      updateExternalLink: (id, updatedLink) => set((state) => {
+        const updatedLinks = state.externalLinks.map((link) => link.id === id ? { ...link, ...updatedLink } : link);
+        const newLink = updatedLinks.find((link) => link.id === id);
+        if (newLink) setDoc(doc(db, "externalLinks", id), newLink).catch(console.error);
+        return { externalLinks: updatedLinks };
+      }),
 
-      deleteExternalLink: (id) =>
-        set((state) => ({
-          externalLinks: state.externalLinks.filter((link) => link.id !== id),
-        })),
+      deleteExternalLink: (id) => set((state) => {
+        deleteDoc(doc(db, "externalLinks", id)).catch(console.error);
+        return { externalLinks: state.externalLinks.filter((link) => link.id !== id) };
+      }),
 
-      addInternalLink: (link) =>
-        set((state) => ({
-          internalLinks: [
-            ...state.internalLinks,
-            { ...link, id: generateId() },
-          ],
-        })),
+      addInternalLink: (link) => set((state) => {
+        const id = generateId();
+        const newLink = { ...link, id };
+        setDoc(doc(db, "internalLinks", id), newLink).catch(console.error);
+        return { internalLinks: [...state.internalLinks, newLink] };
+      }),
 
-      updateInternalLink: (id, updatedLink) =>
-        set((state) => ({
-          internalLinks: state.internalLinks.map((link) =>
-            link.id === id ? { ...link, ...updatedLink } : link,
-          ),
-        })),
+      updateInternalLink: (id, updatedLink) => set((state) => {
+        const updatedLinks = state.internalLinks.map((link) => link.id === id ? { ...link, ...updatedLink } : link);
+        const newLink = updatedLinks.find((link) => link.id === id);
+        if (newLink) setDoc(doc(db, "internalLinks", id), newLink).catch(console.error);
+        return { internalLinks: updatedLinks };
+      }),
 
-      deleteInternalLink: (id) =>
-        set((state) => ({
-          internalLinks: state.internalLinks.filter((link) => link.id !== id),
-        })),
+      deleteInternalLink: (id) => set((state) => {
+        deleteDoc(doc(db, "internalLinks", id)).catch(console.error);
+        return { internalLinks: state.internalLinks.filter((link) => link.id !== id) };
+      }),
     }),
     {
       name: "railway-portal-storage",

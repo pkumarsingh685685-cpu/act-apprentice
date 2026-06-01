@@ -4,6 +4,51 @@ service cloud.firestore {
     match /global/{docId} {
       allow read, write: if true;
     }
+    match /settings/{docId} {
+      allow read, write: if true;
+    }
+    match /sliderImages/{docId} {
+      allow read, write: if true;
+    }
+    match /notices/{docId} {
+      allow read, write: if true;
+    }
+    match /notifications/{docId} {
+      allow read, write: if true;
+    }
+    match /meritPanels/{docId} {
+      allow read, write: if true;
+    }
+    match /results/{docId} {
+      allow read, write: if true;
+    }
+    match /darCirculars/{docId} {
+      allow read, write: if true;
+    }
+    match /actCirculars/{docId} {
+      allow read, write: if true;
+    }
+    match /links/{docId} {
+      allow read, write: if true;
+    }
+    match /externalLinks/{docId} {
+      allow read, write: if true;
+    }
+    match /internalLinks/{docId} {
+      allow read, write: if true;
+    }
+    match /videos/{docId} {
+      allow read, write: if true;
+    }
+    match /images/{docId} {
+      allow read, write: if true;
+    }
+    match /documents/{docId} {
+      allow read, write: if true;
+    }
+    match /logos/{docId} {
+      allow read, write: if true;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

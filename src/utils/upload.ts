@@ -8,8 +8,19 @@ export async function uploadToStorage(file: File, folder: string = 'uploads'): P
   const cloudName = config.cloudinaryName || import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
   const uploadPreset = config.cloudinaryPreset || import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
+  // Fallback to Firebase Storage if Cloudinary is not configured
   if (!cloudName || !uploadPreset) {
-    throw new Error("Cloudinary setup is incomplete. Please set Cloudinary Cloud Name and Upload Preset in Admin Settings -> Global Settings.");
+    try {
+      const { storage } = await import('../firebase');
+      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+      const storageRef = ref(storage, `${folder}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`);
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+      return downloadUrl;
+    } catch (err) {
+      console.error("Firebase Storage Upload Error:", err);
+      throw new Error("Cloudinary is not configured, and Firebase Storage fallback failed. Please configure Cloudinary.");
+    }
   }
 
   const formData = new FormData();

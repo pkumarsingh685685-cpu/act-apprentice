@@ -1,100 +1,153 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useStore } from "../store/useStore";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { doc, collection, onSnapshot, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../firebase";
 
 export function FirebaseSync() {
-  const isAdmin = useStore((state) => state.isAdmin);
-  const isUpdatingFromFirebase = useRef(false);
-
-  // Read snapshot
   useEffect(() => {
-    const docRef = doc(db, "global", "appState");
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data().state;
-        if (data) {
-          isUpdatingFromFirebase.current = true;
-          useStore.setState((prev) => ({
-            ...prev,
-            ...data,
-            // Keep local admin session intact!
-            isAdmin: prev.isAdmin,
-            sessionExpiry: prev.sessionExpiry,
-            lastLoginTime: prev.lastLoginTime,
-          }));
-          setTimeout(() => {
-            isUpdatingFromFirebase.current = false;
-          }, 500);
+    // Migration logic
+    const checkMigration = async () => {
+      try {
+        const globalDoc = await getDoc(doc(db, "global", "appState"));
+        if (globalDoc.exists()) {
+          const data = globalDoc.data().state;
+          const migrationDoc = await getDoc(doc(db, "global", "migration_done"));
+          if (!migrationDoc.exists() && data) {
+            console.log("Migrating data from single document to collections...");
+            
+            // Migrate singletons
+            if (data.config) await setDoc(doc(db, "settings", "config"), data.config);
+            if (data.headerConfig) await setDoc(doc(db, "settings", "headerConfig"), data.headerConfig);
+            if (data.logos) await setDoc(doc(db, "settings", "logos"), data.logos);
+            if (data.noticeImage) await setDoc(doc(db, "settings", "noticeImage"), data.noticeImage);
+            if (data.audioAnnouncement) await setDoc(doc(db, "settings", "audioAnnouncement"), data.audioAnnouncement);
+            if (data.warningConfig) await setDoc(doc(db, "settings", "warningConfig"), data.warningConfig);
+            if (data.videoConfig) await setDoc(doc(db, "settings", "videoConfig"), data.videoConfig);
+            if (data.images) await setDoc(doc(db, "settings", "images"), data.images);
+
+            const collectionsToMigrate = [
+              "sliderImages", "notices", "notifications", "meritPanels", 
+              "results", "darCirculars", "actCirculars", "links", 
+              "externalLinks", "internalLinks"
+            ];
+            
+            for (const col of collectionsToMigrate) {
+              if (data[col] && Array.isArray(data[col])) {
+                for (const item of data[col]) {
+                  if (item.id) {
+                    await setDoc(doc(db, col, item.id), item);
+                  }
+                }
+              }
+            }
+
+            await setDoc(doc(db, "global", "migration_done"), { done: true });
+            console.log("Migration complete!");
+          }
         }
-      } else if (isAdmin) {
-        // Seed initial state if the document does not exist
-        const state = useStore.getState();
-        const cleanState = JSON.parse(JSON.stringify(state));
-        setDoc(docRef, { state: cleanState }, { merge: true })
-          .catch(err => console.error("Initial seed error", err));
+      } catch (err) {
+        console.error("Migration error:", err);
       }
+    };
+    checkMigration();
+
+    const unsubscribes: (() => void)[] = [];
+
+    // 1. Sync Singleton Documents from traditional settings
+    const singletons = [
+      { key: "config", path: "settings/config" },
+      { key: "headerConfig", path: "settings/headerConfig" },
+      { key: "audioAnnouncement", path: "settings/audioAnnouncement" },
+      { key: "warningConfig", path: "settings/warningConfig" }
+    ];
+
+    singletons.forEach(({ key, path }) => {
+      const [col, documentId] = path.split("/");
+      const unsub = onSnapshot(doc(db, col, documentId), (snapshot) => {
+        if (snapshot.exists()) {
+          useStore.setState({ [key]: snapshot.data() } as any);
+        }
+      });
+      unsubscribes.push(unsub);
     });
 
-    return () => unsubscribe();
-  }, []);
+    // Sync modern videoConfig
+    unsubscribes.push(onSnapshot(doc(db, "videos", "homepage_video"), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        useStore.setState({ videoConfig: { enabled: data.enabled, url: data.url } } as any);
+      }
+    }));
 
-  // Write changes (only if Admin)
-  useEffect(() => {
-    if (!isAdmin) return;
+    // Sync modern noticeImage
+    unsubscribes.push(onSnapshot(doc(db, "images", "homepage_notice"), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        useStore.setState({ noticeImage: { title: data.title, description: data.description, image: data.url, enabled: data.enabled } } as any);
+      }
+    }));
 
-    let timeout: any;
-    const unsubscribe = useStore.subscribe((state) => {
-      if (isUpdatingFromFirebase.current) return;
+    // Sync logos
+    unsubscribes.push(onSnapshot(collection(db, "logos"), (snapshot) => {
+      const logosData: any = {};
+      snapshot.forEach(d => {
+        const data = d.data();
+        logosData[data.id] = { image: data.url, enabled: data.enabled };
+      });
+      if (Object.keys(logosData).length > 0) {
+        useStore.setState({ logos: logosData } as any);
+      }
+    }));
 
-      clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        // Filter out auth methods and session
-        const {
-          isAdmin,
-          sessionExpiry,
-          lastLoginTime,
-          login,
-          logout,
-          checkSession,
-          addDocument,
-          updateDocument,
-          deleteDocument,
-          addLink,
-          updateLink,
-          deleteLink,
-          addExternalLink,
-          updateExternalLink,
-          deleteExternalLink,
-          addInternalLink,
-          updateInternalLink,
-          deleteInternalLink,
-          updateConfig,
-          updateHeaderConfig,
-          updateLogo,
-          updateNoticeImage,
-          updateAudioAnnouncement,
-          addSliderImage,
-          updateSliderImage,
-          deleteSliderImage,
-          ...publicState
-        } = state as any;
+    // Sync slider images (from images collection where category is slider)
+    unsubscribes.push(onSnapshot(collection(db, "images"), (snapshot) => {
+      const sliders = snapshot.docs.map(d => d.data()).filter((d: any) => d.category === "slider").map((d: any) => ({
+         id: d.id,
+         image: d.url,
+         title: d.title,
+         description: d.description,
+         order: d.order,
+         enabled: d.enabled
+      }));
+      useStore.setState({ sliderImages: sliders.sort((a,b) => a.order - b.order) } as any);
+    }));
 
-        const cleanState = JSON.parse(JSON.stringify(publicState));
+    // Sync documents
+    unsubscribes.push(onSnapshot(collection(db, "documents"), (snapshot) => {
+      const grouped: any = { notices: [], notifications: [], meritPanels: [], results: [], darCirculars: [], actCirculars: [] };
+      snapshot.docs.forEach(d => {
+        const data = d.data();
+        if (grouped[data.category]) {
+           grouped[data.category].push(data);
+        }
+      });
+      Object.keys(grouped).forEach(k => {
+        grouped[k] = grouped[k].sort((a: any, b: any) => a.order - b.order);
+      });
+      useStore.setState(grouped);
+    }));
 
-        setDoc(
-          doc(db, "global", "appState"),
-          { state: cleanState },
-          { merge: true },
-        ).catch((err) => console.error("Error saving global state", err));
-      }, 1000); // debounce 1 second
+    // Sync basic links
+    const linkCollections = [
+      "links",
+      "externalLinks",
+      "internalLinks"
+    ];
+
+    linkCollections.forEach((colName) => {
+      const unsub = onSnapshot(collection(db, colName), (snapshot) => {
+        const items = snapshot.docs.map(d => d.data());
+        // Sort by order if it exists
+        const sorted = items.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+        useStore.setState({ [colName]: sorted } as any);
+      });
+      unsubscribes.push(unsub);
     });
 
     return () => {
-      unsubscribe();
-      clearTimeout(timeout);
+      unsubscribes.forEach(unsub => unsub());
     };
-  }, [isAdmin]);
+  }, []);
 
   return null;
 }
