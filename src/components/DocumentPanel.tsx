@@ -1,4 +1,5 @@
 import { FileText, Download, Eye, Zap } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { DocumentItem } from "../types";
 import { NewBadge } from "./NewBadge";
 
@@ -95,12 +96,12 @@ const themeStyles = {
   },
   news: {
     header: "bg-slate-800 text-white shadow-md",
-    containerBg: "bg-slate-50",
-    containerBorder: "border-slate-300",
-    itemBg: "bg-white",
-    itemHover: "hover:bg-slate-100",
-    itemBorder: "border-slate-200",
-    text: "text-black text-[14px] sm:text-[15px] leading-snug",
+    containerBg: "bg-gradient-to-b from-amber-50 to-orange-50",
+    containerBorder: "border-orange-200",
+    itemBg: "bg-transparent",
+    itemHover: "hover:bg-orange-100/50",
+    itemBorder: "border-orange-200/50",
+    text: "text-slate-900 text-[14px] sm:text-[15px] leading-snug font-medium",
   }
 };
 
@@ -113,9 +114,10 @@ export function DocumentPanel({
   className = "",
 }: DocumentPanelProps) {
   const currentTheme = themeStyles[theme] || themeStyles.blue;
+  const { t, i18n } = useTranslation();
 
   // Sort items by order, then by date descending
-  const sortedItems = [...items].sort((a, b) => {
+  const sortedItems = [...(items || [])].sort((a, b) => {
     if (a.order !== b.order) return a.order - b.order;
     return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
@@ -123,7 +125,7 @@ export function DocumentPanel({
   const content =
     sortedItems.length === 0 ? (
       <div className="p-8 text-center text-gray-500 text-sm">
-        No items available at the moment.
+        {t('table_no_notices')}
       </div>
     ) : (
       sortedItems.map((item) => (
@@ -139,8 +141,8 @@ export function DocumentPanel({
               {item.isNew && <NewBadge />}
             </div>
             <div className="text-xs text-gray-500 font-mono">
-              Posted:{" "}
-              {new Date(item.date).toLocaleDateString("en-IN", {
+              {t('panel_posted')}{" "}
+              {new Date(item.date).toLocaleDateString(i18n.language === 'hi' ? "hi-IN" : "en-IN", {
                 year: "numeric",
                 month: "short",
                 day: "numeric",
@@ -156,7 +158,7 @@ export function DocumentPanel({
                 rel="noopener noreferrer"
                 className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md text-sm font-medium transition-colors cursor-pointer"
               >
-                <Eye className="w-4 h-4" /> View
+                <Eye className="w-4 h-4" /> {t('panel_view')}
               </a>
             )}
             {item.downloadLink && item.downloadLink !== "#" && (
@@ -166,7 +168,7 @@ export function DocumentPanel({
                 rel="noopener noreferrer"
                 className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-md text-sm font-medium transition-colors cursor-pointer"
               >
-                <Download className="w-4 h-4" /> Download
+                <Download className="w-4 h-4" /> {t('panel_download')}
               </a>
             )}
           </div>
@@ -186,7 +188,7 @@ export function DocumentPanel({
           {title}
         </h2>
         <span className="text-xs bg-white/20 py-1 px-3 rounded-full">
-          {items.length} items
+          {(items || []).length} {t('panel_items')}
         </span>
       </div>
 

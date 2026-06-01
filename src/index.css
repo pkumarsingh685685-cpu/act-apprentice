@@ -43,3 +43,26 @@ body {
 #root {
   @apply min-h-screen flex flex-col;
 }
+
+@keyframes moveTrain {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100vw);
+  }
+}
+
+.train-track-texture {
+  background-image: repeating-linear-gradient(90deg, transparent, transparent 10px, #2a2a2a 10px, #2a2a2a 16px);
+}
+
+.ballast-texture {
+  background-color: #666;
+  background-image: 
+    radial-gradient(#4d4d4d 15%, transparent 16%),
+    radial-gradient(#3a3a3a 15%, transparent 16%),
+    radial-gradient(#5a5a5a 15%, transparent 16%);
+  background-size: 8px 8px, 6px 6px, 10px 10px;
+  background-position: 0 0, 3px 3px, 4px 4px;
+}

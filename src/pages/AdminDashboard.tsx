@@ -22,6 +22,8 @@ import {
   HeaderConfig,
 } from "../types";
 import { toast } from "sonner";
+import enTranslations from '../locales/en.json';
+import hiTranslations from '../locales/hi.json';
 
 export default function AdminDashboard() {
   const isAdmin = useStore((state) => state.isAdmin);
@@ -49,6 +51,7 @@ export default function AdminDashboard() {
   const tabs = [
     { id: "dashboard", name: "Dashboard Overview", icon: LayoutDashboard },
     { id: "settings", name: "Global Settings", icon: Settings },
+    { id: "translations", name: "Website Texts (Translations)", icon: FileText },
     { id: "header", name: "Header Management", icon: PanelTop },
     { id: "audio", name: "Audio Upload (Home Screen)", icon: PanelTop },
     { id: "logo", name: "Logo Management", icon: ImageIcon },
@@ -136,6 +139,7 @@ export default function AdminDashboard() {
             </div>
           )}
           {activeTab === "settings" && <SettingsForm />}
+          {activeTab === "translations" && <TranslationManager />}
           {activeTab === "header" && <HeaderManager />}
           {activeTab === "audio" && <AudioManager />}
           {activeTab === "logo" && <LogoManager />}
@@ -187,7 +191,7 @@ function WarningManager() {
         <label className="flex items-center gap-2 cursor-pointer mb-2">
           <input
             type="checkbox"
-            checked={warningConfig.enabled}
+            checked={warningConfig?.enabled || false}
             onChange={(e) => updateWarningConfig({ enabled: e.target.checked })}
             className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
           />
@@ -199,7 +203,7 @@ function WarningManager() {
             Warning Text
           </label>
           <textarea
-            value={warningConfig.text}
+            value={warningConfig?.text || ""}
             onChange={(e) => updateWarningConfig({ text: e.target.value })}
             rows={4}
             className="w-full p-2 border rounded text-gray-700 focus:ring-2 focus:ring-blue-500"
@@ -259,7 +263,7 @@ function VideoManager() {
         <label className="flex items-center gap-2 cursor-pointer mb-2">
           <input
             type="checkbox"
-            checked={videoConfig.enabled}
+            checked={videoConfig?.enabled || false}
             onChange={(e) => updateVideoConfig({ enabled: e.target.checked })}
             className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
           />
@@ -272,7 +276,7 @@ function VideoManager() {
           </label>
           <input
             type="url"
-            value={videoConfig.url}
+            value={videoConfig?.url || ""}
             onChange={(e) => updateVideoConfig({ url: e.target.value })}
             className="w-full p-2 border rounded font-medium text-gray-700 mb-3"
             placeholder="https://..."
@@ -311,6 +315,96 @@ function VideoManager() {
   );
 }
 
+function TranslationManager() {
+  const translations = useStore((state) => state.translations);
+  const updateTranslationsBatch = useStore((state) => state.updateTranslationsBatch);
+  const [lang, setLang] = useState<'en' | 'hi'>('en');
+  
+  // Combine defaults with overrides
+  const defaults = lang === 'en' ? enTranslations : hiTranslations;
+  const overrides = translations?.[lang] || {};
+  
+  const [localBatch, setLocalBatch] = useState<Record<string, string>>({});
+  const [search, setSearch] = useState("");
+
+  const handleChange = (key: string, value: string) => {
+    setLocalBatch(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = () => {
+    const promise = new Promise((resolve) => {
+      updateTranslationsBatch(lang, localBatch);
+      setTimeout(resolve, 300);
+    });
+    toast.promise(promise, {
+      loading: "Saving...",
+      success: "Saved Successfully",
+      error: "Save Failed",
+    });
+  };
+  
+  const keys = Object.keys(enTranslations).filter(k => 
+    k.toLowerCase().includes(search.toLowerCase()) || 
+    (defaults as any)[k]?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
+        <div>
+          <h3 className="text-lg font-semibold">Website Texts (Translations)</h3>
+          <p className="text-sm text-gray-500">Edit any text visible on the website.</p>
+        </div>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <input 
+            type="text"
+            placeholder="Search texts..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="p-2 border rounded text-sm flex-1 md:w-48"
+          />
+          <select 
+            value={lang} 
+            onChange={(e) => {
+              setLang(e.target.value as any);
+              setLocalBatch({});
+            }}
+            className="p-2 border rounded font-medium text-sm"
+          >
+            <option value="en">English (Default)</option>
+            <option value="hi">Hindi</option>
+          </select>
+          <button
+            onClick={handleSave}
+            className="bg-[#1c3f60] hover:bg-blue-900 text-white px-4 py-2 rounded-md text-sm font-medium transition whitespace-nowrap"
+          >
+            Save Texts
+          </button>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto p-1 pr-2">
+        {keys.map((key) => {
+          const displayValue = localBatch[key] !== undefined ? localBatch[key] : (overrides[key] !== undefined ? overrides[key] : (defaults as any)[key]);
+          return (
+            <div key={key} className="bg-gray-50 p-3 rounded border">
+              <label className="block text-xs font-semibold text-gray-500 mb-1 truncate" title={key}>{key}</label>
+              <textarea 
+                value={displayValue}
+                onChange={(e) => handleChange(key, e.target.value)}
+                className="w-full p-2 border rounded text-sm min-h-[60px]"
+              />
+            </div>
+          );
+        })}
+        {keys.length === 0 && (
+          <p className="text-gray-500 py-4 col-span-2 text-center">No texts found for your search.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Logo Manager Helper
 function LogoManager() {
   const logos = useStore((state) => state.logos);
@@ -319,6 +413,7 @@ function LogoManager() {
   const handles = [
     { key: "railwayLogo", label: "Railway Logo" },
     { key: "govLogo", label: "Government Logo" },
+    { key: "ministryLogo", label: "Ministry Logo" },
     { key: "nationalEmblem", label: "National Emblem" },
   ];
 
@@ -392,9 +487,13 @@ function LogoManager() {
   };
 
   const handleToggle = (key: string, enabled: boolean) => {
-    const promise = new Promise((resolve) => {
-      updateLogo(key as any, { enabled });
-      setTimeout(resolve, 200);
+    const promise = new Promise((resolve, reject) => {
+      try {
+        updateLogo(key as any, { enabled });
+        setTimeout(resolve, 200);
+      } catch (err) {
+        reject(err);
+      }
     });
     toast.promise(promise, {
       loading: "Saving...",
@@ -414,7 +513,7 @@ function LogoManager() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {handles.map((item) => {
-          const logoData = logos[item.key as keyof typeof logos];
+          const logoData = logos[item.key as keyof typeof logos] || { image: "", enabled: false };
           return (
             <div
               key={item.key}
@@ -582,16 +681,16 @@ function NoticeImageManager() {
       </div>
 
       <div className="border border-gray-200 rounded p-4 flex flex-col md:flex-row gap-4 bg-white shadow-sm overflow-hidden relative">
-        {!noticeImage.enabled && (
+        {!noticeImage?.enabled && (
           <div className="absolute top-2 left-2 bg-gray-800 text-white text-[10px] uppercase font-bold px-2 py-1 rounded z-10">
             Disabled
           </div>
         )}
         <div className="w-full md:w-64 h-48 md:h-auto bg-gray-100 flex-shrink-0 flex items-center justify-center rounded overflow-hidden relative">
-          {noticeImage.image ? (
+          {noticeImage?.image ? (
             <img
               src={noticeImage.image}
-              className={`w-full h-full object-cover ${!noticeImage.enabled ? "opacity-50 grayscale" : ""}`}
+              className={`w-full h-full object-cover ${!noticeImage?.enabled ? "opacity-50 grayscale" : ""}`}
               alt={noticeImage.title}
             />
           ) : (
@@ -617,9 +716,9 @@ function NoticeImageManager() {
               </label>
               <input
                 type="text"
-                value={noticeImage.title}
+                value={noticeImage?.title || ""}
                 onChange={(e) => handleUpdate({ title: e.target.value })}
-                onBlur={() => handleToggle(noticeImage.enabled)}
+                onBlur={() => handleToggle(noticeImage?.enabled || false)}
                 className="w-full p-2 text-sm border rounded font-semibold focus:ring-1 focus:ring-[#1c3f60]"
                 placeholder="Image Title"
               />
@@ -629,9 +728,9 @@ function NoticeImageManager() {
                 Image Description
               </label>
               <textarea
-                value={noticeImage.description}
+                value={noticeImage?.description || ""}
                 onChange={(e) => handleUpdate({ description: e.target.value })}
-                onBlur={() => handleToggle(noticeImage.enabled)}
+                onBlur={() => handleToggle(noticeImage?.enabled || false)}
                 rows={3}
                 className="w-full p-2 text-sm border rounded text-gray-600 focus:ring-1 focus:ring-[#1c3f60]"
                 placeholder="Short description..."
@@ -643,19 +742,19 @@ function NoticeImageManager() {
               <span className="text-xs font-bold text-gray-700">Display:</span>
               <input
                 type="checkbox"
-                checked={noticeImage.enabled}
+                checked={noticeImage?.enabled || false}
                 onChange={(e) => handleToggle(e.target.checked)}
                 className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
               />
               <span className="text-xs font-medium text-gray-600">
-                {noticeImage.enabled ? "On" : "Off"}
+                {noticeImage?.enabled ? "On" : "Off"}
               </span>
             </label>
 
             <div className="flex gap-2">
               <button
                 onClick={handleDelete}
-                disabled={!noticeImage.image}
+                disabled={!noticeImage?.image}
                 className="p-1 px-3 border rounded text-xs text-red-600 hover:bg-red-50 disabled:opacity-50 flex items-center gap-1"
               >
                 <Trash2 size={14} /> Delete Image
@@ -1044,6 +1143,18 @@ function SettingsForm() {
             value={localConfig.contactAddress}
             onChange={handleChange}
             className="w-full p-2 border rounded h-24"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium mb-1">
+            Developer Credit Text
+          </label>
+          <input
+            name="developerCreditText"
+            value={localConfig.developerCreditText || ""}
+            onChange={handleChange}
+            placeholder="e.g. Prshant Kumar singh , Sr.Clerk/Katihar Div."
+            className="w-full p-2 border rounded font-mono"
           />
         </div>
       </div>
@@ -1931,17 +2042,17 @@ function AudioManager() {
       </div>
 
       <div className="border border-gray-200 rounded p-4 flex flex-col gap-4 bg-white shadow-sm overflow-hidden relative">
-        {!audioAnnouncement.enabled && (
+        {!audioAnnouncement?.enabled && (
           <div className="absolute top-2 right-2 bg-gray-800 text-white text-[10px] uppercase font-bold px-2 py-1 rounded z-10">
             Disabled
           </div>
         )}
         <div className="w-full bg-gray-100 flex-shrink-0 flex items-center justify-center p-6 rounded overflow-hidden relative">
-          {audioAnnouncement.audio ? (
+          {audioAnnouncement?.audio ? (
             <audio
               controls
               src={audioAnnouncement.audio}
-              className={`w-full max-w-sm ${!audioAnnouncement.enabled ? "opacity-50 grayscale" : ""}`}
+              className={`w-full max-w-sm ${!audioAnnouncement?.enabled ? "opacity-50 grayscale" : ""}`}
             />
           ) : (
             <span className="text-xs text-gray-400">No Audio Uploaded</span>
@@ -1957,12 +2068,12 @@ function AudioManager() {
                 </span>
                 <input
                   type="checkbox"
-                  checked={audioAnnouncement.enabled}
+                  checked={audioAnnouncement?.enabled || false}
                   onChange={(e) => handleToggle(e.target.checked)}
                   className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
                 />
                 <span className="text-xs font-medium text-gray-600">
-                  {audioAnnouncement.enabled ? "On" : "Off"}
+                  {audioAnnouncement?.enabled ? "On" : "Off"}
                 </span>
               </label>
 
@@ -1980,7 +2091,7 @@ function AudioManager() {
             <div className="flex gap-2">
               <button
                 onClick={handleDelete}
-                disabled={!audioAnnouncement.audio}
+                disabled={!audioAnnouncement?.audio}
                 className="p-1 px-3 border rounded text-xs text-red-600 hover:bg-red-50 disabled:opacity-50 flex items-center gap-1"
               >
                 <Trash2 size={14} /> Delete Audio

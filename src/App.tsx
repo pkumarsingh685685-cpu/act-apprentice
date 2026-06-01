@@ -12,6 +12,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useStore } from "./store/useStore";
 import { Header } from "./components/Header";
 import { Navigation } from "./components/Navigation";
@@ -39,6 +40,7 @@ function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === "/";
+  const { t } = useTranslation();
 
   return (
     <>
@@ -52,7 +54,7 @@ function Layout() {
               className="flex items-center gap-2 text-[#152060] hover:bg-blue-50 font-semibold transition-colors bg-white px-3 py-1.5 rounded border border-gray-200 shadow-sm w-fit"
             >
               <ArrowLeft size={16} />
-              <span>Back</span>
+              <span>{t("back")}</span>
             </button>
           </div>
         )}

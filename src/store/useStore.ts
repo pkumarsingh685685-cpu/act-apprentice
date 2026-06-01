@@ -35,11 +35,24 @@ export const useStore = create<AppState>()(
         contactEmail: "actadmin.kir@gmail.com",
         contactAddress:
           "DRM Office, Katihar, Bihar 854105, Personnel Branch, Act Apprentice Cell",
+        developerCreditText: "Prshant Kumar singh , Sr.Clerk/Katihar Div."
       },
       updateConfig: (key, value) => set((state) => {
         const newConfig = { ...state.config, [key]: value };
         setDoc(doc(db, "settings", "config"), newConfig).catch(console.error);
         return { config: newConfig };
+      }),
+
+      translations: { en: {}, hi: {} },
+      updateTranslation: (lang, key, value) => set((state) => {
+        const newTranslations = { ...state.translations, [lang]: { ...state.translations[lang], [key]: value } };
+        setDoc(doc(db, "settings", "translations"), newTranslations).catch(console.error);
+        return { translations: newTranslations };
+      }),
+      updateTranslationsBatch: (lang, updates) => set((state) => {
+        const newTranslations = { ...state.translations, [lang]: { ...state.translations[lang], ...updates } };
+        setDoc(doc(db, "settings", "translations"), newTranslations).catch(console.error);
+        return { translations: newTranslations };
       }),
 
       headerConfig: {
@@ -63,17 +76,18 @@ export const useStore = create<AppState>()(
         railwayLogo: { image: "", enabled: true },
         govLogo: { image: "", enabled: true },
         nationalEmblem: { image: "", enabled: true },
+        ministryLogo: { image: "", enabled: true },
       },
       updateLogo: (key, data) => set((state) => {
         const newLogos = { ...state.logos, [key]: { ...state.logos[key], ...data } };
         setDoc(doc(db, "logos", key), {
           id: key,
           title: key,
-          url: newLogos[key].image,
+          url: newLogos[key].image || "",
           type: "image",
-          enabled: newLogos[key].enabled,
+          enabled: newLogos[key].enabled ?? true,
           createdAt: new Date().toISOString()
-        }).catch(console.error);
+        }).catch((err) => console.error("Firebase update error:", err));
         return { logos: newLogos };
       }),
 

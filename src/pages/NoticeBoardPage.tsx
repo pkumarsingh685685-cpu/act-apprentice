@@ -1,4 +1,5 @@
 import { useStore } from "../store/useStore";
+import { useTranslation } from "react-i18next";
 import { NewBadge } from "../components/NewBadge";
 
 export default function NoticeBoardPage() {
@@ -7,14 +8,15 @@ export default function NoticeBoardPage() {
   const results = useStore((state) => state.results);
   const darCirculars = useStore((state) => state.darCirculars);
   const actCirculars = useStore((state) => state.actCirculars);
+  const { t } = useTranslation();
 
   // Combine all items
   const allItems = [
-    ...notices.map((n) => ({ ...n, type: "Notice" })),
-    ...meritPanels.map((n) => ({ ...n, type: "Merit List" })),
-    ...results.map((n) => ({ ...n, type: "Result" })),
-    ...darCirculars.map((n) => ({ ...n, type: "DAR Circular" })),
-    ...actCirculars.map((n) => ({ ...n, type: "Act Circular" })),
+    ...notices.map((n) => ({ ...n, type: t('doc_type_notice') })),
+    ...meritPanels.map((n) => ({ ...n, type: t('doc_type_merit') })),
+    ...results.map((n) => ({ ...n, type: t('doc_type_result') })),
+    ...darCirculars.map((n) => ({ ...n, type: t('doc_type_dar') })),
+    ...actCirculars.map((n) => ({ ...n, type: t('doc_type_act') })),
   ];
 
   // Sort logically (by date descending)
@@ -29,12 +31,12 @@ export default function NoticeBoardPage() {
           <thead>
             <tr className="bg-[#e9f0f8] text-[#000080] border-b border-[#b5c5d5]">
               <th className="p-3 font-bold border-r border-[#b5c5d5] w-16 text-center">
-                SN
+                {t('table_sn')}
               </th>
               <th className="p-3 font-bold border-r border-[#b5c5d5] w-32 text-center whitespace-nowrap">
-                Date
+                {t('table_date')}
               </th>
-              <th className="p-3 font-bold">Descriptive</th>
+              <th className="p-3 font-bold">{t('table_descriptive')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e0e0e0] bg-white">
@@ -58,7 +60,7 @@ export default function NoticeBoardPage() {
                       className="text-[#0000ee] hover:underline flex-1 text-[15px]"
                     >
                       <span className="font-semibold text-gray-500 mr-1">
-                        [{item.type}]
+                        {item.type}
                       </span>{" "}
                       {item.title}
                     </a>
@@ -70,7 +72,7 @@ export default function NoticeBoardPage() {
             {sortedItems.length === 0 && (
               <tr>
                 <td colSpan={3} className="p-4 text-center text-gray-500">
-                  No notices available.
+                  {t('table_no_notices')}
                 </td>
               </tr>
             )}

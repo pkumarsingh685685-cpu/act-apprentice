@@ -58,14 +58,22 @@ export function FirebaseSync() {
       { key: "config", path: "settings/config" },
       { key: "headerConfig", path: "settings/headerConfig" },
       { key: "audioAnnouncement", path: "settings/audioAnnouncement" },
-      { key: "warningConfig", path: "settings/warningConfig" }
+      { key: "warningConfig", path: "settings/warningConfig" },
+      { key: "translations", path: "settings/translations" }
     ];
 
     singletons.forEach(({ key, path }) => {
       const [col, documentId] = path.split("/");
       const unsub = onSnapshot(doc(db, col, documentId), (snapshot) => {
         if (snapshot.exists()) {
-          useStore.setState({ [key]: snapshot.data() } as any);
+          const data = snapshot.data();
+          useStore.setState({ [key]: data } as any);
+          if (key === "translations") {
+            import("../i18n").then(({ default: i18n }) => {
+              if (data.en) i18n.addResourceBundle("en", "translation", data.en, true, true);
+              if (data.hi) i18n.addResourceBundle("hi", "translation", data.hi, true, true);
+            });
+          }
         }
       });
       unsubscribes.push(unsub);
@@ -75,7 +83,7 @@ export function FirebaseSync() {
     unsubscribes.push(onSnapshot(doc(db, "videos", "homepage_video"), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
-        useStore.setState({ videoConfig: { enabled: data.enabled, url: data.url } } as any);
+        useStore.setState((state: any) => ({ videoConfig: { ...state.videoConfig, enabled: data.enabled, url: data.url } }));
       }
     }));
 
@@ -83,7 +91,7 @@ export function FirebaseSync() {
     unsubscribes.push(onSnapshot(doc(db, "images", "homepage_notice"), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
-        useStore.setState({ noticeImage: { title: data.title, description: data.description, image: data.url, enabled: data.enabled } } as any);
+        useStore.setState((state: any) => ({ noticeImage: { ...state.noticeImage, title: data.title, description: data.description, image: data.url, enabled: data.enabled } }));
       }
     }));
 
@@ -92,10 +100,10 @@ export function FirebaseSync() {
       const logosData: any = {};
       snapshot.forEach(d => {
         const data = d.data();
-        logosData[data.id] = { image: data.url, enabled: data.enabled };
+        logosData[data.id] = { image: data.url, enabled: data.enabled !== false };
       });
       if (Object.keys(logosData).length > 0) {
-        useStore.setState({ logos: logosData } as any);
+        useStore.setState((state: any) => ({ logos: { ...state.logos, ...logosData } }));
       }
     }));
 

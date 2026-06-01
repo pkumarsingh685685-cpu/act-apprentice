@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useStore } from "../store/useStore";
 import { DocumentPanel } from "../components/DocumentPanel";
 import { FileText, Award, Bell, ExternalLink, X } from "lucide-react";
@@ -6,14 +7,13 @@ import { Link } from "react-router-dom";
 import { PlaceholderImage } from "../components/PlaceholderImage";
 
 import { HeroSlider } from "../components/HeroSlider";
-import { WarningBox } from "../components/WarningBox";
 import { VideoPlayerBox } from "../components/VideoPlayerBox";
 
 function NoticeBoardImage({ className }: { className?: string }) {
   const noticeImage = useStore((state) => state.noticeImage);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  if (!noticeImage.enabled) return null;
+  if (!noticeImage?.enabled) return null;
 
   return (
     <>
@@ -23,20 +23,12 @@ function NoticeBoardImage({ className }: { className?: string }) {
           100% { transform: rotate(360deg); }
         }
       `}</style>
-      <div className={`w-full h-full rounded-lg shadow-sm bg-white group relative overflow-hidden p-[2px] flex flex-col min-h-[150px] ${className || ""}`}>
-        <div
-          className="absolute top-1/2 left-1/2 w-[200%] h-[200%] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-          style={{
-            background:
-              "conic-gradient(from 0deg, transparent 0 280deg, rgba(227,24,55,0.8) 360deg)",
-            animation: "spin-slow 3s linear infinite",
-          }}
-        />
+      <div className={`w-full h-full rounded-lg shadow-sm bg-white group relative overflow-hidden flex flex-col min-h-[150px] border border-gray-200 ${className || ""}`}>
         <div className="relative z-10 bg-white w-full h-full rounded-md overflow-hidden flex flex-col flex-1">
           {noticeImage.image ? (
             <div
               onClick={() => setIsModalOpen(true)}
-              className="relative w-full h-full bg-gray-100 overflow-hidden text-center flex flex-col items-center justify-center cursor-pointer block flex-1"
+              className="relative w-full h-full bg-black overflow-hidden text-center flex flex-col items-center justify-center cursor-pointer block flex-1"
             >
               <img
                 src={noticeImage.image}
@@ -97,21 +89,22 @@ function NoticeBoardImage({ className }: { className?: string }) {
 }
 
 export default function Home() {
-  const config = useStore((state) => state.config);
+  const config = useStore((state) => state.config) as any;
   const notices = useStore((state) => state.notices);
   const meritPanels = useStore((state) => state.meritPanels);
   const results = useStore((state) => state.results);
   const darCirculars = useStore((state) => state.darCirculars);
   const actCirculars = useStore((state) => state.actCirculars);
   const links = useStore((state) => state.links);
+  const { t } = useTranslation();
 
   // Combine top 5 newest items across all categories for the marquee
   const allDocuments = [
-    ...notices.map((n) => ({ ...n, id: `notice-${n.id}`, title: `[Notice] ${n.title}` })),
-    ...meritPanels.map((n) => ({ ...n, id: `merit-${n.id}`, title: `[Merit] ${n.title}` })),
-    ...results.map((n) => ({ ...n, id: `result-${n.id}`, title: `[Result] ${n.title}` })),
-    ...darCirculars.map((n) => ({ ...n, id: `dar-${n.id}`, title: `[DAR Circular] ${n.title}` })),
-    ...actCirculars.map((n) => ({ ...n, id: `act-${n.id}`, title: `[Act Circular] ${n.title}` })),
+    ...(notices || []).map((n) => ({ ...n, id: `notice-${n.id}`, title: `${t('doc_type_notice')} ${n.title}` })),
+    ...(meritPanels || []).map((n) => ({ ...n, id: `merit-${n.id}`, title: `${t('doc_type_merit')} ${n.title}` })),
+    ...(results || []).map((n) => ({ ...n, id: `result-${n.id}`, title: `${t('doc_type_result')} ${n.title}` })),
+    ...(darCirculars || []).map((n) => ({ ...n, id: `dar-${n.id}`, title: `${t('doc_type_dar')} ${n.title}` })),
+    ...(actCirculars || []).map((n) => ({ ...n, id: `act-${n.id}`, title: `${t('doc_type_act')} ${n.title}` })),
   ];
 
   const top5Recent = allDocuments
@@ -120,9 +113,7 @@ export default function Home() {
 
   const videoConfig = useStore((state) => state.videoConfig);
 
-  // Determine grid sizing based on video presence
-  const showVideoConfig = videoConfig?.enabled && videoConfig?.url;
-  const leftColSpan = showVideoConfig ? "lg:col-span-2" : "lg:col-span-3";
+  const leftColSpan = "lg:col-span-3";
 
   return (
     <div className="flex-1 flex flex-col pt-4 pb-8 space-y-6">
@@ -130,7 +121,7 @@ export default function Home() {
       <div className="w-full mx-auto px-4 md:px-8">
         <div className="bg-red-50 border border-red-200 px-4 py-2 flex items-center rounded-md font-medium text-sm shadow-sm overflow-hidden">
           <div className="shrink-0 font-bold bg-[#e31837] text-white px-3 py-1 rounded shadow-sm mr-3 uppercase tracking-wider text-xs">
-            Latest Updates
+            {t('home_latest_updates')}
           </div>
           <marquee
             behavior="scroll"
@@ -153,25 +144,25 @@ export default function Home() {
             <QuickLinkCard
               to="/notifications"
               icon={<Bell className="w-8 h-8" />}
-              title="Notifications"
+              title={t('home_notifications')}
               color="bg-blue-50 text-blue-700"
             />
             <QuickLinkCard
               to="/merit"
               icon={<Award className="w-8 h-8" />}
-              title="Merit Panel"
+              title={t('home_merit_panel')}
               color="bg-emerald-50 text-emerald-700"
             />
             <QuickLinkCard
               to="/results"
               icon={<FileText className="w-8 h-8" />}
-              title="Results"
+              title={t('home_results')}
               color="bg-purple-50 text-purple-700"
             />
             <QuickLinkCard
               to="/dar-circulars"
               icon={<FileText className="w-8 h-8" />}
-              title="Circulars"
+              title={t('home_circulars')}
               color="bg-orange-50 text-orange-700"
             />
           </div>
@@ -179,38 +170,31 @@ export default function Home() {
           {/* Disclosures & Disclaimer */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-rose-50 p-4 rounded-xl shadow-sm border border-rose-200">
-              <h3 className="font-semibold text-rose-900 border-b border-rose-200 pb-2 mb-2">Disclosures</h3>
+              <h3 className="font-semibold text-rose-900 border-b border-rose-200 pb-2 mb-2">{t('home_disclosures')}</h3>
               <p className="text-sm text-rose-800">
-                Public disclosure, through the portal, of scores of candidates not recommended by the Board against the result of an examination
+                {t('home_disclosures_text')}
               </p>
             </div>
             <div className="bg-orange-50 p-4 rounded-xl shadow-sm border border-orange-200 h-full">
-              <h3 className="font-semibold text-orange-900 border-b border-orange-200 pb-2 mb-2">Disclaimer</h3>
+              <h3 className="font-semibold text-orange-900 border-b border-orange-200 pb-2 mb-2">{t('home_disclaimer')}</h3>
               <p className="text-sm text-orange-800">
-                The contents of this site should not be construed as an exhaustive statement of the law.
+                {t('home_disclaimer_text')}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Middle Col: Video Info */}
-        {showVideoConfig && (
-          <div className="lg:col-span-1 flex flex-col gap-6 h-full">
-            <VideoPlayerBox />
-          </div>
-        )}
-
         {/* Right Col: Notice Board */}
         <div className="lg:col-span-1 flex flex-col gap-6 h-full">
           <DocumentPanel
-            title="LATEST NEWS"
+            title={t('home_latest_news')}
             items={top5Recent}
             theme="news"
             isMarquee={true}
             scrollSpeed="10s"
             className="flex-[2] w-full min-h-0"
           />
-          <WarningBox className="shrink-0 w-full flex flex-col justify-center min-h-[60px]" />
+          <VideoPlayerBox className="shrink-0 w-full" />
           <NoticeBoardImage className="flex-[1.2] w-full flex flex-col" />
         </div>
       </div>
@@ -218,12 +202,12 @@ export default function Home() {
       {/* Circulars Section */}
       <div className="w-full mx-auto px-4 md:px-8 grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
         <DocumentPanel
-          title="Latest DAR Circulars"
+          title={t('home_latest_dar')}
           items={darCirculars}
           theme="teal"
         />
         <DocumentPanel
-          title="Latest Act Apprentice Circulars"
+          title={t('home_latest_act')}
           items={actCirculars}
           theme="purple"
         />
@@ -233,10 +217,10 @@ export default function Home() {
       <div className="w-full mx-auto px-4 md:px-8 mt-4">
         <div className="bg-emerald-50 rounded-xl shadow-md border border-emerald-200 overflow-hidden">
           <div className="p-5 font-bold text-white bg-emerald-600 tracking-wide uppercase text-lg shadow-inner">
-            <h3>Railways Website Link</h3>
+            <h3>{t('home_railways_link')}</h3>
           </div>
           <div className="p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 bg-emerald-50">
-            {links
+            {(links || [])
               .sort((a, b) => a.order - b.order)
               .map((link) => (
                 <a

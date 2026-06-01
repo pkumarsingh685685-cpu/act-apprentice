@@ -1,19 +1,20 @@
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X, ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
-const navItems = [
-  { name: "Home", path: "/" },
-  { name: "About Us", path: "/about" },
-  { name: "Notice Board", path: "/notice-board" },
-  { name: "Apprentice Notification", path: "/notifications" },
-  { name: "Merit Panel", path: "/merit" },
-  { name: "Results", path: "/results" },
+const navKeys = [
+  { key: "nav_home", path: "/" },
+  { key: "nav_about", path: "/about" },
+  { key: "nav_notice_board", path: "/notice-board" },
+  { key: "nav_apprentice_notification", path: "/notifications" },
+  { key: "nav_merit_panel", path: "/merit" },
+  { key: "nav_results", path: "/results" },
 ];
 
-const rightNavItems = [
-  { name: "Contact Us", path: "/contact" },
-  { name: "Admin Login", path: "/admin" },
+const rightNavKeys = [
+  { key: "nav_contact_us", path: "/contact" },
+  { key: "nav_admin_login", path: "/admin" },
 ];
 
 export function Navigation() {
@@ -21,23 +22,24 @@ export function Navigation() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCircularsDropdownOpen, setIsCircularsDropdownOpen] = useState(false);
   const location = useLocation();
+  const { t } = useTranslation();
 
   return (
     <nav className="bg-[#1e40af] text-white sticky top-0 z-50 shadow-md">
       <div className="w-full mx-auto px-4 sm:px-8">
         {/* Desktop Menu */}
         <div className="hidden lg:flex flex-wrap items-center">
-          {navItems.map((item) => (
+          {navKeys.map((item) => (
             <Link
               key={item.path}
               to={item.path}
-              className={`px-3 py-3 text-[18px] font-semibold italic border-b-2 hover:bg-[#1e3a8a] transition-colors ${
+              className={`px-3 py-3 text-[18px] font-semibold italic border-b-2 hover:bg-[#1e3a8a] hover:text-[#e31837] transition-colors ${
                 location.pathname === item.path
                   ? "border-[#e31837] text-white"
                   : "border-transparent text-gray-200"
               }`}
             >
-              {item.name}
+              {t(item.key as any)}
             </Link>
           ))}
 
@@ -48,14 +50,14 @@ export function Navigation() {
             onMouseLeave={() => setIsCircularsDropdownOpen(false)}
           >
             <button
-              className={`flex items-center px-3 py-3 text-[18px] font-semibold italic border-b-2 hover:bg-[#1e3a8a] transition-colors ${
+              className={`flex items-center px-3 py-3 text-[18px] font-semibold italic border-b-2 hover:bg-[#1e3a8a] hover:text-[#e31837] transition-colors ${
                 location.pathname.includes("/dar-circulars") ||
                 location.pathname.includes("/act-circulars")
-                  ? "border-[#e31837] text-white"
+                  ? "border-[#e31837] text-[#e31837]"
                   : "border-transparent text-gray-200"
               }`}
             >
-              Circulars <ChevronDown className="ml-1 w-4 h-4" />
+              {t("nav_circulars")} <ChevronDown className="ml-1 w-4 h-4" />
             </button>
 
             {/* Dropdown Menu */}
@@ -67,8 +69,8 @@ export function Navigation() {
                   onClick={() => setIsCircularsDropdownOpen(false)}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-200 group-hover:text-white">
-                      DAR Circulars
+                    <span className="text-gray-200 group-hover:text-[#e31837] transition-colors">
+                      {t("nav_dar_circulars")}
                     </span>
                     <span className="w-2 h-2 rounded-full bg-[#fca5a5] block opacity-0 group-hover:opacity-100 transition-opacity"></span>
                   </div>
@@ -79,8 +81,8 @@ export function Navigation() {
                   onClick={() => setIsCircularsDropdownOpen(false)}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-200 group-hover:text-white">
-                      Act Apprentice Circulars
+                    <span className="text-gray-200 group-hover:text-[#e31837] transition-colors">
+                      {t("nav_act_circulars")}
                     </span>
                     <span className="w-2 h-2 rounded-full bg-[#fca5a5] block opacity-0 group-hover:opacity-100 transition-opacity"></span>
                   </div>
@@ -96,14 +98,14 @@ export function Navigation() {
             onMouseLeave={() => setIsDropdownOpen(false)}
           >
             <button
-              className={`flex items-center px-3 py-3 text-[18px] font-semibold italic border-b-2 hover:bg-[#1e3a8a] transition-colors ${
+              className={`flex items-center px-3 py-3 text-[18px] font-semibold italic border-b-2 hover:bg-[#1e3a8a] hover:text-[#e31837] transition-colors ${
                 location.pathname.includes("/links") ||
                 location.pathname.includes("/internal")
-                  ? "border-[#e31837] text-white"
+                  ? "border-[#e31837] text-[#e31837]"
                   : "border-transparent text-gray-200"
               }`}
             >
-              Important Links <ChevronDown className="ml-1 w-4 h-4" />
+              {t("nav_important_links")} <ChevronDown className="ml-1 w-4 h-4" />
             </button>
 
             {/* Dropdown Menu */}
@@ -115,8 +117,8 @@ export function Navigation() {
                   onClick={() => setIsDropdownOpen(false)}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-200 group-hover:text-white">
-                      External Links
+                    <span className="text-gray-200 group-hover:text-[#e31837] transition-colors">
+                      {t("nav_external_links")}
                     </span>
                     <span className="w-2 h-2 rounded-full bg-[#fca5a5] block opacity-0 group-hover:opacity-100 transition-opacity"></span>
                   </div>
@@ -127,8 +129,8 @@ export function Navigation() {
                   onClick={() => setIsDropdownOpen(false)}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-200 group-hover:text-white">
-                      Internal Links
+                    <span className="text-gray-200 group-hover:text-[#e31837] transition-colors">
+                      {t("nav_internal_links")}
                     </span>
                     <span className="w-2 h-2 rounded-full bg-[#fca5a5] block opacity-0 group-hover:opacity-100 transition-opacity"></span>
                   </div>
@@ -137,24 +139,24 @@ export function Navigation() {
             )}
           </div>
 
-          {rightNavItems.map((item) => (
+          {rightNavKeys.map((item) => (
             <Link
               key={item.path}
               to={item.path}
-              className={`px-3 py-3 text-[18px] font-semibold italic border-b-2 hover:bg-[#1e3a8a] transition-colors ${
+              className={`px-3 py-3 text-[18px] font-semibold italic border-b-2 hover:bg-[#1e3a8a] hover:text-[#e31837] transition-colors ${
                 location.pathname === item.path
                   ? "border-[#e31837] text-white"
                   : "border-transparent text-gray-200"
               }`}
             >
-              {item.name}
+              {t(item.key as any)}
             </Link>
           ))}
         </div>
 
         {/* Mobile Menu Button */}
         <div className="lg:hidden flex items-center justify-between py-3">
-          <span className="font-semibold italic px-2">Menu</span>
+          <span className="font-semibold italic px-2">{t("nav_menu")}</span>
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="text-white hover:bg-[#1e3a8a] p-2 rounded-md"
@@ -168,7 +170,7 @@ export function Navigation() {
       {isOpen && (
         <div className="lg:hidden bg-[#1e3a8a]">
           <div className="px-2 pt-2 pb-3 space-y-1">
-            {[...navItems].map((item) => (
+            {navKeys.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
@@ -176,10 +178,10 @@ export function Navigation() {
                 className={`block px-3 py-2 rounded-md text-lg font-semibold italic ${
                   location.pathname === item.path
                     ? "bg-[#e31837] text-white"
-                    : "text-gray-200 hover:bg-[#1e40af]"
+                    : "text-gray-200 hover:bg-[#1e40af] hover:text-[#e31837]"
                 }`}
               >
-                {item.name}
+                {t(item.key as any)}
               </Link>
             ))}
 
@@ -189,9 +191,9 @@ export function Navigation() {
                 onClick={() =>
                   setIsCircularsDropdownOpen(!isCircularsDropdownOpen)
                 }
-                className="w-full text-left flex items-center justify-between px-3 py-2 rounded-md text-lg font-semibold italic text-gray-200 hover:bg-[#1e40af]"
+                className="w-full text-left flex items-center justify-between px-3 py-2 rounded-md text-lg font-semibold italic text-gray-200 hover:bg-[#1e40af] hover:text-[#e31837]"
               >
-                Circulars
+                {t("nav_circulars")}
                 <ChevronDown
                   className={`w-5 h-5 transition-transform ${isCircularsDropdownOpen ? "rotate-180" : ""}`}
                 />
@@ -201,16 +203,16 @@ export function Navigation() {
                   <Link
                     to="/dar-circulars"
                     onClick={() => setIsOpen(false)}
-                    className="block px-3 py-2 rounded-md text-base font-semibold italic text-gray-300 hover:text-white"
+                    className="block px-3 py-2 rounded-md text-base font-semibold italic text-gray-300 hover:text-[#e31837] tracking-wide"
                   >
-                    DAR Circulars
+                    {t("nav_dar_circulars")}
                   </Link>
                   <Link
                     to="/act-circulars"
                     onClick={() => setIsOpen(false)}
-                    className="block px-3 py-2 rounded-md text-base font-semibold italic text-gray-300 hover:text-white"
+                    className="block px-3 py-2 rounded-md text-base font-semibold italic text-gray-300 hover:text-[#e31837] tracking-wide"
                   >
-                    Act Apprentice Circulars
+                    {t("nav_act_circulars")}
                   </Link>
                 </div>
               )}
@@ -220,9 +222,9 @@ export function Navigation() {
             <div className="space-y-1">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full text-left flex items-center justify-between px-3 py-2 rounded-md text-lg font-semibold italic text-gray-200 hover:bg-[#1e40af]"
+                className="w-full text-left flex items-center justify-between px-3 py-2 rounded-md text-lg font-semibold italic text-gray-200 hover:bg-[#1e40af] hover:text-[#e31837]"
               >
-                Important Links
+                {t("nav_important_links")}
                 <ChevronDown
                   className={`w-5 h-5 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
                 />
@@ -232,22 +234,22 @@ export function Navigation() {
                   <Link
                     to="/links"
                     onClick={() => setIsOpen(false)}
-                    className="block px-3 py-2 rounded-md text-base font-semibold italic text-gray-300 hover:text-white"
+                    className="block px-3 py-2 rounded-md text-base font-semibold italic text-gray-300 hover:text-[#e31837] tracking-wide"
                   >
-                    External Links
+                    {t("nav_external_links")}
                   </Link>
                   <Link
                     to="/internal-links"
                     onClick={() => setIsOpen(false)}
-                    className="block px-3 py-2 rounded-md text-base font-semibold italic text-gray-300 hover:text-white"
+                    className="block px-3 py-2 rounded-md text-base font-semibold italic text-gray-300 hover:text-[#e31837] tracking-wide"
                   >
-                    Internal Links
+                    {t("nav_internal_links")}
                   </Link>
                 </div>
               )}
             </div>
 
-            {rightNavItems.map((item) => (
+            {rightNavKeys.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
@@ -255,10 +257,10 @@ export function Navigation() {
                 className={`block px-3 py-2 rounded-md text-lg font-semibold italic ${
                   location.pathname === item.path
                     ? "bg-[#e31837] text-white"
-                    : "text-gray-200 hover:bg-[#1e40af]"
+                    : "text-gray-200 hover:bg-[#1e40af] hover:text-[#e31837]"
                 }`}
               >
-                {item.name}
+                {t(item.key as any)}
               </Link>
             ))}
           </div>

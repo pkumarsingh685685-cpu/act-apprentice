@@ -9,9 +9,9 @@ export function HeroSlider() {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const activeImages = sliderImages
-    .filter((img) => img.enabled)
+    ?.filter((img) => img?.enabled)
     .sort((a, b) => a.order - b.order)
-    .slice(0, 10);
+    .slice(0, 10) || [];
 
   useEffect(() => {
     if (activeImages.length <= 1) return;
@@ -43,22 +43,27 @@ export function HeroSlider() {
 
   return (
     <div className="rounded-lg overflow-hidden shadow-md border border-gray-200 relative bg-gray-900 aspect-[16/9] sm:aspect-[21/9] group">
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="sync">
         <motion.div
           key={currentIndex}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
+          initial={{ opacity: 0, scale: 1.05, filter: 'blur(5px)' }}
+          animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+          exit={{ opacity: 0, scale: 0.98, filter: 'blur(5px)' }}
+          transition={{ duration: 0.8, ease: [0.4, 0.0, 0.2, 1] }}
           className="absolute inset-0"
         >
           <img 
             src={activeImages[currentIndex].image} 
             alt={activeImages[currentIndex].title} 
-            className="w-full h-full object-cover object-center opacity-90"
+            className="w-full h-full object-fill object-center opacity-100"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#1c3f60]/90 via-black/20 to-transparent flex items-end pointer-events-none">
-            <div className="p-4 sm:p-6 text-white text-shadow-sm pointer-events-auto">
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
+              className="p-4 sm:p-6 text-white text-shadow-sm pointer-events-auto"
+            >
               {activeImages[currentIndex].title && (
                 <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">{activeImages[currentIndex].title}</h2>
               )}
@@ -67,7 +72,7 @@ export function HeroSlider() {
                   {activeImages[currentIndex].description}
                 </p>
               )}
-            </div>
+            </motion.div>
           </div>
         </motion.div>
       </AnimatePresence>

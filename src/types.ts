@@ -43,6 +43,7 @@ export interface SiteConfig {
   contactMobile: string;
   contactEmail: string;
   contactAddress: string;
+  developerCreditText?: string;
   cloudinaryName?: string;
   cloudinaryPreset?: string;
 }
@@ -63,6 +64,7 @@ export interface SiteLogos {
   railwayLogo: LogoItem;
   govLogo: LogoItem;
   nationalEmblem: LogoItem;
+  ministryLogo?: LogoItem;
 }
 
 export interface SliderImageItem {
@@ -101,6 +103,10 @@ export interface AppState {
 
   config: SiteConfig;
   updateConfig: (key: keyof SiteConfig, value: string) => void;
+
+  translations: { en: Record<string, string>; hi: Record<string, string> };
+  updateTranslation: (lang: 'en' | 'hi', key: string, value: string) => void;
+  updateTranslationsBatch: (lang: 'en' | 'hi', updates: Record<string, string>) => void;
 
   headerConfig: HeaderConfig;
   updateHeaderConfig: (config: HeaderConfig) => void;

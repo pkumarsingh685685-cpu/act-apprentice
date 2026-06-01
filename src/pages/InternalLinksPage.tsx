@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Shield, Lock, ExternalLink } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useStore } from "../store/useStore";
 
 export default function InternalLinksPage() {
@@ -7,6 +8,7 @@ export default function InternalLinksPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const internalLinks = useStore((state) => state.internalLinks);
+  const { t } = useTranslation();
 
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
@@ -14,12 +16,12 @@ export default function InternalLinksPage() {
       setIsAuthenticated(true);
       setError("");
     } else {
-      setError("Invalid password");
+      setError(t('internal_links_invalid_password'));
     }
   };
 
   const handleForgotPassword = () => {
-    setError("Please contact the system administrator to reset your password.");
+    setError(t('internal_links_contact_admin'));
   };
 
   if (!isAuthenticated) {
@@ -28,9 +30,9 @@ export default function InternalLinksPage() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 w-full max-w-md overflow-hidden self-start">
           <div className="bg-[#1c3f60] p-6 text-center text-white">
             <Lock className="w-12 h-12 mx-auto mb-3 text-white" />
-            <h2 className="text-xl font-bold">Admin Portal</h2>
+            <h2 className="text-xl font-bold">{t('admin_portal')}</h2>
             <p className="opacity-80 text-sm mt-1">
-              Please enter admin password to view internal links
+              {t('internal_links_subtitle')}
             </p>
           </div>
           <div className="p-6">
@@ -42,14 +44,14 @@ export default function InternalLinksPage() {
             <form onSubmit={handleAuth} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
+                  {t('password')}
                 </label>
                 <input
                   type="password"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1c3f60]"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter admin password"
+                  placeholder={t('internal_links_password_placeholder')}
                   required
                 />
               </div>
@@ -59,14 +61,14 @@ export default function InternalLinksPage() {
                   onClick={handleForgotPassword}
                   className="text-sm text-[#1c3f60] hover:underline font-medium"
                 >
-                  Forgot Password?
+                  {t('forgot_password')}
                 </button>
               </div>
               <button
                 type="submit"
                 className="w-full bg-[#e31837] text-white py-2 rounded font-medium hover:bg-red-700 transition shadow-sm"
               >
-                Login to Access Links
+                {t('internal_links_login')}
               </button>
             </form>
           </div>
@@ -79,12 +81,11 @@ export default function InternalLinksPage() {
     <div className="flex-1 w-full bg-slate-50 py-10 min-h-[500px] animate-fade-in">
       <div className="w-full px-4">
         <h1 className="text-2xl md:text-3xl font-bold text-[#1c3f60] mb-8 flex items-center gap-2 border-b pb-4">
-          <Shield className="text-[#e31837] w-8 h-8" /> Internal Department
-          Links
+          <Shield className="text-[#e31837] w-8 h-8" /> {t('internal_links_title')}
         </h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {internalLinks.map((link) => (
+          {(internalLinks || []).map((link) => (
             <a
               key={link.id}
               href={link.url}

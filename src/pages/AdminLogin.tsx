@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useStore } from "../store/useStore";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Shield, Key, ArrowRight } from "lucide-react";
 
 export default function AdminLogin() {
   const login = useStore((state) => state.login);
   const isAdmin = useStore((state) => state.isAdmin);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [step, setStep] = useState<"LOGIN" | "FORGOT" | "OTP">("LOGIN");
   const [username, setUsername] = useState("");
@@ -31,7 +33,7 @@ export default function AdminLogin() {
       login();
       navigate("/admin/dashboard");
     } else {
-      setError("Invalid username or password");
+      setError(t('invalid_credentials'));
     }
   };
 
@@ -47,7 +49,7 @@ export default function AdminLogin() {
       login();
       navigate("/admin/dashboard");
     } else {
-      setError("Invalid OTP (hint: use 1234)");
+      setError(t('invalid_otp'));
     }
   };
 
@@ -56,8 +58,8 @@ export default function AdminLogin() {
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 w-full max-w-md overflow-hidden">
         <div className="bg-[#1c3f60] p-6 text-center text-white">
           <Shield className="w-12 h-12 mx-auto mb-3 text-red-500" />
-          <h2 className="text-xl font-bold">Admin Portal</h2>
-          <p className="opacity-80 text-sm mt-1">Authorized personnel only</p>
+          <h2 className="text-xl font-bold">{t('admin_portal')}</h2>
+          <p className="opacity-80 text-sm mt-1">{t('admin_portal_subtitle')}</p>
         </div>
 
         <div className="p-6">
@@ -71,7 +73,7 @@ export default function AdminLogin() {
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Username
+                  {t('username')}
                 </label>
                 <input
                   type="text"
@@ -84,7 +86,7 @@ export default function AdminLogin() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
+                  {t('password')}
                 </label>
                 <input
                   type="password"
@@ -104,7 +106,7 @@ export default function AdminLogin() {
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 text-[#1c3f60] border-gray-300 rounded focus:ring-[#1c3f60]"
                   />
-                  <span className="font-medium text-gray-700">Remember me</span>
+                  <span className="font-medium text-gray-700">{t('remember_me')}</span>
                 </label>
                 <button
                   type="button"
@@ -114,7 +116,7 @@ export default function AdminLogin() {
                   }}
                   className="text-[#1c3f60] hover:text-[#e31837] font-medium"
                 >
-                  Forgot Password/Username?
+                  {t('forgot_password_username')}
                 </button>
               </div>
 
@@ -122,7 +124,7 @@ export default function AdminLogin() {
                 type="submit"
                 className="w-full bg-[#e31837] text-white py-2.5 rounded-md font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
               >
-                Login <ArrowRight className="w-4 h-4" />
+                {t('login')} <ArrowRight className="w-4 h-4" />
               </button>
             </form>
           )}
@@ -130,14 +132,14 @@ export default function AdminLogin() {
           {step === "FORGOT" && (
             <form onSubmit={handleSendOtp} className="space-y-4">
               <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded border">
-                OTP will be sent to registered mobile:{" "}
+                {t('otp_sent_to')}{" "}
                 <strong>+91 9199732466</strong>
               </div>
               <button
                 type="submit"
                 className="w-full bg-[#1c3f60] text-white py-2.5 rounded-md font-semibold hover:bg-blue-900 transition-colors flex items-center justify-center gap-2"
               >
-                Send OTP <Key className="w-4 h-4" />
+                {t('send_otp')} <Key className="w-4 h-4" />
               </button>
 
               <button
@@ -145,7 +147,7 @@ export default function AdminLogin() {
                 onClick={() => setStep("LOGIN")}
                 className="w-full bg-gray-100 text-gray-700 py-2.5 rounded-md font-medium hover:bg-gray-200 transition-colors"
               >
-                Back to Login
+                {t('back_to_login')}
               </button>
             </form>
           )}
@@ -154,7 +156,7 @@ export default function AdminLogin() {
             <form onSubmit={handleVerifyOtp} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Enter OTP
+                  {t('enter_otp')}
                 </label>
                 <input
                   type="text"
@@ -170,16 +172,16 @@ export default function AdminLogin() {
                 type="submit"
                 className="w-full bg-[#e31837] text-white py-2.5 rounded-md font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
               >
-                Verify & Login <ArrowRight className="w-4 h-4" />
+                {t('verify_login')} <ArrowRight className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={() => setStep("FORGOT")}
                 className="w-full bg-gray-100 text-gray-700 py-2.5 rounded-md font-medium hover:bg-gray-200 transition-colors"
               >
-                Resend OTP
+                {t('resend_otp')}
               </button>
-            </form>
+             </form>
           )}
         </div>
       </div>
