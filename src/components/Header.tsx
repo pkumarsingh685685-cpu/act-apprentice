@@ -107,10 +107,10 @@ export function Header({ previewConfig, previewLogos }: { previewConfig?: Header
                 <img 
                   src={logos.railwayLogo.image} 
                   alt="Railway Logo" 
-                  className="w-16 h-16 sm:w-24 sm:h-24 md:w-[110px] md:h-[110px] object-contain mix-blend-multiply"
+                  className="w-20 h-20 sm:w-28 sm:h-28 md:w-[130px] md:h-[130px] object-contain mix-blend-multiply"
                 />
               ) : (
-                <PlaceholderImage text="Logo" className="w-16 h-16 sm:w-20 sm:h-20 shrink-0" />
+                <PlaceholderImage text="Logo" className="w-20 h-20 sm:w-24 sm:h-24 shrink-0" />
               )
             )}
             
@@ -185,28 +185,28 @@ export function Header({ previewConfig, previewLogos }: { previewConfig?: Header
         <div className="absolute left-0 bottom-0 right-0 h-[46px] overflow-hidden flex items-end">
            {/* Stations in Background */}
            <div className="absolute top-[8px] left-[15%] flex items-end z-0 opacity-90">
-              {/* Station structure dark silhouette */}
-              <div className="w-[100px] sm:w-[130px] h-[24px] bg-[#1a1a1a] border border-[#111] relative rounded-sm flex flex-col justify-end pb-1">
+              {/* Station structure transparent silhouette */}
+              <div className="w-[100px] sm:w-[140px] h-[24px] bg-transparent relative flex flex-col justify-end pb-1">
                  {/* Board with focus light */}
-                 <div className="absolute top-1 left-2 right-2 h-[8px] bg-red-600 rounded-sm flex items-center justify-center text-[5px] text-white font-bold tracking-widest whitespace-nowrap px-1 overflow-hidden shadow-[0_0_10px_2px_rgba(255,255,255,0.5)]">
+                 <div className="absolute top-0 left-2 right-2 h-[14px] bg-red-600 rounded-sm flex items-center justify-center text-[7px] sm:text-[9px] text-white font-bold tracking-widest whitespace-nowrap px-1 shadow-[0_0_10px_2px_rgba(255,255,255,0.5)] z-10">
                     KATIHAR JN
                  </div>
                  {/* Pillars dark */}
-                 <div className="absolute bottom-0 left-4 w-[2px] h-[10px] bg-[#111]"></div>
-                 <div className="absolute bottom-0 right-4 w-[2px] h-[10px] bg-[#111]"></div>
+                 <div className="absolute bottom-0 left-4 w-[2px] h-[14px] bg-[#111]"></div>
+                 <div className="absolute bottom-0 right-4 w-[2px] h-[14px] bg-[#111]"></div>
               </div>
            </div>
            
            <div className="absolute top-[10px] right-[10%] flex items-end z-0 opacity-90">
-              {/* Station structure dark silhouette */}
-              <div className="w-[110px] sm:w-[140px] h-[22px] bg-[#1a1a1a] border border-[#111] relative rounded-sm flex flex-col justify-end pb-1">
+              {/* Station structure transparent silhouette */}
+              <div className="w-[120px] sm:w-[160px] h-[22px] bg-transparent relative flex flex-col justify-end pb-1">
                  {/* Board with focus light */}
-                 <div className="absolute top-1 left-2 right-2 h-[8px] bg-[#2e3791] rounded-sm flex items-center justify-center text-[5px] text-white font-bold tracking-widest whitespace-nowrap px-1 overflow-hidden shadow-[0_0_10px_2px_rgba(255,255,255,0.5)]">
+                 <div className="absolute top-0 left-2 right-2 h-[14px] bg-[#2e3791] rounded-sm flex items-center justify-center text-[7px] sm:text-[9px] text-white font-bold tracking-widest whitespace-nowrap px-1 shadow-[0_0_10px_2px_rgba(255,255,255,0.5)] z-10">
                     NEW JALPAIGURI
                  </div>
                  {/* Pillars dark */}
-                 <div className="absolute bottom-0 left-5 w-[2px] h-[8px] bg-[#111]"></div>
-                 <div className="absolute bottom-0 right-5 w-[2px] h-[8px] bg-[#111]"></div>
+                 <div className="absolute bottom-0 left-5 w-[2px] h-[12px] bg-[#111]"></div>
+                 <div className="absolute bottom-0 right-5 w-[2px] h-[12px] bg-[#111]"></div>
               </div>
            </div>
 
@@ -254,9 +254,6 @@ export function Header({ previewConfig, previewLogos }: { previewConfig?: Header
                    {/* Doors / details */}
                    <div className="absolute top-[4px] bottom-[4px] right-[4px] w-[4px] sm:w-[6px] bg-[#d1d5db] border border-gray-400"></div>
                    <div className="absolute top-[6px] right-[5px] w-[2px] h-[5px] bg-[#111827]"></div>
-
-                   {/* Red tail light */}
-                   <div className="absolute bottom-1 left-1 w-1 sm:w-1.5 h-1 sm:h-1.5 bg-red-600 rounded-full shadow-[0_0_4px_red]"></div>
 
                    {/* Wheels */}
                    <div className="absolute -bottom-[2px] left-[30%] w-1.5 h-1.5 bg-black rounded-full"></div>

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "../store/useStore";
 import { DocumentPanel } from "../components/DocumentPanel";
-import { FileText, Award, Bell, ExternalLink, X } from "lucide-react";
+import { FileText, Award, Bell, ExternalLink, X, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PlaceholderImage } from "../components/PlaceholderImage";
 
@@ -23,7 +23,7 @@ function NoticeBoardImage({ className }: { className?: string }) {
           100% { transform: rotate(360deg); }
         }
       `}</style>
-      <div className={`w-full h-full rounded-lg shadow-sm bg-white group relative overflow-hidden flex flex-col min-h-[150px] border border-gray-200 ${className || ""}`}>
+      <div className={`w-full h-full rounded-lg shadow-sm bg-white group relative overflow-hidden flex flex-col min-h-[60px] border border-gray-200 ${className || ""}`}>
         <div className="relative z-10 bg-white w-full h-full rounded-md overflow-hidden flex flex-col flex-1">
           {noticeImage.image ? (
             <div
@@ -91,6 +91,7 @@ function NoticeBoardImage({ className }: { className?: string }) {
 export default function Home() {
   const config = useStore((state) => state.config) as any;
   const notices = useStore((state) => state.notices);
+  const notifications = useStore((state) => state.notifications);
   const meritPanels = useStore((state) => state.meritPanels);
   const results = useStore((state) => state.results);
   const darCirculars = useStore((state) => state.darCirculars);
@@ -98,18 +99,19 @@ export default function Home() {
   const links = useStore((state) => state.links);
   const { t } = useTranslation();
 
-  // Combine top 5 newest items across all categories for the marquee
+  // Combine top newest items across all categories for the marquee
   const allDocuments = [
-    ...(notices || []).map((n) => ({ ...n, id: `notice-${n.id}`, title: `${t('doc_type_notice')} ${n.title}` })),
-    ...(meritPanels || []).map((n) => ({ ...n, id: `merit-${n.id}`, title: `${t('doc_type_merit')} ${n.title}` })),
-    ...(results || []).map((n) => ({ ...n, id: `result-${n.id}`, title: `${t('doc_type_result')} ${n.title}` })),
-    ...(darCirculars || []).map((n) => ({ ...n, id: `dar-${n.id}`, title: `${t('doc_type_dar')} ${n.title}` })),
-    ...(actCirculars || []).map((n) => ({ ...n, id: `act-${n.id}`, title: `${t('doc_type_act')} ${n.title}` })),
+    ...(notices || []).map((n) => ({ ...n, id: `notice-${n.id}`, title: n.title })),
+    ...(notifications || []).map((n) => ({ ...n, id: `notification-${n.id}`, title: n.title })),
+    ...(meritPanels || []).map((n) => ({ ...n, id: `merit-${n.id}`, title: n.title })),
+    ...(results || []).map((n) => ({ ...n, id: `result-${n.id}`, title: n.title })),
+    ...(darCirculars || []).map((n) => ({ ...n, id: `dar-${n.id}`, title: n.title })),
+    ...(actCirculars || []).map((n) => ({ ...n, id: `act-${n.id}`, title: n.title })),
   ];
 
-  const top5Recent = allDocuments
+  const topRecent = allDocuments
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
+    .slice(0, 7);
 
   const videoConfig = useStore((state) => state.videoConfig);
 
@@ -123,24 +125,26 @@ export default function Home() {
           <div className="shrink-0 font-bold bg-[#e31837] text-white px-3 py-1 rounded shadow-sm mr-3 uppercase tracking-wider text-xs">
             {t('home_latest_updates')}
           </div>
-          <marquee
-            behavior="scroll"
-            direction="left"
-            scrollamount="5"
-            className="flex-1 font-bold text-black tracking-wide"
-          >
-            {config.marqueeText}
-          </marquee>
+          <div className="flex-1 flex overflow-hidden relative">
+            <marquee
+              behavior="scroll"
+              direction="left"
+              scrollamount="5"
+              className="w-full font-bold text-black tracking-wide"
+            >
+              {config.marqueeText}
+            </marquee>
+          </div>
         </div>
       </div>
 
       {/* Hero / Dashboard Grid */}
-      <div className="w-full mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch">
+      <div className="w-full mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch mt-6">
         {/* Left Col: Hero Image & Quick Links */}
         <div className={`${leftColSpan} flex flex-col gap-6 h-full`}>
           <HeroSlider />
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
             <QuickLinkCard
               to="/notifications"
               icon={<Bell className="w-8 h-8" />}
@@ -165,6 +169,19 @@ export default function Home() {
               title={t('home_circulars')}
               color="bg-orange-50 text-orange-700"
             />
+            <Link
+              to="/candidate-login"
+              className="flex flex-col items-center justify-center p-6 rounded-lg shadow-[0_0_15px_rgba(239,68,68,0.5)] border border-red-200 hover:shadow-[0_0_25px_rgba(239,68,68,0.8)] hover:-translate-y-1 transition-all group bg-gradient-to-br from-red-50 to-red-100 text-red-700 relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-red-400 opacity-20 blur-xl rounded-full scale-150 animate-pulse"></div>
+              <div className="mb-3 group-hover:scale-110 transition-transform relative z-10 flex items-center justify-center">
+                <div className="absolute inset-0 bg-red-400 opacity-30 blur-md rounded-full"></div>
+                <User className="w-8 h-8" />
+              </div>
+              <h3 className="font-bold text-center text-sm md:text-base relative z-10">
+                {t('nav_candidate_login') || 'Candidate Login'}
+              </h3>
+            </Link>
           </div>
 
           {/* Disclosures & Disclaimer */}
@@ -185,17 +202,19 @@ export default function Home() {
         </div>
 
         {/* Right Col: Notice Board */}
-        <div className="lg:col-span-1 flex flex-col gap-6 h-full">
-          <DocumentPanel
-            title={t('home_latest_news')}
-            items={top5Recent}
-            theme="news"
-            isMarquee={true}
-            scrollSpeed="10s"
-            className="flex-[2] w-full min-h-0"
-          />
-          <VideoPlayerBox className="shrink-0 w-full" />
-          <NoticeBoardImage className="flex-[1.2] w-full flex flex-col" />
+        <div className="lg:col-span-1 relative flex flex-col gap-3 h-full min-h-[600px] lg:min-h-0">
+          <div className="lg:absolute lg:inset-0 flex flex-col gap-3 h-full max-h-full">
+            <DocumentPanel
+              title={t('home_latest_news')}
+              items={topRecent}
+              theme="news"
+              isMarquee={true}
+              scrollSpeed="10s"
+              className="flex-[1.5] w-full min-h-0"
+            />
+            <VideoPlayerBox className="flex-[0.6] w-full min-h-[80px] lg:min-h-0 text-sm" />
+            <NoticeBoardImage className="flex-[0.8] w-full flex flex-col min-h-[100px] lg:min-h-0" />
+          </div>
         </div>
       </div>
 

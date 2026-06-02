@@ -35,6 +35,7 @@ import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import LinksPage from "./pages/LinksPage";
 import InternalLinksPage from "./pages/InternalLinksPage";
+import CandidateLogin from "./pages/CandidateLogin";
 
 function Layout() {
   const location = useLocation();
@@ -98,6 +99,7 @@ export default function App() {
             <Route path="/dar-circulars" element={<DARCirculars />} />
             <Route path="/act-circulars" element={<ActCirculars />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/candidate-login" element={<CandidateLogin />} />
             <Route path="/links" element={<LinksPage />} />
             <Route path="/internal-links" element={<InternalLinksPage />} />
             <Route path="/admin" element={<AdminLogin />} />

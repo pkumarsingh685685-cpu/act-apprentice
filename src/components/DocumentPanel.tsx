@@ -1,5 +1,7 @@
-import { FileText, Download, Eye, Zap } from "lucide-react";
+import React, { useRef, useState, useEffect } from "react";
+import { FileText, Download, Eye, Zap, Calendar, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { DocumentItem } from "../types";
 import { NewBadge } from "./NewBadge";
 
@@ -95,13 +97,13 @@ const themeStyles = {
     text: "text-indigo-900",
   },
   news: {
-    header: "bg-slate-800 text-white shadow-md",
-    containerBg: "bg-gradient-to-b from-amber-50 to-orange-50",
-    containerBorder: "border-orange-200",
-    itemBg: "bg-transparent",
-    itemHover: "hover:bg-orange-100/50",
-    itemBorder: "border-orange-200/50",
-    text: "text-slate-900 text-[14px] sm:text-[15px] leading-snug font-medium",
+    header: "bg-gradient-to-r from-rose-700 to-orange-600 text-white shadow-[0_4px_10px_rgb(0,0,0,0.1)]",
+    containerBg: "bg-white",
+    containerBorder: "ring-1 ring-gray-900/5",
+    itemBg: "",
+    itemHover: "",
+    itemBorder: "",
+    text: "",
   }
 };
 
@@ -115,6 +117,34 @@ export function DocumentPanel({
 }: DocumentPanelProps) {
   const currentTheme = themeStyles[theme] || themeStyles.blue;
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    if (!isMarquee || isHovered) return;
+    
+    let animationFrameId: number;
+    let lastTime = performance.now();
+
+    const scroll = (time: number) => {
+      const deltaTime = time - lastTime;
+      if (deltaTime > 30) { 
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop += 1;
+          if (scrollRef.current.scrollTop >= scrollRef.current.scrollHeight - scrollRef.current.clientHeight) {
+            scrollRef.current.scrollTop = 0;
+          }
+        }
+        lastTime = time;
+      }
+      animationFrameId = requestAnimationFrame(scroll);
+    };
+
+    animationFrameId = requestAnimationFrame(scroll);
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isMarquee, isHovered]);
 
   // Sort items by order, then by date descending
   const sortedItems = [...(items || [])].sort((a, b) => {
@@ -128,89 +158,136 @@ export function DocumentPanel({
         {t('table_no_notices')}
       </div>
     ) : (
-      sortedItems.map((item) => (
-        <div
-          key={item.id}
-          className={`p-4 transition-colors flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center border-b last:border-0 relative ${currentTheme.itemBg} ${currentTheme.itemHover} ${currentTheme.itemBorder}`}
-        >
-          <div className="flex-1 space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className={`font-medium leading-tight ${currentTheme.text}`}>
-                {item.title}
-              </h3>
-              {item.isNew && <NewBadge />}
+      theme === "news" ? (
+        <div className="relative pl-2 pr-2 py-1 mb-1">
+          {sortedItems.map((item, index) => (
+            <div
+              key={item.id}
+              className="relative flex gap-2.5 items-start mb-3 group cursor-pointer border-b border-gray-100 pb-2 last:border-0"
+              onClick={() => {
+                if (item.downloadLink && item.downloadLink !== "#") window.open(item.downloadLink, "_blank");
+                else if (item.viewLink && item.viewLink !== "#") window.open(item.viewLink, "_blank");
+              }}
+            >
+              <div className="flex-1 bg-transparent py-0.5 transition-all duration-300 relative">
+                 <div className="flex flex-col gap-1">
+                   <div className="flex-1">
+                     <div className="flex items-center gap-1.5 flex-wrap">
+                       <h3 className="font-[Cambria] font-semibold text-gray-800 text-[13px] leading-snug group-hover:text-rose-700 transition-colors">
+                         {item.title}
+                       </h3>
+                       {item.isNew && <NewBadge />}
+                     </div>
+                   </div>
+                   
+                   <div className="flex items-center gap-1 shrink-0 text-[10px] text-gray-500 font-medium px-1">
+                     <Calendar className="w-2.5 h-2.5 text-gray-400" />
+                     {new Date(item.date).toLocaleDateString(i18n.language === 'hi' ? "hi-IN" : "en-IN", {
+                       year: "numeric",
+                       month: "short",
+                       day: "numeric",
+                     })}
+                   </div>
+                 </div>
+              </div>
             </div>
-            <div className="text-xs text-gray-500 font-mono">
-              {t('panel_posted')}{" "}
-              {new Date(item.date).toLocaleDateString(i18n.language === 'hi' ? "hi-IN" : "en-IN", {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              })}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 mt-2 sm:mt-0 relative z-10">
-            {!isMarquee && item.viewLink && item.viewLink !== "#" && (
-              <a
-                href={item.viewLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md text-sm font-medium transition-colors cursor-pointer"
-              >
-                <Eye className="w-4 h-4" /> {t('panel_view')}
-              </a>
-            )}
-            {item.downloadLink && item.downloadLink !== "#" && (
-              <a
-                href={item.downloadLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-md text-sm font-medium transition-colors cursor-pointer"
-              >
-                <Download className="w-4 h-4" /> {t('panel_download')}
-              </a>
-            )}
-          </div>
+          ))}
         </div>
-      ))
+      ) : (
+        sortedItems.map((item) => (
+          <div
+            key={item.id}
+            className={`p-4 transition-colors flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center border-b last:border-0 relative ${currentTheme.itemBg} ${currentTheme.itemHover} ${currentTheme.itemBorder}`}
+          >
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <a 
+                  href={item.downloadLink || item.viewLink || "#"} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className={`font-medium leading-tight hover:text-blue-600 hover:underline transition-colors cursor-pointer decoration-2 underline-offset-2 ${currentTheme.text}`}
+                >
+                  {item.title}
+                </a>
+                {item.isNew && <NewBadge />}
+              </div>
+              <div className="text-xs text-gray-500 font-mono">
+                {t('panel_posted')}{" "}
+                {new Date(item.date).toLocaleDateString(i18n.language === 'hi' ? "hi-IN" : "en-IN", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 mt-2 sm:mt-0 relative z-10">
+              {item.viewLink && item.viewLink !== "#" && (
+                <a
+                  href={item.viewLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md text-sm font-medium transition-colors cursor-pointer"
+                >
+                  <Eye className="w-4 h-4" /> {t('panel_view')}
+                </a>
+              )}
+              {item.downloadLink && item.downloadLink !== "#" && (
+                <a
+                  href={item.downloadLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-md text-sm font-medium transition-colors cursor-pointer"
+                >
+                  <Download className="w-4 h-4" /> {t('panel_download')}
+                </a>
+              )}
+            </div>
+          </div>
+        ))
+      )
     );
 
   return (
     <div
-      className={`rounded-lg shadow-sm border overflow-hidden flex flex-col ${currentTheme.containerBg} ${currentTheme.containerBorder} ${className || (isMarquee ? "h-[380px]" : "")}`}
+      className={`${theme === 'news' ? 'rounded-xl shadow-lg border-0' : 'rounded-lg shadow-sm border'} overflow-hidden flex flex-col ${currentTheme.containerBg} ${currentTheme.containerBorder} ${className || (isMarquee ? "h-[380px]" : "")}`}
     >
       <div
-        className={`p-4 font-semibold flex items-center justify-between shrink-0 relative z-20 ${currentTheme.header}`}
+        className={`p-4 font-semibold flex items-center shrink-0 relative z-20 ${currentTheme.header}`}
       >
-        <h2 className="flex items-center gap-2">
+        <h2 className="flex items-center gap-2 justify-center flex-1 ml-10">
           <FileText className="w-5 h-5" />
           {title}
         </h2>
-        <span className="text-xs bg-white/20 py-1 px-3 rounded-full">
+        <span className="text-xs bg-white/20 py-1 px-3 rounded-full shrink-0">
           {(items || []).length} {t('panel_items')}
         </span>
       </div>
 
       {isMarquee ? (
-        <div
-          className={`flex-1 relative overflow-hidden ${currentTheme.containerBg}`}
-        >
-          <style>{`
-            @keyframes marqueeVertical {
-              0% { transform: translateY(100%); }
-              100% { transform: translateY(-100%); }
-            }
-            .animate-marqueeVertical {
-              animation: marqueeVertical ${scrollSpeed} linear infinite;
-            }
-            .animate-marqueeVertical:hover {
-              animation-play-state: paused;
-            }
-          `}</style>
-          <div className="absolute w-full animate-marqueeVertical">
-            {content}
+        <div className="flex flex-col flex-1 min-h-0 bg-white">
+          <div
+            ref={scrollRef}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            className={`flex-1 relative overflow-hidden ${currentTheme.containerBg}`}
+          >
+            <div className="flex flex-col pb-8">
+              {content}
+              {content}
+            </div>
           </div>
+          {theme === "news" && (
+            <div className="border-t border-gray-100 bg-gray-50 shrink-0 flex justify-center py-3 relative z-20 shadow-[0_-4px_10px_rgb(0,0,0,0.02)]">
+               <button 
+                 onClick={() => navigate('/notice-board')}
+                 className="flex items-center gap-1.5 text-sm font-semibold text-rose-600 hover:text-rose-700 px-5 py-2 rounded-full bg-white hover:bg-rose-50 transition-colors border border-gray-200 hover:border-rose-200 shadow-sm hover:shadow"
+               >
+                 {t('home_view_all', 'View All News')}
+                 <ChevronRight className="w-4 h-4" />
+               </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">

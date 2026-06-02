@@ -24,6 +24,9 @@ import {
 import { toast } from "sonner";
 import enTranslations from '../locales/en.json';
 import hiTranslations from '../locales/hi.json';
+import { ContactSubmissionsManager } from "../components/ContactSubmissionsManager";
+import { CandidateSetupManager } from "../components/CandidateSetupManager";
+import { CandidateQueriesManager } from "../components/CandidateQueriesManager";
 
 export default function AdminDashboard() {
   const isAdmin = useStore((state) => state.isAdmin);
@@ -68,6 +71,8 @@ export default function AdminDashboard() {
     { id: "links", name: "Railways Website Link", icon: Settings },
     { id: "externalLinks", name: "External Links", icon: Settings },
     { id: "internalLinks", name: "Internal Links", icon: Settings },
+    { id: "candidateSetup", name: "Candidate Setup", icon: FileText },
+    { id: "submissions", name: "Form Submissions", icon: List },
   ];
 
   return (
@@ -163,6 +168,9 @@ export default function AdminDashboard() {
           {activeTab === "links" && <LinksManager />}
           {activeTab === "externalLinks" && <ExternalLinksManager />}
           {activeTab === "internalLinks" && <InternalLinksManager />}
+          {activeTab === "candidateSetup" && <CandidateSetupManager />}
+          {activeTab === "queries" && <CandidateQueriesManager />}
+          {activeTab === "submissions" && <ContactSubmissionsManager />}
         </div>
       </div>
     </div>

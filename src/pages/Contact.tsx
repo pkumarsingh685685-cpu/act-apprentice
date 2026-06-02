@@ -1,10 +1,46 @@
+import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Phone, Mail, Clock } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Send } from 'lucide-react';
+import { db } from '../firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { toast } from 'sonner';
 
 export default function Contact() {
   const config = useStore((state) => state.config) as any;
   const { t } = useTranslation();
+
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    message: ''
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.email || !formData.message) {
+      toast.error('Please fill in all required fields.');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await addDoc(collection(db, "contact_submissions"), {
+        ...formData,
+        status: "New",
+        createdAt: serverTimestamp(),
+      });
+      toast.success("Thank you! Your message has been sent successfully.");
+      setFormData({ name: '', email: '', phone: '', message: '' });
+    } catch (err: any) {
+      console.error("Error submitting form:", err);
+      toast.error(`Error: ${err.message || 'Failed to submit message.'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="w-full px-4 py-8">
@@ -60,11 +96,62 @@ export default function Contact() {
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-6 border border-gray-100 flex items-center justify-center min-h-[300px]">
-            <div className="text-center text-gray-500">
-               <MapPin className="w-12 h-12 mx-auto mb-3 opacity-20" />
-               <p className="font-medium">{t('contact_map_unavailable')}</p>
-            </div>
+          <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900 border-b pb-2 mb-4">Send us a Message</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                <input 
+                  type="text" 
+                  className="w-full p-2.5 border border-gray-300 rounded focus:ring-2 focus:ring-[#1c3f60]"
+                  placeholder="Enter your name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                  <input 
+                    type="email" 
+                    className="w-full p-2.5 border border-gray-300 rounded focus:ring-2 focus:ring-[#1c3f60]"
+                    placeholder="Enter email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                  <input 
+                    type="tel" 
+                    className="w-full p-2.5 border border-gray-300 rounded focus:ring-2 focus:ring-[#1c3f60]"
+                    placeholder="Enter phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Message *</label>
+                <textarea 
+                  className="w-full p-2.5 border border-gray-300 rounded focus:ring-2 focus:ring-[#1c3f60] min-h-[120px]"
+                  placeholder="How can we help you?"
+                  value={formData.message}
+                  onChange={(e) => setFormData({...formData, message: e.target.value})}
+                  required
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full bg-[#1c3f60] hover:bg-blue-900 text-white font-medium py-3 rounded flex items-center justify-center gap-2 transition disabled:opacity-70"
+              >
+                {loading ? "Sending..." : "Submit Message"}
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
           </div>
 
         </div>

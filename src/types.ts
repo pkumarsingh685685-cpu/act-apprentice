@@ -46,6 +46,7 @@ export interface SiteConfig {
   developerCreditText?: string;
   cloudinaryName?: string;
   cloudinaryPreset?: string;
+  candidateDataCsvUrl?: string;
 }
 
 export interface LogoItem {

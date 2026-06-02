@@ -35,7 +35,8 @@ export const useStore = create<AppState>()(
         contactEmail: "actadmin.kir@gmail.com",
         contactAddress:
           "DRM Office, Katihar, Bihar 854105, Personnel Branch, Act Apprentice Cell",
-        developerCreditText: "Prshant Kumar singh , Sr.Clerk/Katihar Div."
+        developerCreditText: "Prshant Kumar singh , Sr.Clerk/Katihar Div.",
+        candidateDataCsvUrl: "",
       },
       updateConfig: (key, value) => set((state) => {
         const newConfig = { ...state.config, [key]: value };

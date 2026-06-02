@@ -3,6 +3,14 @@ import { useStore } from "../store/useStore";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Shield, Key, ArrowRight } from "lucide-react";
+import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
+import { auth } from "../firebase";
+
+declare global {
+  interface Window {
+    recaptchaVerifier: RecaptchaVerifier;
+  }
+}
 
 export default function AdminLogin() {
   const login = useStore((state) => state.login);
@@ -13,15 +21,38 @@ export default function AdminLogin() {
   const [step, setStep] = useState<"LOGIN" | "FORGOT" | "OTP">("LOGIN");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("+91");
   const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isAdmin) {
       navigate("/admin/dashboard");
     }
   }, [isAdmin, navigate]);
+
+  useEffect(() => {
+    // Initialize Firebase Recaptcha
+    if (!window.recaptchaVerifier) {
+      console.log("Firebase initialized");
+      try {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          'size': 'invisible',
+          'callback': (response: any) => {
+            console.log("reCAPTCHA initialized");
+          },
+          'expired-callback': () => {
+            setError("reCAPTCHA expired. Please try again.");
+          }
+        });
+      } catch (err) {
+        console.error("Error initializing recaptcha:", err);
+      }
+    }
+  }, []);
 
   if (isAdmin) {
     return null;
@@ -37,19 +68,53 @@ export default function AdminLogin() {
     }
   };
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStep("OTP");
     setError("");
+    setLoading(true);
+
+    if (!phoneNumber || phoneNumber.length < 10) {
+      setError("Please enter a valid phone number with country code (e.g., +9199732466).");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      console.log("OTP request started");
+      const appVerifier = window.recaptchaVerifier;
+      const result = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+      setConfirmationResult(result);
+      setStep("OTP");
+      console.log("OTP sent successfully");
+    } catch (err: any) {
+      console.error(err);
+      setError(`OTP failed with exact error: ${err.message || 'Error sending OTP'}`);
+      console.log("OTP failed with exact error", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otp === "1234") {
+    setError("");
+    setLoading(true);
+
+    if (!confirmationResult) {
+      setError("Please request OTP first.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await confirmationResult.confirm(otp);
       login();
       navigate("/admin/dashboard");
-    } else {
-      setError(t('invalid_otp'));
+    } catch (err: any) {
+      console.error(err);
+      setError(`Verification failed: ${err.message || 'Invalid OTP'}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -63,6 +128,7 @@ export default function AdminLogin() {
         </div>
 
         <div className="p-6">
+          <div id="recaptcha-container"></div>
           {error && (
             <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-md text-sm border border-red-200 font-medium">
               {error}
@@ -131,15 +197,25 @@ export default function AdminLogin() {
 
           {step === "FORGOT" && (
             <form onSubmit={handleSendOtp} className="space-y-4">
-              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded border">
-                {t('otp_sent_to')}{" "}
-                <strong>+91 9199732466</strong>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number (E.164 format)
+                </label>
+                <input
+                  type="tel"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1c3f60] tracking-wider"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="+9199732466"
+                  required
+                />
               </div>
               <button
                 type="submit"
-                className="w-full bg-[#1c3f60] text-white py-2.5 rounded-md font-semibold hover:bg-blue-900 transition-colors flex items-center justify-center gap-2"
+                disabled={loading}
+                className="w-full bg-[#1c3f60] text-white py-2.5 rounded-md font-semibold hover:bg-blue-900 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {t('send_otp')} <Key className="w-4 h-4" />
+                {loading ? "Sending..." : t('send_otp')} <Key className="w-4 h-4" />
               </button>
 
               <button
@@ -154,6 +230,9 @@ export default function AdminLogin() {
 
           {step === "OTP" && (
             <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded border mb-2 text-center">
+                {t('otp_sent_to')} <strong>{phoneNumber}</strong>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('enter_otp')}
@@ -163,23 +242,25 @@ export default function AdminLogin() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#e31837] text-center tracking-widest text-lg"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
-                  placeholder="1234"
-                  maxLength={4}
+                  placeholder="123456"
+                  maxLength={6}
                   required
                 />
               </div>
               <button
                 type="submit"
-                className="w-full bg-[#e31837] text-white py-2.5 rounded-md font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                disabled={loading}
+                className="w-full bg-[#e31837] text-white py-2.5 rounded-md font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {t('verify_login')} <ArrowRight className="w-4 h-4" />
+                {loading ? "Verifying..." : t('verify_login')} <ArrowRight className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={() => setStep("FORGOT")}
                 className="w-full bg-gray-100 text-gray-700 py-2.5 rounded-md font-medium hover:bg-gray-200 transition-colors"
+                disabled={loading}
               >
-                {t('resend_otp')}
+                {t('resend_otp') || "Try Different Number"}
               </button>
              </form>
           )}

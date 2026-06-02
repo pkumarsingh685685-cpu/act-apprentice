@@ -19,6 +19,17 @@
   }
 }
 
+@keyframes launch {
+  0% { transform: translateY(100vh) scale(0.5); opacity: 0; }
+  20% { transform: translateY(0) scale(1); opacity: 1; }
+  80% { transform: translateY(-10vh) scale(1.1); opacity: 1; }
+  100% { transform: translateY(-100vh) scale(0.8); opacity: 0; }
+}
+
+.animate-launch {
+  animation: launch 2.5s ease-in-out forwards;
+}
+
 body {
   @apply bg-gray-50 flex flex-col min-h-screen text-gray-900;
   top: 0px !important;
