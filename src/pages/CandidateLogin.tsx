@@ -19,7 +19,7 @@ export default function CandidateLogin() {
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // Dashboard Tabs State
-  const [activeTab, setActiveTab] = useState<'none' | 'form' | 'details' | 'my_queries'>('none');
+  const [activeTab, setActiveTab] = useState<'none' | 'form' | 'details' | 'my_queries' | 'application'>('none');
 
   // Query Form State
   const [queryData, setQueryData] = useState({

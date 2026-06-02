@@ -270,7 +270,7 @@ export function DocumentPanel({
             ref={scrollRef}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            className={`flex-1 relative overflow-hidden ${currentTheme.containerBg}`}
+            className={`flex-1 relative overflow-y-auto ${currentTheme.containerBg} [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
           >
             <div className="flex flex-col pb-8">
               {content}
