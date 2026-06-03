@@ -281,12 +281,14 @@ export function SF1Generator() {
                 {`
                   @page {
                     size: A4;
-                    margin: 25.4mm;
+                    margin: 0;
                   }
                   @media print {
                     body {
                       -webkit-print-color-adjust: exact;
                       print-color-adjust: exact;
+                      padding: 25.4mm;
+                      box-sizing: border-box;
                     }
                   }
                 `}

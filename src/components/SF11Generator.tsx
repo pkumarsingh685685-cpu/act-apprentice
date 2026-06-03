@@ -384,7 +384,7 @@ export function SF11Generator() {
             {`
               @page {
                 size: A4;
-                margin: 20mm;
+                margin: 0;
               }
               @media print {
                 body {
@@ -397,6 +397,8 @@ export function SF11Generator() {
                 .print-page {
                   box-shadow: none !important;
                   margin: 0 !important;
+                  padding: 20mm !important;
+                  box-sizing: border-box !important;
                 }
               }
             `}
