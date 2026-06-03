@@ -55,6 +55,42 @@ body {
   @apply min-h-screen flex flex-col;
 }
 
+@keyframes loader-tl {
+  0%, 100% { background-color: #3b82f6; border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.6); }
+  25% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+  50% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+  75% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+}
+
+@keyframes loader-tr {
+  0% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+  25% { background-color: #10b981; border-color: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.6); }
+  50% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+  75% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+  100% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+}
+
+@keyframes loader-br {
+  0% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+  25% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+  50% { background-color: #f59e0b; border-color: #f59e0b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.6); }
+  75% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+  100% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+}
+
+@keyframes loader-bl {
+  0% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+  25% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+  50% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+  75% { background-color: #8b5cf6; border-color: #8b5cf6; box-shadow: 0 0 15px rgba(139, 92, 246, 0.6); }
+  100% { background-color: #f1f5f9; border-color: #e2e8f0; box-shadow: 0 0 0 transparent; }
+}
+
+.anim-loader-tl { animation: loader-tl 3s infinite ease-in-out; }
+.anim-loader-tr { animation: loader-tr 3s infinite ease-in-out; }
+.anim-loader-br { animation: loader-br 3s infinite ease-in-out; }
+.anim-loader-bl { animation: loader-bl 3s infinite ease-in-out; }
+
 @keyframes moveTrain {
   from {
     transform: translateX(-100%);

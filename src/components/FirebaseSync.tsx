@@ -59,7 +59,8 @@ export function FirebaseSync() {
       { key: "headerConfig", path: "settings/headerConfig" },
       { key: "audioAnnouncement", path: "settings/audioAnnouncement" },
       { key: "warningConfig", path: "settings/warningConfig" },
-      { key: "translations", path: "settings/translations" }
+      { key: "translations", path: "settings/translations" },
+      { key: "sfDescriptions", path: "settings/sfDescriptions" }
     ];
 
     singletons.forEach(({ key, path }) => {
@@ -139,7 +140,8 @@ export function FirebaseSync() {
     const linkCollections = [
       "links",
       "externalLinks",
-      "internalLinks"
+      "internalLinks",
+      "issuedSFs"
     ];
 
     linkCollections.forEach((colName) => {

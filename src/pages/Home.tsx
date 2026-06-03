@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useStore } from "../store/useStore";
 import { DocumentPanel } from "../components/DocumentPanel";
 import { FileText, Award, Bell, ExternalLink, X, User } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { PlaceholderImage } from "../components/PlaceholderImage";
 
 import { HeroSlider } from "../components/HeroSlider";
@@ -97,7 +97,33 @@ export default function Home() {
   const darCirculars = useStore((state) => state.darCirculars);
   const actCirculars = useStore((state) => state.actCirculars);
   const links = useStore((state) => state.links);
+  const issuedSFs = useStore((state) => state.issuedSFs) || [];
   const { t } = useTranslation();
+
+  const today = new Date().toISOString().split('T')[0];
+  const hasPendingSFs = issuedSFs.some(sf => !sf.isFinalised && sf.issuedDate < today);
+
+  const [isOfficePasswordModalOpen, setIsOfficePasswordModalOpen] = useState(false);
+  const [officePassword, setOfficePassword] = useState("");
+  const [officePasswordError, setOfficePasswordError] = useState("");
+  const navigate = useNavigate();
+
+  const handleOfficeUseClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsOfficePasswordModalOpen(true);
+    setOfficePassword("");
+    setOfficePasswordError("");
+  };
+
+  const handleOfficePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (officePassword === "124612") {
+      setIsOfficePasswordModalOpen(false);
+      navigate(hasPendingSFs ? "/sf-generator?tab=INBOX" : "/sf-generator");
+    } else {
+      setOfficePasswordError("Incorrect Password");
+    }
+  };
 
   // Combine top newest items across all categories for the marquee
   const allDocuments = [
@@ -151,12 +177,23 @@ export default function Home() {
               title={t('home_notifications')}
               color="bg-blue-50 text-blue-700"
             />
-            <QuickLinkCard
-              to="/merit"
-              icon={<Award className="w-8 h-8" />}
-              title={t('home_merit_panel')}
-              color="bg-emerald-50 text-emerald-700"
-            />
+            <button
+              onClick={handleOfficeUseClick}
+              className="relative flex flex-col items-center justify-center p-6 rounded-lg shadow-sm border border-emerald-200 transition-all group bg-emerald-50 text-emerald-700 hover:shadow-md cursor-pointer"
+            >
+              {hasPendingSFs && (
+                <div className="absolute top-2 right-2 w-3.5 h-3.5 bg-red-600 rounded-full animate-ping z-10"></div>
+              )}
+              {hasPendingSFs && (
+                <div className="absolute top-2 right-2 w-3.5 h-3.5 bg-red-600 rounded-full z-10 border border-white"></div>
+              )}
+              <div className="mb-3 group-hover:scale-110 transition-transform">
+                <FileText className="w-8 h-8" />
+              </div>
+              <h3 className="font-semibold text-center text-sm md:text-base uppercase">
+                OFFICE USE ONLY
+              </h3>
+            </button>
             <QuickLinkCard
               to="/results"
               icon={<FileText className="w-8 h-8" />}
@@ -258,6 +295,57 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {isOfficePasswordModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setIsOfficePasswordModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setIsOfficePasswordModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <h2 className="text-xl font-bold text-gray-800 mb-4 text-center border-b pb-2">
+              Office Use Only
+            </h2>
+            <form onSubmit={handleOfficePasswordSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Enter Password <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={officePassword}
+                  onChange={(e) => {
+                    setOfficePassword(e.target.value);
+                    setOfficePasswordError("");
+                  }}
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${officePasswordError ? 'border-red-500' : 'border-gray-300'}`}
+                  placeholder="Enter access password"
+                  autoFocus
+                />
+                {officePasswordError && (
+                  <p className="mt-1 text-sm text-red-600 font-medium">
+                    {officePasswordError}
+                  </p>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-md shadow-md transition-colors"
+              >
+                Access Generator
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

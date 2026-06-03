@@ -47,6 +47,7 @@ export interface SiteConfig {
   cloudinaryName?: string;
   cloudinaryPreset?: string;
   candidateDataCsvUrl?: string;
+  sfPasscode?: string;
 }
 
 export interface LogoItem {
@@ -92,6 +93,15 @@ export interface WarningConfig {
 export interface VideoConfig {
   url: string;
   enabled: boolean;
+}
+
+export interface IssuedSF {
+  id: string;
+  sfType: string;
+  employeeName: string;
+  designation: string;
+  issuedDate: string;
+  isFinalised: boolean;
 }
 
 export interface AppState {
@@ -150,6 +160,14 @@ export interface AppState {
   links: LinkItem[];
   externalLinks: LinkItem[];
   internalLinks: LinkItem[];
+
+  sfDescriptions: Record<string, string>;
+  updateSFDescription: (id: string, description: string) => void;
+
+  issuedSFs: IssuedSF[];
+  addIssuedSF: (sf: Omit<IssuedSF, "id">) => void;
+  toggleIssuedSFFinalised: (id: string) => void;
+  deleteIssuedSF: (id: string) => void;
 
   addDocument: (type: DocumentCategory, doc: Omit<DocumentItem, "id">) => void;
   updateDocument: (

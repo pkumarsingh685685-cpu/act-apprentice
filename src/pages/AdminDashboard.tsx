@@ -13,6 +13,8 @@ import {
   Upload,
   PanelTop,
   LayoutDashboard,
+  FileSignature,
+  Edit
 } from "lucide-react";
 import { Header } from "../components/Header";
 import {
@@ -27,6 +29,7 @@ import hiTranslations from '../locales/hi.json';
 import { ContactSubmissionsManager } from "../components/ContactSubmissionsManager";
 import { CandidateSetupManager } from "../components/CandidateSetupManager";
 import { CandidateQueriesManager } from "../components/CandidateQueriesManager";
+import { SF1Generator } from "../components/SF1Generator";
 
 export default function AdminDashboard() {
   const isAdmin = useStore((state) => state.isAdmin);
@@ -64,10 +67,10 @@ export default function AdminDashboard() {
     { id: "warning", name: "Warning Management", icon: Settings },
     { id: "notices", name: "Notices", icon: FileText },
     { id: "notifications", name: "Notifications", icon: FileText },
-    { id: "meritPanels", name: "Merit Panels", icon: List },
     { id: "results", name: "Results", icon: List },
     { id: "darCirculars", name: "DAR Circulars", icon: FileText },
     { id: "actCirculars", name: "Act Circulars", icon: FileText },
+    { id: "sfDescriptions", name: "Manage SF Details", icon: FileSignature },
     { id: "links", name: "Railways Website Link", icon: Settings },
     { id: "externalLinks", name: "External Links", icon: Settings },
     { id: "internalLinks", name: "Internal Links", icon: Settings },
@@ -132,12 +135,30 @@ export default function AdminDashboard() {
       <div className="flex-1 p-4 md:p-8 overflow-x-hidden">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           {activeTab === "dashboard" && (
-            <div className="flex flex-col items-center justify-center py-12 text-center animate-fade-in">
-              <LayoutDashboard className="w-16 h-16 text-[#1c3f60] mb-4 opacity-80" />
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in my-auto">
+              <div className="relative w-32 h-32 mb-10 flex items-center justify-center">
+                {/* Rotating Outer Ring */}
+                <div 
+                  className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-[#3b82f6] border-r-[#10b981] border-b-[#f59e0b] border-l-[#8b5cf6] opacity-40 animate-spin" 
+                  style={{ animationDuration: '4s' }}
+                ></div>
+                <div 
+                  className="absolute inset-2 rounded-full border-[2px] border-transparent border-t-gray-300 border-b-gray-200 animate-spin" 
+                  style={{ animationDuration: '8s', animationDirection: 'reverse' }}
+                ></div>
+                
+                {/* 2x2 Grid inside */}
+                <div className="grid grid-cols-2 gap-[6px] w-[50px] h-[50px] z-10 relative">
+                  <div className="rounded-[4px] border border-slate-200 bg-slate-100 anim-loader-tl"></div>
+                  <div className="rounded-[4px] border border-slate-200 bg-slate-100 anim-loader-tr"></div>
+                  <div className="rounded-[4px] border border-slate-200 bg-slate-100 anim-loader-bl"></div>
+                  <div className="rounded-[4px] border border-slate-200 bg-slate-100 anim-loader-br"></div>
+                </div>
+              </div>
+              <h2 className="text-3xl font-bold text-gray-800 mb-3 tracking-tight">
                 Welcome to Admin Portal
               </h2>
-              <p className="text-gray-500 max-w-md">
+              <p className="text-gray-500 max-w-md text-lg leading-relaxed">
                 Please select an option from the sidebar to manage your content,
                 settings, and documents.
               </p>
@@ -168,6 +189,7 @@ export default function AdminDashboard() {
           {activeTab === "links" && <LinksManager />}
           {activeTab === "externalLinks" && <ExternalLinksManager />}
           {activeTab === "internalLinks" && <InternalLinksManager />}
+          {activeTab === "sfDescriptions" && <SFDescriptionsManager />}
           {activeTab === "candidateSetup" && <CandidateSetupManager />}
           {activeTab === "queries" && <CandidateQueriesManager />}
           {activeTab === "submissions" && <ContactSubmissionsManager />}
@@ -1120,6 +1142,26 @@ function SettingsForm() {
             These settings locally override environment variables.
           </p>
         </div>
+        
+        {/* Standard Form Passcode Setup */}
+        <div className="md:col-span-2 mt-4 pt-4 border-t">
+          <h4 className="text-md font-semibold mb-3">Standard Form Generator Access</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Generator Passcode</label>
+              <input
+                name="sfPasscode"
+                type="text"
+                value={localConfig.sfPasscode || ''}
+                onChange={handleChange}
+                placeholder="Default: 124612"
+                className="w-full p-2 border rounded"
+              />
+              <p className="text-xs text-gray-500 mt-1">Users will need this code to access the Standard Form generator.</p>
+            </div>
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-medium mb-1">
             Contact Mobile
@@ -1980,6 +2022,92 @@ function InternalLinksManager() {
               ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+function SFDescriptionsManager() {
+  const sfDescriptions = useStore((state) => state.sfDescriptions);
+  const updateSFDescription = useStore((state) => state.updateSFDescription);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  const handleEdit = (id: string, currentValue: string) => {
+    setEditingId(id);
+    setEditValue(currentValue);
+  };
+
+  const handleSave = (id: string) => {
+    const promise = new Promise((resolve) => {
+      updateSFDescription(id, editValue);
+      setTimeout(resolve, 300);
+    });
+    toast.promise(promise, {
+      loading: "Saving...",
+      success: "Updated Details Successfully",
+      error: "Update Failed",
+    });
+    setEditingId(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="border-b pb-4">
+        <h3 className="text-lg font-semibold">Standard Form Details Management</h3>
+        <p className="text-sm text-gray-500">Manage info details shown next to standard form tabs.</p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="grid grid-cols-[100px_1fr_100px] gap-4 font-bold text-gray-600 bg-gray-100 p-3 rounded-t border-b uppercase text-sm">
+          <div>Form ID</div>
+          <div>Description / Use Case</div>
+          <div className="text-right">Action</div>
+        </div>
+
+        {Object.entries(sfDescriptions).map(([id, desc]) => (
+          <div key={id} className="grid grid-cols-[100px_1fr_100px] gap-4 items-center bg-white border border-gray-200 p-3 rounded shadow-sm hover:border-blue-300 transition-colors">
+            <div className="font-bold text-gray-800">{id}</div>
+            
+            {editingId === id ? (
+              <textarea
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                className="w-full border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 px-3 py-2 text-sm text-gray-800 h-24 whitespace-pre-wrap"
+                autoFocus
+              />
+            ) : (
+              <div className="text-sm text-gray-700 whitespace-pre-wrap">{desc}</div>
+            )}
+            
+            <div className="flex justify-end gap-2">
+              {editingId === id ? (
+                <>
+                  <button
+                    onClick={() => handleSave(id)}
+                    className="p-1 px-3 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-xs hover:bg-emerald-100 font-bold"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="p-1 px-2 border rounded text-xs text-gray-600 hover:bg-gray-100"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => handleEdit(id, desc)}
+                  className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                  title="Edit info"
+                >
+                  <Edit size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -37,6 +37,7 @@ export const useStore = create<AppState>()(
           "DRM Office, Katihar, Bihar 854105, Personnel Branch, Act Apprentice Cell",
         developerCreditText: "Prshant Kumar singh , Sr.Clerk/Katihar Div.",
         candidateDataCsvUrl: "",
+        sfPasscode: "124612",
       },
       updateConfig: (key, value) => set((state) => {
         const newConfig = { ...state.config, [key]: value };
@@ -198,6 +199,49 @@ export const useStore = create<AppState>()(
         const newImages = { ...state.images, [key]: base64 };
         setDoc(doc(db, "settings", "images"), newImages).catch(console.error);
         return { images: newImages };
+      }),
+
+      sfDescriptions: {
+        "SF-1": "Order of Suspension",
+        "SF-2": "Order of Deemed Suspension",
+        "SF-3": "Certificate of Subsistence Allowance",
+        "SF-4": "Order of Revocation of Suspension",
+        "SF-5": "Charge Memorandum for Major Penalty",
+        "SF-6": "Refusing of permission to inspect documents",
+        "SF-7": "Appointment of Inquiry Officer / Board of Inquiry",
+        "SF-8": "Appointment of Presenting Officer",
+        "SF-9": "Not in use",
+        "SF-10": "Disciplinary action in common proceedings",
+        "SF-11": "Charge Memorandum for Minor Penalty",
+        "SF-11b": "Charge Memorandum for Minor Penalty (If inquiry held)",
+        "SF-12": "Memorandum where action is proposed under Rule 14(i)",
+        "SF-13": "Permission from President for action against pensioner",
+        "SF-14": "Standard form for charge sheet for Pensioner",
+      },
+      updateSFDescription: (id, description) => set((state) => {
+        const newDescriptions = { ...state.sfDescriptions, [id]: description };
+        setDoc(doc(db, "settings", "sfDescriptions"), newDescriptions).catch(console.error);
+        return { sfDescriptions: newDescriptions };
+      }),
+
+      issuedSFs: [],
+      addIssuedSF: (sf) => set((state) => {
+        const id = generateId();
+        const newSF = { ...sf, id };
+        setDoc(doc(db, "issuedSFs", id), newSF).catch(console.error);
+        return { issuedSFs: [...(state.issuedSFs || []), newSF] };
+      }),
+      toggleIssuedSFFinalised: (id) => set((state) => {
+        const updatedSFs = (state.issuedSFs || []).map((sf) => 
+          sf.id === id ? { ...sf, isFinalised: !sf.isFinalised } : sf
+        );
+        const updatedSF = updatedSFs.find((sf) => sf.id === id);
+        if (updatedSF) setDoc(doc(db, "issuedSFs", id), updatedSF).catch(console.error);
+        return { issuedSFs: updatedSFs };
+      }),
+      deleteIssuedSF: (id) => set((state) => {
+        deleteDoc(doc(db, "issuedSFs", id)).catch(console.error);
+        return { issuedSFs: (state.issuedSFs || []).filter((sf) => sf.id !== id) };
       }),
 
       notices: [

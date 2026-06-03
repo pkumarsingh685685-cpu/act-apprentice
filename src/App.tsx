@@ -37,6 +37,8 @@ import LinksPage from "./pages/LinksPage";
 import InternalLinksPage from "./pages/InternalLinksPage";
 import CandidateLogin from "./pages/CandidateLogin";
 
+import SFGeneratorPage from "./pages/SFGeneratorPage";
+
 function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -94,7 +96,7 @@ export default function App() {
             <Route path="/about" element={<About />} />
             <Route path="/notice-board" element={<NoticeBoardPage />} />
             <Route path="/notifications" element={<Notifications />} />
-            <Route path="/merit" element={<Merit />} />
+            <Route path="/sf-generator" element={<SFGeneratorPage />} />
             <Route path="/results" element={<Results />} />
             <Route path="/dar-circulars" element={<DARCirculars />} />
             <Route path="/act-circulars" element={<ActCirculars />} />

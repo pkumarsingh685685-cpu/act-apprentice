@@ -36,7 +36,7 @@ export default function AdminLogin() {
 
   useEffect(() => {
     // Initialize Firebase Recaptcha
-    if (!window.recaptchaVerifier) {
+    if (!window.recaptchaVerifier && document.getElementById('recaptcha-container')) {
       console.log("Firebase initialized");
       try {
         window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
@@ -46,12 +46,26 @@ export default function AdminLogin() {
           },
           'expired-callback': () => {
             setError("reCAPTCHA expired. Please try again.");
+            if (window.recaptchaVerifier) {
+              window.recaptchaVerifier.clear();
+              //@ts-ignore
+              window.recaptchaVerifier = null;
+            }
           }
         });
+        window.recaptchaVerifier.render();
       } catch (err) {
         console.error("Error initializing recaptcha:", err);
       }
     }
+
+    return () => {
+       if (window.recaptchaVerifier) {
+         window.recaptchaVerifier.clear();
+         //@ts-ignore
+         window.recaptchaVerifier = null;
+       }
+    };
   }, []);
 
   if (isAdmin) {

@@ -55,6 +55,9 @@ service cloud.firestore {
     match /candidate_queries/{docId} {
       allow read, write: if true;
     }
+    match /issuedSFs/{docId} {
+      allow read, write: if true;
+    }
     match /{document=**} {
       allow read, write: if false;
     }
