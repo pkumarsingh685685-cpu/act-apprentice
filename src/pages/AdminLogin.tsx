@@ -105,11 +105,13 @@ export default function AdminLogin() {
     } catch (err: any) {
       console.error("OTP Error:", err);
       if (err.code === 'auth/operation-not-allowed') {
-        setError("Phone Authentication is not enabled in Firebase Console. Please ask admin to enable it.");
+        setError("Firebase Error: Phone Auth is NOT enabled in your Firebase Console OR the current Domain is not authorized.");
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError("Firebase Error: This app's domain is not added to Firebase 'Authorized domains'.");
       } else if (err.code === 'auth/invalid-phone-number') {
         setError("Invalid phone number format. Please include country code (e.g., +91).");
       } else {
-        setError(`OTP failed: ${err.message || 'Error sending OTP'}`);
+        setError(`OTP failed: ${err.message || String(err)}`);
       }
     } finally {
       setLoading(false);
