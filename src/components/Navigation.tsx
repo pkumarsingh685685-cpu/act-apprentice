@@ -14,6 +14,7 @@ const navKeys = [
 
 const rightNavKeys = [
   { key: "nav_contact_us", path: "/contact" },
+  { key: "nav_ai_search", path: "/ai-search" },
   { key: "nav_admin_login", path: "/admin" },
 ];
 

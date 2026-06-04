@@ -36,6 +36,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import LinksPage from "./pages/LinksPage";
 import InternalLinksPage from "./pages/InternalLinksPage";
 import CandidateLogin from "./pages/CandidateLogin";
+import AiSearchPage from "./pages/AiSearchPage";
 
 import SFGeneratorPage from "./pages/SFGeneratorPage";
 
@@ -102,6 +103,7 @@ export default function App() {
             <Route path="/act-circulars" element={<ActCirculars />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/candidate-login" element={<CandidateLogin />} />
+            <Route path="/ai-search" element={<AiSearchPage />} />
             <Route path="/links" element={<LinksPage />} />
             <Route path="/internal-links" element={<InternalLinksPage />} />
             <Route path="/admin" element={<AdminLogin />} />

@@ -58,6 +58,45 @@ service cloud.firestore {
     match /issuedSFs/{docId} {
       allow read, write: if true;
     }
+    match /dynamic_registers/{docId} {
+      allow read, write: if true;
+    }
+    match /dynamic_register_records/{docId} {
+      allow read, write: if true;
+    }
+    match /google_sheets_sources/{docId} {
+      allow read, write: if true;
+    }
+    match /sheet_sync_records/{docId} {
+      allow read, write: if true;
+    }
+    match /employees/{docId} {
+      allow read, write: if true;
+    }
+    match /attendance/{docId} {
+      allow read, write: if true;
+    }
+    match /stipend/{docId} {
+      allow read, write: if true;
+    }
+    match /training/{docId} {
+      allow read, write: if true;
+    }
+    match /medical/{docId} {
+      allow read, write: if true;
+    }
+    match /bank_details/{docId} {
+      allow read, write: if true;
+    }
+    match /trade_details/{docId} {
+      allow read, write: if true;
+    }
+    match /notifications/{docId} {
+      allow read, write: if true;
+    }
+    match /audit_logs/{docId} {
+      allow read, write: if true;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Shield, Key, ArrowRight } from "lucide-react";
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
 import { auth } from "../firebase";
+import { toast } from "sonner";
 
 declare global {
   interface Window {
@@ -34,37 +35,18 @@ export default function AdminLogin() {
     }
   }, [isAdmin, navigate]);
 
+  // Clean up reCaptcha on component unmount to prevent invisible element issues
   useEffect(() => {
-    // Initialize Firebase Recaptcha
-    if (!window.recaptchaVerifier && document.getElementById('recaptcha-container')) {
-      console.log("Firebase initialized");
-      try {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          'size': 'invisible',
-          'callback': (response: any) => {
-            console.log("reCAPTCHA initialized");
-          },
-          'expired-callback': () => {
-            setError("reCAPTCHA expired. Please try again.");
-            if (window.recaptchaVerifier) {
-              window.recaptchaVerifier.clear();
-              //@ts-ignore
-              window.recaptchaVerifier = null;
-            }
-          }
-        });
-        window.recaptchaVerifier.render();
-      } catch (err) {
-        console.error("Error initializing recaptcha:", err);
-      }
-    }
-
     return () => {
-       if (window.recaptchaVerifier) {
-         window.recaptchaVerifier.clear();
-         //@ts-ignore
-         window.recaptchaVerifier = null;
-       }
+      try {
+        if (window.recaptchaVerifier) {
+          window.recaptchaVerifier.clear();
+          //@ts-ignore
+          window.recaptchaVerifier = null;
+        }
+      } catch (err) {
+        console.error("Cleanup error", err);
+      }
     };
   }, []);
 
@@ -94,16 +76,38 @@ export default function AdminLogin() {
     }
 
     try {
+      setError("");
+      setLoading(true);
       console.log("OTP request started");
+
+      // Lazily initialize reCAPTCHA
+      if (!window.recaptchaVerifier) {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          'size': 'invisible',
+          'callback': (response: any) => {
+            console.log("reCAPTCHA verified");
+          },
+          'expired-callback': () => {
+            setError("reCAPTCHA expired. Please try again.");
+          }
+        });
+      }
+
       const appVerifier = window.recaptchaVerifier;
       const result = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
       setConfirmationResult(result);
       setStep("OTP");
       console.log("OTP sent successfully");
+      toast.success("OTP sent to your phone number.");
     } catch (err: any) {
-      console.error(err);
-      setError(`OTP failed with exact error: ${err.message || 'Error sending OTP'}`);
-      console.log("OTP failed with exact error", err);
+      console.error("OTP Error:", err);
+      if (err.code === 'auth/operation-not-allowed') {
+        setError("Phone Authentication is not enabled in Firebase Console. Please ask admin to enable it.");
+      } else if (err.code === 'auth/invalid-phone-number') {
+        setError("Invalid phone number format. Please include country code (e.g., +91).");
+      } else {
+        setError(`OTP failed: ${err.message || 'Error sending OTP'}`);
+      }
     } finally {
       setLoading(false);
     }

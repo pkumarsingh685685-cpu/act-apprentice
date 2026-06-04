@@ -14,7 +14,8 @@ import {
   PanelTop,
   LayoutDashboard,
   FileSignature,
-  Edit
+  Edit,
+  Database
 } from "lucide-react";
 import { Header } from "../components/Header";
 import {
@@ -30,6 +31,8 @@ import { ContactSubmissionsManager } from "../components/ContactSubmissionsManag
 import { CandidateSetupManager } from "../components/CandidateSetupManager";
 import { CandidateQueriesManager } from "../components/CandidateQueriesManager";
 import { SF1Generator } from "../components/SF1Generator";
+import { DynamicRegistersManager } from "../components/DynamicRegistersManager";
+import { GoogleSheetManager } from "../components/GoogleSheetManager";
 
 export default function AdminDashboard() {
   const isAdmin = useStore((state) => state.isAdmin);
@@ -76,6 +79,8 @@ export default function AdminDashboard() {
     { id: "internalLinks", name: "Internal Links", icon: Settings },
     { id: "candidateSetup", name: "Candidate Setup", icon: FileText },
     { id: "submissions", name: "Form Submissions", icon: List },
+    { id: "dynamicRegisters", name: "Dynamic Registers", icon: Database },
+    { id: "dataSources", name: "Data Sources (Sheets)", icon: LayoutDashboard },
   ];
 
   return (
@@ -193,6 +198,8 @@ export default function AdminDashboard() {
           {activeTab === "candidateSetup" && <CandidateSetupManager />}
           {activeTab === "queries" && <CandidateQueriesManager />}
           {activeTab === "submissions" && <ContactSubmissionsManager />}
+          {activeTab === "dynamicRegisters" && <DynamicRegistersManager />}
+          {activeTab === "dataSources" && <GoogleSheetManager />}
         </div>
       </div>
     </div>
