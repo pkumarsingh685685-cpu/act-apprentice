@@ -5,16 +5,24 @@ import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const config = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfig.appId,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || firebaseConfig.measurementId
+  apiKey: "AIzaSyBIB_J8jOycg0HxE2cyrqlgTppBMpnWQlg",
+  authDomain: "act-apprentice-64381.firebaseapp.com",
+  databaseURL: "https://act-apprentice-64381-default-rtdb.firebaseio.com",
+  projectId: "act-apprentice-64381",
+  storageBucket: "act-apprentice-64381.firebasestorage.app",
+  messagingSenderId: "34816060930",
+  appId: "1:34816060930:web:2fbacdd09187500bfdc11b"
 };
 
 export const app = initializeApp(config);
 export const auth = getAuth(app);
-export const db = getFirestore(app, import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || (firebaseConfig as any).firestoreDatabaseId);
+
+// Debugging logs to verify which config is loaded
+console.log("=== FIREBASE INIT DEBUG ===");
+console.log("API KEY =", auth.app.options.apiKey);
+console.log("PROJECT ID =", auth.app.options.projectId);
+console.log("AUTH DOMAIN =", auth.app.options.authDomain);
+console.log("===========================");
+
+export const db = getFirestore(app);
 export const storage = getStorage(app);

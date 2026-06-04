@@ -79,9 +79,12 @@ export default function AdminLogin() {
       setError("");
       setLoading(true);
       console.log("OTP request started");
+      console.log("Current Auth API Key:", auth.app.options.apiKey);
+      console.log("Current Auth Project ID:", auth.app.options.projectId);
 
       // Lazily initialize reCAPTCHA
       if (!window.recaptchaVerifier) {
+        console.log("Initializing RecaptchaVerifier for the first time...");
         window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
           'size': 'invisible',
           'callback': (response: any) => {
