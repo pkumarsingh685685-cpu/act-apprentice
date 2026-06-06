@@ -19,7 +19,8 @@ export async function uploadToStorage(file: File, folder: string = 'uploads'): P
       return downloadUrl;
     } catch (err) {
       console.error("Firebase Storage Upload Error:", err);
-      throw new Error("Cloudinary is not configured, and Firebase Storage fallback failed. Please configure Cloudinary.");
+      const errMsg = err instanceof Error ? err.message : String(err);
+      throw new Error(`Firebase Storage Upload Error: ${errMsg}. Cloudinary is not configured and Firebase Storage failed.`);
     }
   }
 

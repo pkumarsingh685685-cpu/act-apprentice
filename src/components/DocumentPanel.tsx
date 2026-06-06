@@ -230,13 +230,13 @@ export function DocumentPanel({
       className={`${theme === 'news' ? 'rounded-xl shadow-lg border-0' : 'rounded-lg shadow-sm border'} overflow-hidden flex flex-col ${currentTheme.containerBg} ${currentTheme.containerBorder} ${className || (isMarquee ? "h-[380px]" : "")}`}
     >
       <div
-        className={`p-4 font-semibold flex items-center shrink-0 relative z-20 ${currentTheme.header}`}
+        className={`p-4 font-semibold flex items-center justify-between shrink-0 relative z-20 ${currentTheme.header}`}
       >
-        <h2 className="flex items-center gap-2 justify-center flex-1 ml-10">
-          <FileText className="w-5 h-5" />
-          {title}
+        <h2 className="flex items-center gap-2 font-[Cambria] text-base md:text-lg tracking-wide whitespace-nowrap min-w-0">
+          <FileText className="w-5 h-5 shrink-0" />
+          <span className="truncate">{title}</span>
         </h2>
-        <span className="text-xs bg-white/20 py-1 px-3 rounded-full shrink-0">
+        <span className="text-xs bg-white/20 py-1 px-3 rounded-full shrink-0 ml-2">
           {(items || []).length} {t('panel_items')}
         </span>
       </div>

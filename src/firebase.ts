@@ -9,7 +9,7 @@ const config = {
   authDomain: "act-apprentice-64381.firebaseapp.com",
   databaseURL: "https://act-apprentice-64381-default-rtdb.firebaseio.com",
   projectId: "act-apprentice-64381",
-  storageBucket: "act-apprentice-64381.firebasestorage.app",
+  storageBucket: "act-apprentice-64381.appspot.com",
   messagingSenderId: "34816060930",
   appId: "1:34816060930:web:2fbacdd09187500bfdc11b"
 };

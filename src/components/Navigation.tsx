@@ -26,9 +26,14 @@ export function Navigation() {
 
   return (
     <nav 
-      className="text-white sticky top-0 z-50 shadow-md w-full"
+      className="text-white sticky top-0 z-50 shadow-md w-full border-b border-[#2563eb]/20"
       style={{
-        background: "linear-gradient(180deg, #1e40af 50%, #122569 50%)"
+        background: `
+          linear-gradient(180deg, rgba(30, 58, 138, 0.2) 0%, rgba(15, 23, 42, 0.4) 100%),
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 4px),
+          repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 4px),
+          radial-gradient(circle at 50% 50%, #1e40af 0%, #0f172a 100%)
+        `
       }}
     >
       <div className="w-full mx-auto px-4 sm:px-8">
