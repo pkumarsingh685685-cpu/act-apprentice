@@ -26,7 +26,7 @@ const initialData: SF1Data = {
   railway: 'Admn. NFR/KIR',
   placeOfIssue: 'DRM (P)/KIR',
   date: new Date().toISOString().split('T')[0],
-  salutation: 'Shri',
+  salutation: '',
   employeeName: '',
   designation: '',
   workingUnder: '',
@@ -162,10 +162,19 @@ export function SF1Generator() {
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Employee Name <span className="text-red-500">*</span></label>
               <div className="flex">
-                <select name="salutation" value={formData.salutation} onChange={handleChange as any} className="text-sm border-gray-300 rounded-l px-2.5 py-1.5 focus:ring-indigo-500 focus:border-indigo-500 border-y border-l bg-gray-50 focus:bg-white w-24">
+                <select 
+                  required 
+                  name="salutation" 
+                  value={formData.salutation} 
+                  onChange={handleChange as any} 
+                  className="text-sm border-gray-300 rounded-l px-2.5 py-1.5 focus:ring-indigo-500 focus:border-indigo-500 border-y border-l bg-gray-50 focus:bg-white w-24 font-medium text-gray-700"
+                >
+                  <option value="">--Select--</option>
                   <option value="Shri">Shri</option>
                   <option value="Smt.">Smt.</option>
-                  <option value="Kumari">Kumari</option>
+                  <option value="Ms.">Ms.</option>
+                  <option value="Miss">Miss</option>
+                  <option value="Dr.">Dr.</option>
                 </select>
                 <input required type="text" name="employeeName" value={formData.employeeName} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-r px-2.5 py-1.5 focus:ring-indigo-500 focus:border-indigo-500 border bg-gray-50 focus:bg-white flex-1" placeholder="e.g. Rahul Kumar" />
               </div>
@@ -322,7 +331,7 @@ export function SF1Generator() {
                 <div className="w-[48%]">
                   <p>Whereas disciplinary proceeding against</p>
                   <div className="font-bold whitespace-pre-wrap mt-1">
-                    {(formData.salutation || 'Shri') + ' ' + (formData.employeeName || '') + ',\n'}
+                    {(formData.salutation || '__________') + ' ' + (formData.employeeName || '') + ',\n'}
                     {(formData.designation || '') + (formData.designation ? ',\n' : '\n')}
                     {formData.workingUnder ? 'Working under ' + formData.workingUnder + '\n' : ''}
                     {formData.empNo ? '(EMP No. ' + formData.empNo + ')\n' : ''}
@@ -332,7 +341,7 @@ export function SF1Generator() {
                 
                 {/* Right Column */}
                 <div className={`w-[45%] ${formData.strikeOutRightColumn ? 'line-through opacity-70' : ''}`}>
-                  <p>Whereas a case against {(formData.salutation || 'Shri')}</p>
+                  <p>Whereas a case against {(formData.salutation || '__________')}</p>
                   <br />
                   <p className="text-justify leading-tight">
                     (Name and designation of the Railway<br/>servant) in respect of whom a criminal<br/>offence is under investigation / inquiry /<br/>trail.
@@ -343,13 +352,13 @@ export function SF1Generator() {
               {/* Body Content */}
               <div className="space-y-6 font-[Times_New_Roman,Times,serif] leading-[1.4] text-[12pt] text-justify mt-8">
                 <p>
-                  Now, therefore, the undersigned (the authority competent to place the Railway Servant under suspension in terms of the Schedules II and III appended to RS (D&A) Rules, 1968/ an authority mentioned in proviso to [Rule 4 of the RS (D&A) Rules, 1968], in exercise of the powers conferred by Rule 4/proviso to Rule 4 of RS (D&A) Rules, 1968, hereby places the said <span className="font-bold">{(formData.salutation || 'Shri')} {formData.employeeName ? formData.employeeName : ''}{formData.employeeName ? ',' : ''} {formData.designation ? formData.designation : ''}{formData.designation ? ',' : ''} {formData.workingUnder ? 'Working under ' + formData.workingUnder + ',' : ''} {formData.empNo ? '(EMP No. ' + formData.empNo + ')' : ''}</span> under suspension{' '}
+                  Now, therefore, the undersigned (the authority competent to place the Railway Servant under suspension in terms of the Schedules II and III appended to RS (D&A) Rules, 1968/ an authority mentioned in proviso to [Rule 4 of the RS (D&A) Rules, 1968], in exercise of the powers conferred by Rule 4/proviso to Rule 4 of RS (D&A) Rules, 1968, hereby places the said <span className="font-bold">{(formData.salutation || '__________')} {formData.employeeName ? formData.employeeName : ''}{formData.employeeName ? ',' : ''} {formData.designation ? formData.designation : ''}{formData.designation ? ',' : ''} {formData.workingUnder ? 'Working under ' + formData.workingUnder + ',' : ''} {formData.empNo ? '(EMP No. ' + formData.empNo + ')' : ''}</span> under suspension{' '}
                   {formData.effectOption === 'immediate' && <span>with immediate effect<strike className="opacity-70">/with effect from</strike></span>}
                   {formData.effectOption === 'date' && <span><strike className="opacity-70">with immediate effect/</strike>with effect from <span className="font-bold">{formData.effectFromDate ? new Date(formData.effectFromDate).toLocaleDateString('en-GB') : '[DATE]'}</span></span>}
                 </p>
 
                 <p>
-                  It is further ordered that during the period this order shall remain in force, the said <span className="font-bold">{(formData.salutation || 'Shri')} {formData.employeeName ? formData.employeeName : ''}{formData.employeeName ? ',' : ''} {formData.designation ? formData.designation : ''}{formData.designation ? ',' : ''} {formData.empNo ? '(EMP No. ' + formData.empNo + ')' : ''}</span> shall not leave the headquarters without obtaining the previous permission of the competent authority.
+                  It is further ordered that during the period this order shall remain in force, the said <span className="font-bold">{(formData.salutation || '__________')} {formData.employeeName ? formData.employeeName : ''}{formData.employeeName ? ',' : ''} {formData.designation ? formData.designation : ''}{formData.designation ? ',' : ''} {formData.empNo ? '(EMP No. ' + formData.empNo + ')' : ''}</span> shall not leave the headquarters without obtaining the previous permission of the competent authority.
                 </p>
               </div>
 
@@ -387,7 +396,7 @@ export function SF1Generator() {
                   <span>1.</span>
                   <div className="flex-1">
                     <div className="font-bold text-justify">
-                      {(formData.salutation || 'Shri')} {formData.employeeName ? formData.employeeName : ''}{formData.employeeName ? ',' : ''} {formData.designation ? formData.designation : ''}{formData.empNo ? ' (EMP No. ' + formData.empNo + '),' : ','}
+                      {(formData.salutation || '__________')} {formData.employeeName ? formData.employeeName : ''}{formData.employeeName ? ',' : ''} {formData.designation ? formData.designation : ''}{formData.empNo ? ' (EMP No. ' + formData.empNo + '),' : ','}
                     </div>
                     <div className="text-justify mt-1">
                       (Name and designation of the suspended Railway servant) Orders regarding subsistence allowance admissible to him during the period of &nbsp;suspension will issue separately.

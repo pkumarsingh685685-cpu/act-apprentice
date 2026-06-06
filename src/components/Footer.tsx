@@ -49,26 +49,71 @@ export function Footer() {
       <div className="w-full mx-auto px-4 sm:px-8 mt-8 pt-6 border-t border-[#15304a] flex flex-col md:flex-row justify-between items-center text-xs">
         <p>{t('footer_copyright', { year: new Date().getFullYear() })}</p>
         
-        <div className="mt-4 md:mt-0 flex flex-col items-center justify-center relative w-full md:w-auto overflow-visible py-2">
+        <div className="mt-4 md:mt-0 flex items-center justify-center py-1 font-[Inter,sans-serif]">
           <style>{`
-            @keyframes wedding-lights {
-              0%, 100% { 
-                color: #FFD700; 
-                text-shadow: 0 0 5px #FFD700, 0 0 10px #FFD700, 0 0 15px #FF8C00;
-                transform: scale(1);
+            @keyframes rainbow-border-glow {
+              0% {
+                border-color: #3b82f6;
+                box-shadow: 0 0 8px rgba(59, 130, 246, 0.6), inset 0 0 4px rgba(59, 130, 246, 0.4);
               }
-              50% { 
-                color: #FFFDE7; 
-                text-shadow: 0 0 10px #FFD700, 0 0 20px #FFD700, 0 0 30px #FFD700, 0 0 40px #FFA500;
-                transform: scale(1.02);
+              25% {
+                border-color: #ec4899;
+                box-shadow: 0 0 8px rgba(236, 72, 153, 0.6), inset 0 0 4px rgba(236, 72, 153, 0.4);
+              }
+              50% {
+                border-color: #10b981;
+                box-shadow: 0 0 8px rgba(16, 185, 129, 0.6), inset 0 0 4px rgba(16, 185, 129, 0.4);
+              }
+              75% {
+                border-color: #f59e0b;
+                box-shadow: 0 0 8px rgba(245, 158, 11, 0.6), inset 0 0 4px rgba(245, 158, 11, 0.4);
+              }
+              100% {
+                border-color: #3b82f6;
+                box-shadow: 0 0 8px rgba(59, 130, 246, 0.6), inset 0 0 4px rgba(59, 130, 246, 0.4);
               }
             }
+            @keyframes red-text-sweep {
+              0% {
+                background-position: 0% 0;
+              }
+              100% {
+                background-position: -300% 0;
+              }
+            }
+            .lighting-border {
+              animation: rainbow-border-glow 4s linear infinite;
+              background-color: rgba(15, 32, 51, 0.9);
+            }
+            .lighting-text {
+              background: linear-gradient(
+                90deg,
+                #ff1818 0%,
+                #ffffff 12%,
+                #10b981 25%,
+                #ffffff 38%,
+                #ffea00 50%,
+                #ffffff 62%,
+                #ff1818 75%,
+                #ffffff 88%,
+                #ff1818 100%
+              );
+              background-size: 300% auto;
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              color: transparent;
+              animation: red-text-sweep 5s linear infinite;
+              display: inline-block;
+            }
           `}</style>
-          
-          <p className="relative z-10 font-bold text-sm md:text-base tracking-wider md:tracking-widest capitalize px-4"
-             style={{ animation: "wedding-lights 2.5s infinite alternate ease-in-out" }}>
-            {config.developerCreditText || 'Prshant Kumar singh , Sr.Clerk/Katihar Div.'}
-          </p>
+          <div className="lighting-border border-2 px-4 py-1.5 rounded-full flex items-center justify-center">
+            <p className="text-xs font-bold tracking-wide lighting-text">
+              {config.developerCreditText && config.developerCreditText !== "Prshant Kumar singh , Sr.Clerk/Katihar Div."
+                ? config.developerCreditText
+                : "Developed & Managed by - Prashant Kumar Singh, Sr.Clerk/P/KIR"}
+            </p>
+          </div>
         </div>
       </div>
     </footer>

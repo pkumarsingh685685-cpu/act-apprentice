@@ -97,13 +97,13 @@ const themeStyles = {
     text: "text-indigo-900",
   },
   news: {
-    header: "bg-gradient-to-r from-rose-700 to-orange-600 text-white shadow-[0_4px_10px_rgb(0,0,0,0.1)]",
-    containerBg: "bg-white",
-    containerBorder: "ring-1 ring-gray-900/5",
-    itemBg: "",
-    itemHover: "",
-    itemBorder: "",
-    text: "",
+    header: "bg-[#1f3535] text-white shadow-[0_4px_10px_rgb(0,0,0,0.1)]", // slightly darker for header
+    containerBg: "bg-[#f0ffff]",
+    containerBorder: "ring-1 ring-[#1f3535]/10",
+    itemBg: "bg-transparent",
+    itemHover: "hover:bg-[#e0f7f7]",
+    itemBorder: "border-[#1f3535]/10",
+    text: "text-[#1f3535]",
   }
 };
 
@@ -121,30 +121,7 @@ export function DocumentPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
 
-  useEffect(() => {
-    if (!isMarquee || isHovered) return;
-    
-    let animationFrameId: number;
-    let lastTime = performance.now();
-
-    const scroll = (time: number) => {
-      const deltaTime = time - lastTime;
-      if (deltaTime > 30) { 
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop += 1;
-          if (scrollRef.current.scrollTop >= scrollRef.current.scrollHeight - scrollRef.current.clientHeight) {
-            scrollRef.current.scrollTop = 0;
-          }
-        }
-        lastTime = time;
-      }
-      animationFrameId = requestAnimationFrame(scroll);
-    };
-
-    animationFrameId = requestAnimationFrame(scroll);
-
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [isMarquee, isHovered]);
+  // useEffect(() => { ... }) disabled in favor of HTML marquee element
 
   // Sort items by order, then by date descending
   const sortedItems = [...(items || [])].sort((a, b) => {
@@ -163,7 +140,7 @@ export function DocumentPanel({
           {sortedItems.map((item, index) => (
             <div
               key={item.id}
-              className="relative flex gap-2.5 items-start mb-3 group cursor-pointer border-b border-gray-100 pb-2 last:border-0"
+              className="relative flex gap-2.5 items-start mb-3 group cursor-pointer border-b border-[#1f3535]/10 pb-2 last:border-0"
               onClick={() => {
                 if (item.downloadLink && item.downloadLink !== "#") window.open(item.downloadLink, "_blank");
                 else if (item.viewLink && item.viewLink !== "#") window.open(item.viewLink, "_blank");
@@ -173,15 +150,15 @@ export function DocumentPanel({
                  <div className="flex flex-col gap-1">
                    <div className="flex-1">
                      <div className="flex items-center gap-1.5 flex-wrap">
-                       <h3 className="font-[Cambria] font-semibold text-gray-800 text-[13px] leading-snug group-hover:text-rose-700 transition-colors">
+                       <h3 className="font-[Cambria] font-semibold text-slate-800 text-[13px] leading-snug group-hover:text-teal-700 transition-colors">
                          {item.title}
                        </h3>
                        {item.isNew && <NewBadge />}
                      </div>
                    </div>
                    
-                   <div className="flex items-center gap-1 shrink-0 text-[10px] text-gray-500 font-medium px-1">
-                     <Calendar className="w-2.5 h-2.5 text-gray-400" />
+                   <div className="flex items-center gap-1 shrink-0 text-[10px] text-slate-500 font-medium px-1">
+                     <Calendar className="w-2.5 h-2.5 text-slate-400" />
                      {new Date(item.date).toLocaleDateString(i18n.language === 'hi' ? "hi-IN" : "en-IN", {
                        year: "numeric",
                        month: "short",
@@ -265,23 +242,28 @@ export function DocumentPanel({
       </div>
 
       {isMarquee ? (
-        <div className="flex flex-col flex-1 min-h-0 bg-white">
+        <div className={`flex flex-col flex-1 min-h-0 ${currentTheme.containerBg}`}>
           <div
-            ref={scrollRef}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            className={`flex-1 relative overflow-y-auto ${currentTheme.containerBg} [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
+            className={`flex-1 relative overflow-hidden ${currentTheme.containerBg}`}
           >
-            <div className="flex flex-col pb-8">
-              {content}
-              {content}
-            </div>
+            <marquee
+              direction="up"
+              behavior="scroll"
+              scrollamount="2" // Add some scrollspeed controls here if needed
+              className="h-full w-full block"
+              onMouseOver={(e: React.MouseEvent<HTMLMarqueeElement>) => e.currentTarget.stop()}
+              onMouseOut={(e: React.MouseEvent<HTMLMarqueeElement>) => e.currentTarget.start()}
+            >
+              <div className="flex flex-col pb-8">
+                {content}
+              </div>
+            </marquee>
           </div>
           {theme === "news" && (
-            <div className="border-t border-gray-100 bg-gray-50 shrink-0 flex justify-center py-3 relative z-20 shadow-[0_-4px_10px_rgb(0,0,0,0.02)]">
+            <div className="border-t border-[#1f3535] bg-[#1f3535]/10 shrink-0 flex justify-center py-3 relative z-20 shadow-[0_-4px_10px_rgb(0,0,0,0.02)]">
                <button 
                  onClick={() => navigate('/notice-board')}
-                 className="flex items-center gap-1.5 text-sm font-semibold text-rose-600 hover:text-rose-700 px-5 py-2 rounded-full bg-white hover:bg-rose-50 transition-colors border border-gray-200 hover:border-rose-200 shadow-sm hover:shadow"
+                 className="flex items-center gap-1.5 text-sm font-semibold text-teal-100 hover:text-white px-5 py-2 rounded-full bg-[#1f3535] hover:bg-[#2a4545] transition-colors border border-[#2a4545] hover:border-teal-400 shadow-sm hover:shadow"
                >
                  {t('home_view_all', 'View All News')}
                  <ChevronRight className="w-4 h-4" />

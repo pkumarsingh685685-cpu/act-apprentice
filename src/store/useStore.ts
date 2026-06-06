@@ -22,7 +22,30 @@ export const useStore = create<AppState>()(
         set({ isAdmin: false, sessionExpiry: null, lastLoginTime: null }),
       checkSession: () =>
         set((state) => {
+          if (state.isSfAuthenticated && state.sfAuthenticatedAt) {
+            const durationMinutes = parseInt(state.config.sfSessionDuration || "30", 10);
+            const diffInMs = Date.now() - new Date(state.sfAuthenticatedAt).getTime();
+            if (diffInMs > durationMinutes * 60 * 1000) {
+              return {
+                isSfAuthenticated: false,
+                sfAuthenticatedAt: null
+              };
+            }
+          }
           return state;
+        }),
+
+      isSfAuthenticated: false,
+      sfAuthenticatedAt: null,
+      sfLogin: () =>
+        set({
+          isSfAuthenticated: true,
+          sfAuthenticatedAt: new Date().toISOString(),
+        }),
+      sfLogout: () =>
+        set({
+          isSfAuthenticated: false,
+          sfAuthenticatedAt: null,
         }),
 
       config: {
@@ -35,9 +58,10 @@ export const useStore = create<AppState>()(
         contactEmail: "actadmin.kir@gmail.com",
         contactAddress:
           "DRM Office, Katihar, Bihar 854105, Personnel Branch, Act Apprentice Cell",
-        developerCreditText: "Prshant Kumar singh , Sr.Clerk/Katihar Div.",
+        developerCreditText: "Developed & Managed by - Prashant Kumar Singh, Sr.Clerk/P/KIR",
         candidateDataCsvUrl: "",
         sfPasscode: "124612",
+        sfSessionDuration: "30",
       },
       updateConfig: (key, value) => set((state) => {
         const newConfig = { ...state.config, [key]: value };

@@ -1166,6 +1166,19 @@ function SettingsForm() {
               />
               <p className="text-xs text-gray-500 mt-1">Users will need this code to access the Standard Form generator.</p>
             </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Session Duration (Minutes)</label>
+              <input
+                name="sfSessionDuration"
+                type="number"
+                value={localConfig.sfSessionDuration || '30'}
+                onChange={handleChange}
+                placeholder="Default: 30"
+                min="1"
+                className="w-full p-2 border rounded"
+              />
+              <p className="text-xs text-gray-500 mt-1">Number of minutes a user stays authenticated once logged in.</p>
+            </div>
           </div>
         </div>
 

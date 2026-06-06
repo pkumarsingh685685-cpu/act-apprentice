@@ -107,21 +107,21 @@ export default function AiSearchPage() {
               qRef = query(collection(db, colName), where("isFinalised", "==", false));
           }
           const snapshot = await getDocs(qRef);
-          allDocs.push(...snapshot.docs.map(d => ({ id: d.id, _type: colName === "issuedSFs" ? "standard_form" : colName, ...d.data() })));
+          allDocs.push(...snapshot.docs.map(d => ({ id: d.id, _type: colName === "issuedSFs" ? "standard_form" : colName, ...(d.data() as any) })));
       }
 
         // 2. Google Sheets Records
         const sheetSnap = await getDocs(collection(db, "sheet_sync_records"));
         allDocs.push(...sheetSnap.docs.map(d => {
             const data = d.data();
-            return { id: d.id, _type: `Google Sheet: ${data.sourceName || 'Data Document'}`, ...data.data, createdAt: data.createdAt, recordDate: data.recordDate, sourceName: data.sourceName };
+            return { id: d.id, _type: `Google Sheet: ${data.sourceName || 'Data Document'}`, ...(data.data || {}), createdAt: data.createdAt, recordDate: data.recordDate, sourceName: data.sourceName };
         }));
 
         // 3. Dynamic Registers Records
         const registerSnap = await getDocs(collection(db, "dynamic_register_records"));
         allDocs.push(...registerSnap.docs.map(d => {
             const data = d.data();
-            return { id: d.id, _type: `Register: ${data.registerName || 'Dynamic'}`, ...data.data, createdAt: data.createdAt, updatedAt: data.updatedAt, registerName: data.registerName };
+            return { id: d.id, _type: `Register: ${data.registerName || 'Dynamic'}`, ...(data.data || {}), createdAt: data.createdAt, updatedAt: data.updatedAt, registerName: data.registerName };
         }));
 
         let docs = allDocs;

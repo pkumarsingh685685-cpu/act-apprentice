@@ -71,6 +71,7 @@ function Layout() {
 
 import { Toaster } from "sonner";
 import { FirebaseSync } from "./components/FirebaseSync";
+import { SEO } from "./components/SEO";
 
 export default function App() {
   const checkSession = useStore((state) => state.checkSession);
@@ -89,6 +90,7 @@ export default function App() {
       <FirebaseSync />
       <Toaster position="top-right" richColors />
       <Router>
+        <SEO />
         <Routes>
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
 

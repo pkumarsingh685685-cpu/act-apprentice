@@ -14,7 +14,6 @@ const navKeys = [
 
 const rightNavKeys = [
   { key: "nav_contact_us", path: "/contact" },
-  { key: "nav_ai_search", path: "/ai-search" },
   { key: "nav_admin_login", path: "/admin" },
 ];
 
@@ -26,7 +25,12 @@ export function Navigation() {
   const { t } = useTranslation();
 
   return (
-    <nav className="bg-[#1e40af] text-white sticky top-0 z-50 shadow-md">
+    <nav 
+      className="text-white sticky top-0 z-50 shadow-md w-full"
+      style={{
+        background: "linear-gradient(180deg, #1e40af 50%, #122569 50%)"
+      }}
+    >
       <div className="w-full mx-auto px-4 sm:px-8">
         {/* Desktop Menu */}
         <div className="hidden lg:flex flex-wrap items-center">

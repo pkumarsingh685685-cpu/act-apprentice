@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "../store/useStore";
 import { DocumentPanel } from "../components/DocumentPanel";
-import { FileText, Award, Bell, ExternalLink, X, User } from "lucide-react";
+import { FileText, Award, Bell, ExternalLink, X, User, Search } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { PlaceholderImage } from "../components/PlaceholderImage";
 
@@ -98,10 +98,27 @@ export default function Home() {
   const actCirculars = useStore((state) => state.actCirculars);
   const links = useStore((state) => state.links);
   const issuedSFs = useStore((state) => state.issuedSFs) || [];
+  
+  const isSfAuthenticated = useStore((state) => state.isSfAuthenticated);
+  const sfAuthenticatedAt = useStore((state) => state.sfAuthenticatedAt);
+  const sfLogin = useStore((state) => state.sfLogin);
+  const sfLogout = useStore((state) => state.sfLogout);
+
   const { t } = useTranslation();
 
   const today = new Date().toISOString().split('T')[0];
   const hasPendingSFs = issuedSFs.some(sf => !sf.isFinalised && sf.issuedDate < today);
+
+  const sessionDurationMinutes = parseInt(config.sfSessionDuration || "30", 10);
+  let isStillValid = false;
+  if (isSfAuthenticated && sfAuthenticatedAt) {
+    const elapsedMinutes = (Date.now() - new Date(sfAuthenticatedAt).getTime()) / 60000;
+    if (elapsedMinutes < sessionDurationMinutes) {
+      isStillValid = true;
+    } else {
+      sfLogout();
+    }
+  }
 
   const [isOfficePasswordModalOpen, setIsOfficePasswordModalOpen] = useState(false);
   const [officePassword, setOfficePassword] = useState("");
@@ -110,14 +127,20 @@ export default function Home() {
 
   const handleOfficeUseClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    setIsOfficePasswordModalOpen(true);
-    setOfficePassword("");
-    setOfficePasswordError("");
+    if (isStillValid) {
+      navigate(hasPendingSFs ? "/sf-generator?tab=INBOX" : "/sf-generator");
+    } else {
+      setIsOfficePasswordModalOpen(true);
+      setOfficePassword("");
+      setOfficePasswordError("");
+    }
   };
 
   const handleOfficePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (officePassword === "124612") {
+    const correctPassword = config.sfPasscode || "124612";
+    if (officePassword === correctPassword) {
+      sfLogin();
       setIsOfficePasswordModalOpen(false);
       navigate(hasPendingSFs ? "/sf-generator?tab=INBOX" : "/sf-generator");
     } else {
@@ -195,9 +218,9 @@ export default function Home() {
               </h3>
             </button>
             <QuickLinkCard
-              to="/results"
-              icon={<FileText className="w-8 h-8" />}
-              title={t('home_results')}
+              to="/ai-search"
+              icon={<Search className="w-8 h-8" />}
+              title={t('nav_ai_search') || 'Nav AI Search'}
               color="bg-purple-50 text-purple-700"
             />
             <QuickLinkCard
@@ -223,15 +246,15 @@ export default function Home() {
 
           {/* Disclosures & Disclaimer */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-rose-50 p-4 rounded-xl shadow-sm border border-rose-200">
-              <h3 className="font-semibold text-rose-900 border-b border-rose-200 pb-2 mb-2">{t('home_disclosures')}</h3>
-              <p className="text-sm text-rose-800">
+            <div className="p-4 rounded-xl shadow-sm border border-[#00FFFF]/20 bg-[#00FFFF]">
+              <h3 className="font-bold text-slate-800 border-b border-slate-800/20 pb-2 mb-2 text-center uppercase">{t('home_disclosures')}</h3>
+              <p className="text-sm text-slate-800">
                 {t('home_disclosures_text')}
               </p>
             </div>
-            <div className="bg-orange-50 p-4 rounded-xl shadow-sm border border-orange-200 h-full">
-              <h3 className="font-semibold text-orange-900 border-b border-orange-200 pb-2 mb-2">{t('home_disclaimer')}</h3>
-              <p className="text-sm text-orange-800">
+            <div className="p-4 rounded-xl shadow-sm h-full border border-[#8FBC8B]/20 bg-[#8FBC8B]">
+              <h3 className="font-bold text-slate-800 border-b border-slate-800/20 pb-2 mb-2 text-center uppercase">{t('home_disclaimer')}</h3>
+              <p className="text-sm text-slate-800">
                 {t('home_disclaimer_text')}
               </p>
             </div>

@@ -20,7 +20,7 @@ export default function AdminLogin() {
   const { t } = useTranslation();
 
   const [step, setStep] = useState<"LOGIN" | "FORGOT" | "OTP">("LOGIN");
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState("9199732466");
   const [password, setPassword] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("+91");
   const [otp, setOtp] = useState("");
@@ -56,7 +56,7 @@ export default function AdminLogin() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === "admin" && password === "admin123") {
+    if ((username === "9199732466" || username === "admin") && password === "admin123") {
       login();
       navigate("/admin/dashboard");
     } else {
@@ -169,7 +169,7 @@ export default function AdminLogin() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1c3f60]"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="admin"
+                  placeholder=""
                   required
                 />
               </div>
@@ -182,7 +182,7 @@ export default function AdminLogin() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1c3f60]"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="admin123"
+                  placeholder=""
                   required
                 />
               </div>

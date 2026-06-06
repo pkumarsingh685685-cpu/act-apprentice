@@ -26,7 +26,7 @@ const initialData: SF11Data = {
   railway: "Admn. NFR/KIR",
   placeOfIssue: "DRM (P)/KIR",
   date: new Date().toISOString().split("T")[0],
-  salutation: "Shri",
+  salutation: "",
   employeeName: "",
   designation: "",
   workingUnder: "",
@@ -190,14 +190,18 @@ export function SF11Generator() {
             </label>
             <div className="flex">
               <select
+                required
                 name="salutation"
                 value={formData.salutation}
                 onChange={handleChange}
-                className="text-sm border-gray-300 rounded-l px-2.5 py-1.5 focus:ring-indigo-500 focus:border-indigo-500 border-y border-l bg-gray-50 focus:bg-white w-24"
+                className="text-sm border-gray-300 rounded-l px-2.5 py-1.5 focus:ring-indigo-500 focus:border-indigo-500 border-y border-l bg-gray-50 focus:bg-white w-24 font-medium text-gray-700"
               >
+                <option value="">--Select--</option>
                 <option value="Shri">Shri</option>
                 <option value="Smt.">Smt.</option>
-                <option value="Kumari">Kumari</option>
+                <option value="Ms.">Ms.</option>
+                <option value="Miss">Miss</option>
+                <option value="Dr.">Dr.</option>
               </select>
               <input
                 required
@@ -436,7 +440,7 @@ export function SF11Generator() {
                 <div className="absolute left-4 top-0">1.</div>
                 <div>
                   <span className="font-bold">
-                    {formData.salutation} {formData.employeeName}
+                    {formData.salutation || '__________'} {formData.employeeName}
                     {formData.employeeName ? "," : ""} {formData.designation}
                   </span>
                   , working under {formData.workingUnder} is hereby informed
@@ -452,7 +456,7 @@ export function SF11Generator() {
                 <div className="absolute left-4 top-0">2.</div>
                 <div>
                   <span className="font-bold">
-                    {formData.salutation} {formData.employeeName}
+                    {formData.salutation || '__________'} {formData.employeeName}
                     {formData.employeeName ? "," : ""} {formData.designation}
                   </span>
                   , working under {formData.workingUnder} is hereby given an
@@ -467,7 +471,7 @@ export function SF11Generator() {
                 <div className="absolute left-4 top-0">3.</div>
                 <div>
                   <span className="font-bold">
-                    {formData.salutation} {formData.employeeName}
+                    {formData.salutation || '__________'} {formData.employeeName}
                     {formData.employeeName ? "," : ""} {formData.designation}
                   </span>
                   , working under {formData.workingUnder} fails to submit
@@ -475,7 +479,7 @@ export function SF11Generator() {
                   it will be presumed that he/she has no representation to make
                   and orders will be liable to be passed against{" "}
                   <span className="font-bold">
-                    {formData.salutation} {formData.employeeName}
+                    {formData.salutation || '__________'} {formData.employeeName}
                     {formData.employeeName ? "," : ""} {formData.designation}
                   </span>
                   , working under {formData.workingUnder}, ex-parte.
@@ -487,7 +491,7 @@ export function SF11Generator() {
                 <div>
                   The receipt of this Memorandum should be acknowledged{" "}
                   <span className="font-bold">
-                    {formData.salutation} {formData.employeeName}
+                    {formData.salutation || '__________'} {formData.employeeName}
                     {formData.employeeName ? "," : ""} {formData.designation}
                   </span>
                   , working under {formData.workingUnder}
@@ -527,7 +531,7 @@ export function SF11Generator() {
                 <div className="pl-6 relative">
                   <span className="absolute left-2">1.</span>
                   <span className="font-bold">
-                    {formData.salutation} {formData.employeeName}
+                    {formData.salutation || '__________'} {formData.employeeName}
                     {formData.employeeName ? ", " : ""}
                     {formData.designation}{formData.empNo ? `, (EMP No. ${formData.empNo})` : ""}
                   </span>
@@ -581,7 +585,7 @@ export function SF11Generator() {
           <div className="bg-white w-[210mm] min-h-[297mm] shadow-2xl relative box-border p-[25mm] print-page page-break print:p-0">
             <div className="text-center font-bold underline uppercase mb-8 leading-relaxed px-4">
                 STATEMENT OF IMPUTATIONS OF MISCONDUCT OR MISBEHAVIOUR AGAINST{" "}
-                {formData.salutation} {formData.employeeName}
+                {formData.salutation || '__________'} {formData.employeeName}
                 {formData.employeeName ? ", " : ""}
                 {formData.designation} WORKING UNDER {formData.workingUnder}
               </div>

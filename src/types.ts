@@ -48,6 +48,7 @@ export interface SiteConfig {
   cloudinaryPreset?: string;
   candidateDataCsvUrl?: string;
   sfPasscode?: string;
+  sfSessionDuration?: string;
 }
 
 export interface LogoItem {
@@ -111,6 +112,11 @@ export interface AppState {
   login: (rememberMe?: boolean) => void;
   logout: () => void;
   checkSession: () => void;
+  
+  isSfAuthenticated: boolean;
+  sfAuthenticatedAt: string | null;
+  sfLogin: () => void;
+  sfLogout: () => void;
 
   config: SiteConfig;
   updateConfig: (key: keyof SiteConfig, value: string) => void;
