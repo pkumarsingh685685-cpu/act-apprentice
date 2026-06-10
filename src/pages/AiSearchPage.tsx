@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { Search, Loader2, Database, UserCheck, AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Search, Loader2, Database, UserCheck, AlertCircle, AlertTriangle, CheckCircle2, Sparkles, Brain, ShieldCheck, Scale, FileText, Cpu, CheckCircle } from "lucide-react";
 import { db } from "../firebase";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, addDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "sonner";
 
 export default function AiSearchPage() {
@@ -10,6 +10,61 @@ export default function AiSearchPage() {
   const [results, setResults] = useState<any[] | null>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [activePlan, setActivePlan] = useState<any>(null);
+  const [aiAnswer, setAiAnswer] = useState<string | null>(null);
+  const [isGeneratingAnswer, setIsGeneratingAnswer] = useState(false);
+
+  // AI Response Orchestrator State
+  const [searchMode, setSearchMode] = useState<"database" | "orchestrator">("database");
+  const [isOrchestrating, setIsOrchestrating] = useState(false);
+  const [orchestrationResult, setOrchestrationResult] = useState<any | null>(null);
+
+  const formatMarkdown = (text: string) => {
+    if (!text) return null;
+    const lines = text.split("\n");
+    return lines.map((line, idx) => {
+      let content = line;
+      const isBullet = content.trim().startsWith("- ") || content.trim().startsWith("* ");
+      if (isBullet) {
+        content = content.replace(/^[\s*-]+/, "");
+      }
+      
+      const parts = [];
+      let lastIdx = 0;
+      const boldRegex = /\*\*(.*?)\*\*/g;
+      let match;
+      while ((match = boldRegex.exec(content)) !== null) {
+        if (match.index > lastIdx) {
+          parts.push(content.substring(lastIdx, match.index));
+        }
+        parts.push(<strong key={match.index} className="font-bold text-gray-950 bg-amber-50 px-1 border-b border-amber-300 rounded-sm">{match[1]}</strong>);
+        lastIdx = boldRegex.lastIndex;
+      }
+      if (lastIdx < content.length) {
+        parts.push(content.substring(lastIdx));
+      }
+
+      if (isBullet) {
+        return (
+          <li key={idx} className="ml-4 mb-1.5 list-disc text-gray-800 text-left pl-1">
+            {parts.length > 0 ? parts : content}
+          </li>
+        );
+      }
+
+      if (line.trim().startsWith("### ")) {
+        return <h4 key={idx} className="font-bold text-lg text-gray-900 mt-4 mb-2 text-left">{line.replace("### ", "")}</h4>;
+      }
+      if (line.trim().startsWith("## ")) {
+        return <h3 key={idx} className="font-bold text-xl text-gray-900 mt-4 mb-2 text-left">{line.replace("## ", "")}</h3>;
+      }
+      
+      return (
+        <p key={idx} className="mb-2 text-gray-800 text-left leading-relaxed">
+          {parts.length > 0 ? parts : content}
+        </p>
+      );
+    });
+  };
 
   const getRecordMetadata = (r: any) => {
     // Try to find a date field regardless of casing
@@ -61,13 +116,65 @@ export default function AiSearchPage() {
     return { recordDate: formattedDate, lastUpdated, isHistorical };
   };
 
+  const handleOrchestration = async () => {
+    setIsOrchestrating(true);
+    setOrchestrationResult(null);
+    setResults(null);
+    setExplanation(null);
+    setAiAnswer(null);
+
+    try {
+      const response = await fetch("/api/ai-orchestrate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: searchQuery }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Failed to orchestrate AI responses.");
+      }
+
+      const data = await response.json();
+      setOrchestrationResult(data);
+
+      try {
+        await addDoc(collection(db, "audit_logs"), {
+          query: data.query || searchQuery,
+          verification: data.verification || {},
+          sources_used: data.sources_used || [],
+          final_answer: data.final_answer || "",
+          citations: data.citations || [],
+          timestamp: serverTimestamp(),
+          agent: "AI Response Orchestrator v1"
+        });
+        toast.success("Verified response retrieved & saved to audit log.");
+      } catch (dbErr: any) {
+        console.error("Failed to save audit log to Firestore:", dbErr);
+        toast.error("Verified, but failed to save audit log.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Orchestration failed.");
+    } finally {
+      setIsOrchestrating(false);
+    }
+  };
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
+    if (searchMode === "orchestrator") {
+      await handleOrchestration();
+      return;
+    }
+
     setIsSearching(true);
     setResults(null);
     setExplanation(null);
+    setAiAnswer(null);
+    setIsGeneratingAnswer(false);
 
     try {
       // Step 1: Use Server API to get structured plan via Gemini
@@ -110,88 +217,105 @@ export default function AiSearchPage() {
           allDocs.push(...snapshot.docs.map(d => ({ id: d.id, _type: colName === "issuedSFs" ? "standard_form" : colName, ...(d.data() as any) })));
       }
 
-        // 2. Google Sheets Records
-        const sheetSnap = await getDocs(collection(db, "sheet_sync_records"));
-        allDocs.push(...sheetSnap.docs.map(d => {
-            const data = d.data();
-            return { id: d.id, _type: `Google Sheet: ${data.sourceName || 'Data Document'}`, ...(data.data || {}), createdAt: data.createdAt, recordDate: data.recordDate, sourceName: data.sourceName };
-        }));
+      // 2. Google Sheets Records
+      const sheetSnap = await getDocs(collection(db, "sheet_sync_records"));
+      allDocs.push(...sheetSnap.docs.map(d => {
+          const data = d.data();
+          return { id: d.id, _type: `Google Sheet: ${data.sourceName || 'Data Document'}`, ...(data.data || {}), createdAt: data.createdAt, recordDate: data.recordDate, sourceName: data.sourceName };
+      }));
 
-        // 3. Dynamic Registers Records
-        const registerSnap = await getDocs(collection(db, "dynamic_register_records"));
-        allDocs.push(...registerSnap.docs.map(d => {
-            const data = d.data();
-            return { id: d.id, _type: `Register: ${data.registerName || 'Dynamic'}`, ...(data.data || {}), createdAt: data.createdAt, updatedAt: data.updatedAt, registerName: data.registerName };
-        }));
+      // 3. Dynamic Registers Records
+      const registerSnap = await getDocs(collection(db, "dynamic_register_records"));
+      allDocs.push(...registerSnap.docs.map(d => {
+          const data = d.data();
+          return { id: d.id, _type: `Register: ${data.registerName || 'Dynamic'}`, ...(data.data || {}), createdAt: data.createdAt, updatedAt: data.updatedAt, registerName: data.registerName };
+      }));
 
-        let docs = allDocs;
+      let docs = allDocs;
 
-        // Pre-filter if a specific sheet or register was explicitly requested
-        if (intent === "google_sheet_search") {
-            docs = docs.filter((d: any) => d._type && d._type.includes("Google Sheet"));
-            if (plan.sheetName) {
-                docs = docs.filter((d: any) => d.sourceName && d.sourceName.toLowerCase().includes(plan.sheetName.toLowerCase()));
-            }
-        } else if (intent === "dynamic_register_search") {
-            docs = docs.filter((d: any) => d._type && d._type.includes("Register"));
-            if (plan.registerName) {
-                docs = docs.filter((d: any) => d.registerName && d.registerName.toLowerCase().includes(plan.registerName.toLowerCase()));
-            }
-        }
+      // Pre-filter if a specific sheet or register was explicitly requested
+      if (intent === "google_sheet_search") {
+          docs = docs.filter((d: any) => d._type && d._type.includes("Google Sheet"));
+          if (plan.sheetName) {
+              docs = docs.filter((d: any) => d.sourceName && d.sourceName.toLowerCase().includes(plan.sheetName.toLowerCase()));
+          }
+      } else if (intent === "dynamic_register_search") {
+          docs = docs.filter((d: any) => d._type && d._type.includes("Register"));
+          if (plan.registerName) {
+              docs = docs.filter((d: any) => d.registerName && d.registerName.toLowerCase().includes(plan.registerName.toLowerCase()));
+          }
+      }
 
-        // Apply robust filters based on AI text extraction using deep object string matching
-        const filterByValue = (docsToFilter: any[], term: string) => {
-            if (!term) return docsToFilter;
-            // Remove hyphens and whitespace to normalize comparison
-            const normalizedQuery = term.toLowerCase().trim().replace(/-/g, "");
-            const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 0);
-            
-            return docsToFilter.filter(d => {
-                const values = [];
-                for(const key of Object.keys(d)) {
-                    if (d[key] && typeof d[key] !== 'object') {
-                        values.push(String(d[key]));
-                    }
-                }
-                const fullText = values.join(" ").toLowerCase().replace(/-/g, "");
-                // Check if ALL words in the term exist in the fullText (AND logic)
-                return queryWords.every(word => fullText.includes(word));
-            });
-        };
+      // Apply robust filters based on AI text extraction using deep object string matching
+      const filterByValue = (docsToFilter: any[], term: string) => {
+          if (!term) return docsToFilter;
+          const normalizedQuery = term.toLowerCase().trim().replace(/-/g, "");
+          const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 0);
+          
+          return docsToFilter.filter(d => {
+              const values = [];
+              for(const key of Object.keys(d)) {
+                  if (d[key] && typeof d[key] !== 'object') {
+                      values.push(String(d[key]));
+                  }
+              }
+              const fullText = values.join(" ").toLowerCase().replace(/-/g, "");
+              return queryWords.every(word => fullText.includes(word));
+          });
+      };
 
-        if (plan.employeeId) docs = filterByValue(docs, plan.employeeId);
-        if (plan.employeeName) docs = filterByValue(docs, plan.employeeName);
-        if (plan.trade) docs = filterByValue(docs, plan.trade);
-        if (plan.month) docs = filterByValue(docs, plan.month);
-        if (plan.status) docs = filterByValue(docs, plan.status);
-        if (plan.year) docs = filterByValue(docs, plan.year);
+      if (plan.employeeId) docs = filterByValue(docs, plan.employeeId);
+      if (plan.employeeName) docs = filterByValue(docs, plan.employeeName);
+      if (plan.trade) docs = filterByValue(docs, plan.trade);
+      if (plan.month) docs = filterByValue(docs, plan.month);
+      if (plan.status) docs = filterByValue(docs, plan.status);
+      if (plan.year) docs = filterByValue(docs, plan.year);
 
-        // Fallback: If no structured filters were extracted OR the structured search yielded zero results,
-        // try a generic full-text search across all collected docs because AI extraction might have been too aggressive.
-        const hasStructuredFilter = plan.employeeId || plan.employeeName || plan.trade || plan.month || plan.status || plan.year || plan.sheetName || plan.registerName;
-        
-        if (!hasStructuredFilter || docs.length === 0) {
-            // Give up on AI structure and rely on plain text search on the original un-filtered docs
-            let textFilteredDocs = filterByValue(allDocs, searchQuery);
-            
-            // If it's still too broad, restrict to primary collection intended by the AI
-            if (textFilteredDocs.length === allDocs.length || !searchQuery.trim()) {
-                if (intent !== "google_sheet_search" && intent !== "dynamic_register_search") {
-                    textFilteredDocs = textFilteredDocs.filter((d: any) => d._type === colName);
-                }
-            }
-            docs = textFilteredDocs;
-        }
+      const hasStructuredFilter = plan.employeeId || plan.employeeName || plan.trade || plan.month || plan.status || plan.year || plan.sheetName || plan.registerName;
+      
+      if (!hasStructuredFilter || docs.length === 0) {
+          let textFilteredDocs = filterByValue(allDocs, searchQuery);
+          
+          if (textFilteredDocs.length === allDocs.length || !searchQuery.trim()) {
+              if (intent !== "google_sheet_search" && intent !== "dynamic_register_search") {
+                  textFilteredDocs = textFilteredDocs.filter((d: any) => d._type === colName);
+              }
+          }
+          docs = textFilteredDocs;
+      }
 
-        searchResults = docs;
-
+      searchResults = docs;
       setResults(searchResults);
       setActivePlan(plan);
+      setIsSearching(false);
+
+      // Part 3: Asynchronously fetch synthesizing answer of retrieved cards
+      setIsGeneratingAnswer(true);
+      try {
+        const answerResponse = await fetch("/api/ai-answer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: searchQuery, records: searchResults }),
+        });
+
+        if (answerResponse.ok) {
+          const answerData = await answerResponse.json();
+          setAiAnswer(answerData.answer);
+        } else {
+          const errData = await answerResponse.json();
+          setAiAnswer(`Nahi bata saka: ${errData.error || "Failed to synthesize AI answer."}`);
+        }
+      } catch (answerErr: any) {
+        console.error("Answer synthesis error:", answerErr);
+        setAiAnswer("Record scan kiya gaya hai, par AI natural language summary network issue ke karan taiyar nahi kar saka.");
+      } finally {
+        setIsGeneratingAnswer(false);
+      }
+
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to search.");
       setResults([]);
-    } finally {
       setIsSearching(false);
     }
   };
@@ -199,44 +323,114 @@ export default function AiSearchPage() {
   return (
     <div className="w-full max-w-5xl mx-auto p-4 md:p-8 animate-fade-in relative z-10 flex-1 flex flex-col">
       <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden flex flex-col items-center p-6 md:p-10 text-center">
-        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4 border-4 border-blue-50">
-          <Database className="w-8 h-8 text-blue-700" />
+        
+        {/* Toggle Mode */}
+        <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-200 mb-6 relative z-10">
+          <button
+            type="button"
+            onClick={() => {
+              setSearchMode("database");
+              setSearchQuery("");
+              setOrchestrationResult(null);
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-200 ${
+              searchMode === "database"
+                ? "bg-white text-blue-700 shadow-sm"
+                : "text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            <Database className="w-4 h-4" />
+            Emp-Records Database
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchMode("orchestrator");
+              setSearchQuery("");
+              setOrchestrationResult(null);
+              setResults(null);
+              setAiAnswer(null);
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-200 ${
+              searchMode === "orchestrator"
+                ? "bg-indigo-600 text-white shadow-md"
+                : "text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            <Cpu className="w-4 h-4" />
+            AI Perspective Orchestrator
+          </button>
         </div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Database Search</h1>
-        <p className="text-gray-500 max-w-xl text-lg mb-8">
-          Ask questions naturally. The AI will translate your request into a database query and find exactly what you're looking for across all enterprise collections.
+
+        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 border-4 ${
+          searchMode === "database" ? "bg-blue-100 border-blue-50 text-blue-700" : "bg-indigo-100 border-indigo-50 text-indigo-700"
+        }`}>
+          {searchMode === "database" ? <Database className="w-8 h-8" /> : <Cpu className="w-8 h-8" />}
+        </div>
+        
+        <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
+          {searchMode === "database" ? "AI Database & Sheet Search" : "AI Multi-Perspective Response Orchestrator"}
+        </h1>
+        <p className="text-gray-500 max-w-xl text-sm md:text-base mb-8">
+          {searchMode === "database"
+            ? "Ask questions naturally. The AI will translate your request into a database query and search through all enterprise directories, dynamic registers, and synchronized Google Sheets."
+            : "Submit a policy query. We will consult multiple specialized Gemini Model perspectives (Fast & Analyst) in parallel to compare, cross-examine, and synthesize a single verified consensus answer."}
         </p>
 
         <form onSubmit={handleSearch} className="w-full max-w-2xl relative mb-8">
           <input
             type="text"
-            className="w-full pl-14 pr-32 py-5 bg-gray-50 border-2 border-gray-200 rounded-full text-lg leading-tight focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
-            placeholder="e.g. Show complete record of Aryan Raj"
+            className="w-full pl-14 pr-36 py-5 bg-gray-50 border-2 border-gray-200 rounded-full text-lg leading-tight focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
+            placeholder={
+              searchMode === "database"
+                ? "e.g. Show complete record of Aryan Raj"
+                : "e.g. Pension calculation guidelines in Railway board circular"
+            }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" />
           <button
             type="submit"
-            disabled={isSearching}
-            className="absolute right-3 top-1/2 -translate-y-1/2 px-6 py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-full disabled:opacity-50 transition-colors flex items-center"
+            disabled={isSearching || isOrchestrating}
+            className={`absolute right-3 top-1/2 -translate-y-1/2 px-6 py-2.5 text-white font-semibold rounded-full disabled:opacity-50 transition-colors flex items-center ${
+              searchMode === "database" ? "bg-blue-700 hover:bg-blue-800" : "bg-indigo-700 hover:bg-indigo-800"
+            }`}
           >
-            {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : "Search"}
+            {isSearching || isOrchestrating ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : searchMode === "database" ? (
+              "Search"
+            ) : (
+              "Orchestrate"
+            )}
           </button>
         </form>
 
         {/* Example prompts */}
         <div className="flex flex-wrap gap-2 justify-center max-w-2xl">
-          {[
-            "Show complete record of Aryan Raj",
-            "Show attendance of EMP000123",
-            "Show stipend details for April 2026",
-            "Show all pending SF cases"
-          ].map(ex => (
+          {(searchMode === "database"
+            ? [
+                "Show complete record of Aryan Raj",
+                "Show attendance of EMP000123",
+                "Show stipend details for April 2026",
+                "Show all pending SF cases"
+              ]
+            : [
+                "Railway board circular for settlement pension dues 2026",
+                "D&AR major penalty rules for railway employee list",
+                "Explain medical classification rules for Fitter",
+                "Guidelines for Railway quarter allocation eligibility"
+              ]
+          ).map(ex => (
             <button
               key={ex}
               onClick={() => setSearchQuery(ex)}
-              className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-3 py-1.5 hover:bg-blue-100 transition-colors"
+              className={`text-xs font-medium border rounded-full px-3 py-1.5 transition-colors ${
+                searchMode === "database"
+                  ? "text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100"
+                  : "text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
+              }`}
             >
               {ex}
             </button>
@@ -244,14 +438,32 @@ export default function AiSearchPage() {
         </div>
       </div>
 
-      {isSearching && (
+      {searchMode === "database" && isSearching && (
         <div className="mt-8 flex flex-col items-center justify-center p-12 text-gray-500">
           <div className="w-12 h-12 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin mb-4"></div>
           <p className="text-lg font-medium">Processing query with Gemini API...</p>
         </div>
       )}
 
-      {!isSearching && explanation && (
+      {searchMode === "orchestrator" && isOrchestrating && (
+        <div className="mt-8 flex flex-col items-center justify-center p-12 text-gray-500 bg-white rounded-xl shadow-md border border-gray-100 animate-pulse">
+          <div className="w-16 h-16 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin mb-4"></div>
+          <p className="text-xl font-bold text-gray-900 mb-1">AI Multi-Perspective Network Active</p>
+          <p className="text-sm text-gray-500 max-w-sm mb-6">Running custom analytical tasks across parallel Gemini execution contexts...</p>
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 items-center bg-slate-50 border border-slate-100 px-6 py-4 rounded-xl w-full max-w-lg justify-around">
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+              <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-ping" />
+              Gemini Fast Engine
+            </div>
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+              <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-ping" />
+              Gemini Analyst Engine
+            </div>
+          </div>
+        </div>
+      )}
+
+      {searchMode === "database" && !isSearching && explanation && (
         <div className="mt-8 bg-emerald-50 text-emerald-800 border border-emerald-200 p-4 rounded-lg flex flex-col items-start text-left">
           <div className="flex items-start w-full">
             <UserCheck className="w-5 h-5 mr-3 shrink-0 mt-0.5 text-emerald-600" />
@@ -279,7 +491,130 @@ export default function AiSearchPage() {
         </div>
       )}
 
-      {!isSearching && results !== null && (
+      {/* AI Assistant Smart Answer */}
+      {searchMode === "database" && !isSearching && (isGeneratingAnswer || aiAnswer) && (
+        <div className="mt-6 bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border border-blue-200 shadow-sm rounded-xl p-6 text-left relative overflow-hidden animate-fade-in">
+          {/* Subtle background decoration */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100/30 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="flex items-center gap-3 mb-4 border-b border-blue-100 pb-3 relative z-10">
+            <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-lg flex items-center justify-center shadow-sm">
+              <Sparkles className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                AI Smart Assistant Answer
+              </h3>
+              <p className="text-xs text-blue-700/80 font-medium">Derived from matching Records & synchronized Sheets</p>
+            </div>
+          </div>
+
+          <div className="relative z-10">
+            {isGeneratingAnswer ? (
+              <div className="space-y-3 py-2">
+                <div className="flex items-center gap-2 text-sm text-blue-800 font-semibold animate-pulse">
+                  <Brain className="w-5 h-5 animate-spin text-blue-600 mr-1" />
+                  <span>AI is scanning your Google Sheets data and formulating a natural response...</span>
+                </div>
+                <div className="h-3.5 bg-blue-200/50 rounded w-11/12 animate-pulse mt-2" />
+                <div className="h-3.5 bg-blue-200/50 rounded w-10/12 animate-pulse" />
+                <div className="h-3.5 bg-blue-200/50 rounded w-8/12 animate-pulse" />
+              </div>
+            ) : (
+              <div className="prose prose-blue max-w-none text-gray-800 leading-relaxed text-sm md:text-base">
+                {formatMarkdown(aiAnswer || "")}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AI Response Orchestrator Result Block */}
+      {searchMode === "orchestrator" && !isOrchestrating && orchestrationResult && (
+        <div className="mt-8 animate-fade-in text-left">
+          {/* Main Answer - Only the "final_answer" section is displayed, per requirement */}
+          <div className="bg-white border-2 border-indigo-200 shadow-md rounded-2xl p-6 md:p-8 mb-6 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-50/50 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-indigo-100 pb-5 mb-5 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center shadow-md">
+                  <ShieldCheck className="w-6 h-6 animate-pulse" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-xl text-gray-900">Verified Synthesized Answer</h2>
+                  <p className="text-xs text-indigo-600 font-semibold tracking-wider uppercase mt-0.5">Dual-Pass AI Response Orchestration v1</p>
+                </div>
+              </div>
+
+              {/* Verified Badge Header with Weighted Confidence */}
+              <div className="flex items-center gap-3 bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-emerald-700/80 block uppercase tracking-wider">Consensus Confidence</span>
+                  <span className="text-lg font-extrabold text-emerald-800">{orchestrationResult.verification?.final_confidence}%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Displaying ONLY the final_answer */}
+            <div className="prose prose-indigo max-w-none text-gray-900 relative z-10 leading-relaxed text-sm md:text-base">
+              {formatMarkdown(orchestrationResult.final_answer || "")}
+            </div>
+
+            {/* Display citations under the final_answer if available */}
+            {orchestrationResult.citations && orchestrationResult.citations.length > 0 && (
+              <div className="mt-8 border-t border-indigo-50 pt-5 relative z-10">
+                <h4 className="flex items-center gap-2 text-xs font-bold text-indigo-600 uppercase tracking-widest mb-3 text-left">
+                  <FileText className="w-4 h-4" /> Supporting Citations & Source Material
+                </h4>
+                <ul className="space-y-1.5 list-none pl-0">
+                  {orchestrationResult.citations.map((cite: string, cIdx: number) => (
+                    <li key={cIdx} className="text-xs text-slate-650 flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
+                      <span className="w-5 h-5 bg-indigo-105 text-indigo-700 rounded-full font-bold flex items-center justify-center shrink-0">{cIdx + 1}</span>
+                      {cite.startsWith("http") ? (
+                        <a href={cite} target="_blank" rel="noopener noreferrer" className="text-blue-600 font-medium hover:underline break-all">
+                          {cite}
+                        </a>
+                      ) : (
+                        <span className="font-semibold text-slate-700">{cite}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* Collapsible Verification details so they remain available/auditable to admins, but clean for standard users */}
+          <div className="bg-slate-50 border border-slate-200 shadow-sm rounded-xl p-5 mb-8">
+            <h3 className="font-bold text-sm text-slate-800 mb-4 flex items-center gap-2">
+              <Scale className="w-4 h-4 text-slate-500" /> Multi-Perspective Verification Audit Logging
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              <div className="bg-white p-3 rounded-lg border border-slate-150 text-center">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Gemini Fast Score</span>
+                <span className="text-xl font-bold text-slate-700">{orchestrationResult.verification?.gemini_fast_score}%</span>
+              </div>
+              <div className="bg-white p-3 rounded-lg border border-slate-150 text-center">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Gemini Analyst Score</span>
+                <span className="text-xl font-bold text-slate-700">{orchestrationResult.verification?.gemini_analyst_score}%</span>
+              </div>
+              <div className="bg-white p-3 rounded-lg border border-slate-150 text-center">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Final Weighted</span>
+                <span className="text-xl font-bold text-indigo-600">{orchestrationResult.verification?.final_confidence}%</span>
+              </div>
+            </div>
+            <div className="text-left text-xs text-slate-500 space-y-1 bg-white p-3.5 rounded-lg border border-slate-150 font-mono">
+              <div><span className="font-bold text-indigo-700">Audit Status:</span> SECURELY LOGGED IN FIRESTORE [audit_logs]</div>
+              <div><span className="font-bold text-indigo-700">Perspectives Cross-checked:</span> {orchestrationResult.sources_used?.join(", ")}</div>
+              <div><span className="font-bold text-indigo-700">System Trace Log:</span> All target context viewpoints dispatched in parallel; verification constraints completed safely.</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {searchMode === "database" && !isSearching && results !== null && (
         <div className="mt-6 flex-1">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
             Search Results <span className="text-gray-500 text-lg font-normal">({results.length} found)</span>

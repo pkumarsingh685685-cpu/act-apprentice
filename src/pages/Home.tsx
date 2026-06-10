@@ -128,7 +128,9 @@ export default function Home() {
   const handleOfficeUseClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (isStillValid) {
-      navigate(hasPendingSFs ? "/sf-generator?tab=INBOX" : "/sf-generator");
+      const savedTab = localStorage.getItem("lastSelectedSFTab");
+      const targetQuery = savedTab ? `?tab=${savedTab}` : (hasPendingSFs ? "?tab=INBOX" : "");
+      navigate(`/sf-generator${targetQuery}`);
     } else {
       setIsOfficePasswordModalOpen(true);
       setOfficePassword("");
@@ -142,7 +144,9 @@ export default function Home() {
     if (officePassword === correctPassword) {
       sfLogin();
       setIsOfficePasswordModalOpen(false);
-      navigate(hasPendingSFs ? "/sf-generator?tab=INBOX" : "/sf-generator");
+      const savedTab = localStorage.getItem("lastSelectedSFTab");
+      const targetQuery = savedTab ? `?tab=${savedTab}` : (hasPendingSFs ? "?tab=INBOX" : "");
+      navigate(`/sf-generator${targetQuery}`);
     } else {
       setOfficePasswordError("Incorrect Password");
     }
@@ -318,6 +322,34 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Important Message Section */}
+      {config.importantMessageEnabled === "true" && config.importantMessageText && (
+        <div className="w-full mx-auto px-4 md:px-8 mt-4">
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-red-500 rounded-lg p-3.5 md:p-4 shadow-[0_4px_15px_rgba(239,68,68,0.12)] flex flex-col md:flex-row items-start md:items-center gap-3 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-red-400/5 rounded-full blur-xl pointer-events-none" />
+            <div className="absolute -left-12 -bottom-12 w-20 h-20 bg-red-400/5 rounded-full blur-lg pointer-events-none" />
+            
+            <div className="flex-shrink-0 bg-red-650 text-white p-2 rounded-lg shadow-md border border-red-500 animate-pulse flex items-center justify-center">
+              <span className="text-base">📢</span>
+            </div>
+            
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <h3 className="text-red-700 font-extrabold text-xs md:text-sm tracking-wider uppercase flex items-center gap-1.5">
+                  🔔 IMPORTANT MESSAGE / महत्वपूर्ण संदेश
+                </h3>
+                <span className="bg-red-600 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded tracking-widest shadow-sm">
+                  ATTENTION
+                </span>
+              </div>
+              <p className="text-slate-900 text-xs md:text-sm font-bold tracking-wide text-justify md:text-left leading-relaxed">
+                {config.importantMessageText}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isOfficePasswordModalOpen && (
         <div 

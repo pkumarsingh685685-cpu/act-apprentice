@@ -26,174 +26,149 @@ export function Navigation() {
 
   return (
     <nav 
-      className="text-white sticky top-0 z-50 shadow-md w-full border-b border-[#2563eb]/20"
+      className="text-white sticky top-0 z-50 shadow-2xl w-full border-b border-white/10"
       style={{
         background: `
-          linear-gradient(180deg, rgba(30, 58, 138, 0.2) 0%, rgba(15, 23, 42, 0.4) 100%),
-          repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 4px),
-          repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 4px),
-          radial-gradient(circle at 50% 50%, #1e40af 0%, #0f172a 100%)
+          radial-gradient(ellipse 60% 40% at 50% 0%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 80%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 50%, transparent 50.1%, transparent 100%),
+          linear-gradient(90deg, #001A4D 0%, #002B6B 20%, #1E73BE 50%, #002B6B 80%, #001A4D 100%)
         `
       }}
     >
-      <div className="w-full mx-auto px-4 sm:px-8">
+      <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 h-16 lg:h-20 flex items-center justify-between">
         {/* Desktop Menu */}
-        <div className="hidden lg:flex flex-wrap items-center">
-          {navKeys.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`px-3 py-3 text-[18px] font-semibold italic border-b-2 hover:bg-[#1e3a8a] hover:text-[#e31837] transition-colors ${
-                location.pathname === item.path
-                  ? "border-[#e31837] text-white"
-                  : "border-transparent text-gray-200"
-              }`}
-            >
-              {t(item.key as any)}
-            </Link>
-          ))}
-
-          {/* Dropdown for Circulars */}
-          <div
-            className="relative group"
-            onMouseEnter={() => setIsCircularsDropdownOpen(true)}
-            onMouseLeave={() => setIsCircularsDropdownOpen(false)}
-          >
-            <button
-              className={`flex items-center px-3 py-3 text-[18px] font-semibold italic border-b-2 hover:bg-[#1e3a8a] hover:text-[#e31837] transition-colors ${
-                location.pathname.includes("/dar-circulars") ||
-                location.pathname.includes("/act-circulars")
-                  ? "border-[#e31837] text-[#e31837]"
-                  : "border-transparent text-gray-200"
-              }`}
-            >
-              {t("nav_circulars")} <ChevronDown className="ml-1 w-4 h-4" />
-            </button>
-
-            {/* Dropdown Menu */}
-            {isCircularsDropdownOpen && (
-              <div className="absolute left-0 top-full w-56 bg-[#1e3a8a] text-white shadow-xl rounded-b-md overflow-hidden border border-[#172554] divide-y divide-[#1e40af]">
-                <Link
-                  to="/dar-circulars"
-                  className="block px-4 py-3 text-[18px] font-medium italic hover:bg-[#1e40af] transition-colors group"
-                  onClick={() => setIsCircularsDropdownOpen(false)}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-200 group-hover:text-[#e31837] transition-colors">
-                      {t("nav_dar_circulars")}
-                    </span>
-                    <span className="w-2 h-2 rounded-full bg-[#fca5a5] block opacity-0 group-hover:opacity-100 transition-opacity"></span>
-                  </div>
-                </Link>
-                <Link
-                  to="/act-circulars"
-                  className="block px-4 py-3 text-[18px] font-medium italic hover:bg-[#1e40af] transition-colors group"
-                  onClick={() => setIsCircularsDropdownOpen(false)}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-200 group-hover:text-[#e31837] transition-colors">
-                      {t("nav_act_circulars")}
-                    </span>
-                    <span className="w-2 h-2 rounded-full bg-[#fca5a5] block opacity-0 group-hover:opacity-100 transition-opacity"></span>
-                  </div>
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* Dropdown for Important Links */}
-          <div
-            className="relative group"
-            onMouseEnter={() => setIsDropdownOpen(true)}
-            onMouseLeave={() => setIsDropdownOpen(false)}
-          >
-            <button
-              className={`flex items-center px-3 py-3 text-[18px] font-semibold italic border-b-2 hover:bg-[#1e3a8a] hover:text-[#e31837] transition-colors ${
-                location.pathname.includes("/links") ||
-                location.pathname.includes("/internal")
-                  ? "border-[#e31837] text-[#e31837]"
-                  : "border-transparent text-gray-200"
-              }`}
-            >
-              {t("nav_important_links")} <ChevronDown className="ml-1 w-4 h-4" />
-            </button>
-
-            {/* Dropdown Menu */}
-            {isDropdownOpen && (
-              <div className="absolute left-0 top-full w-56 bg-[#1e3a8a] text-white shadow-xl rounded-b-md overflow-hidden border border-[#172554] divide-y divide-[#1e40af]">
-                <Link
-                  to="/links"
-                  className="block px-4 py-3 text-[18px] font-medium italic hover:bg-[#1e40af] transition-colors group"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-200 group-hover:text-[#e31837] transition-colors">
-                      {t("nav_external_links")}
-                    </span>
-                    <span className="w-2 h-2 rounded-full bg-[#fca5a5] block opacity-0 group-hover:opacity-100 transition-opacity"></span>
-                  </div>
-                </Link>
-                <Link
-                  to="/internal-links"
-                  className="block px-4 py-3 text-[18px] font-medium italic hover:bg-[#1e40af] transition-colors group"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-200 group-hover:text-[#e31837] transition-colors">
-                      {t("nav_internal_links")}
-                    </span>
-                    <span className="w-2 h-2 rounded-full bg-[#fca5a5] block opacity-0 group-hover:opacity-100 transition-opacity"></span>
-                  </div>
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {rightNavKeys.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`px-3 py-3 text-[18px] font-semibold italic border-b-2 hover:bg-[#1e3a8a] hover:text-[#e31837] transition-colors ${
-                location.pathname === item.path
-                  ? "border-[#e31837] text-white"
-                  : "border-transparent text-gray-200"
-              }`}
-            >
-              {t(item.key as any)}
-            </Link>
-          ))}
-        </div>
-
-        {/* Mobile Menu Button */}
-        <div className="lg:hidden flex items-center justify-between py-3">
-          <span className="font-semibold italic px-2">{t("nav_menu")}</span>
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="text-white hover:bg-[#1e3a8a] p-2 rounded-md"
-          >
-            {isOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Menu */}
-      {isOpen && (
-        <div className="lg:hidden bg-[#1e3a8a]">
-          <div className="px-2 pt-2 pb-3 space-y-1">
-            {navKeys.map((item) => (
+        <div className="hidden lg:flex items-center justify-center w-full h-full gap-x-1 xl:gap-x-1.5 2xl:gap-x-2">
+          {navKeys.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
               <Link
                 key={item.path}
                 to={item.path}
-                onClick={() => setIsOpen(false)}
-                className={`block px-3 py-2 rounded-md text-lg font-semibold italic ${
-                  location.pathname === item.path
-                    ? "bg-[#e31837] text-white"
-                    : "text-gray-200 hover:bg-[#1e40af] hover:text-[#e31837]"
+                className={`flex items-center h-20 px-1.5 xl:px-2.5 2xl:px-3.5 text-[11px] xl:text-[13px] 2xl:text-[14px] font-extrabold uppercase tracking-widest whitespace-nowrap transition-all duration-200 border-b-[3px] select-none ${
+                  isActive
+                    ? "border-white text-white bg-white/5"
+                    : "border-transparent text-white/95 hover:text-white hover:bg-white/10"
                 }`}
               >
                 {t(item.key as any)}
               </Link>
-            ))}
+            );
+          })}
+
+          {/* Dropdown for Circulars */}
+          <div
+            className="relative h-full flex items-center"
+            onMouseEnter={() => setIsCircularsDropdownOpen(true)}
+            onMouseLeave={() => setIsCircularsDropdownOpen(false)}
+          >
+            <button
+              className={`flex items-center h-20 px-1.5 xl:px-2.5 2xl:px-3.5 text-[11px] xl:text-[13px] 2xl:text-[14px] font-extrabold uppercase tracking-widest whitespace-nowrap transition-all duration-200 border-b-[3px] select-none ${
+                location.pathname.includes("/dar-circulars") ||
+                location.pathname.includes("/act-circulars")
+                  ? "border-white text-white bg-white/5"
+                  : "border-transparent text-white/95 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              <span>{t("nav_circulars")}</span>
+              <ChevronDown className="ml-1 w-3.5 h-3.5 shrink-0 opacity-80" />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isCircularsDropdownOpen && (
+              <div className="absolute left-0 top-20 w-64 bg-[#001A4D]/95 backdrop-blur-md text-white shadow-2xl overflow-hidden border-t-2 border-white/25 border-x border-b border-[#1E73BE]/50 divide-y divide-[#002B6B] z-[60] rounded-b-lg">
+                <Link
+                  to="/dar-circulars"
+                  className="block px-5 py-3.5 text-[13px] font-bold uppercase tracking-wide hover:bg-[#1E73BE] hover:text-white transition-all group"
+                  onClick={() => setIsCircularsDropdownOpen(false)}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-100 group-hover:text-white transition-colors">
+                      {t("nav_dar_circulars")}
+                    </span>
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 block opacity-0 group-hover:opacity-100 transition-opacity"></span>
+                  </div>
+                </Link>
+                <Link
+                  to="/act-circulars"
+                  className="block px-5 py-3.5 text-[13px] font-bold uppercase tracking-wide hover:bg-[#1E73BE] hover:text-white transition-all group"
+                  onClick={() => setIsCircularsDropdownOpen(false)}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-100 group-hover:text-white transition-colors">
+                      {t("nav_act_circulars")}
+                    </span>
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 block opacity-0 group-hover:opacity-100 transition-opacity"></span>
+                  </div>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Direct Link for Important Links */}
+          <Link
+            to="/links"
+            className={`flex items-center h-20 px-1.5 xl:px-2.5 2xl:px-3.5 text-[11px] xl:text-[13px] 2xl:text-[14px] font-extrabold uppercase tracking-widest whitespace-nowrap transition-all duration-200 border-b-[3px] select-none ${
+              location.pathname === "/links"
+                ? "border-white text-white bg-white/5"
+                : "border-transparent text-white/95 hover:text-white hover:bg-white/10"
+            }`}
+          >
+            {t("nav_important_links")}
+          </Link>
+
+          {rightNavKeys.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center h-20 px-1.5 xl:px-2.5 2xl:px-3.5 text-[11px] xl:text-[13px] 2xl:text-[14px] font-extrabold uppercase tracking-widest whitespace-nowrap transition-all duration-200 border-b-[3px] select-none ${
+                  isActive
+                    ? "border-white text-white bg-white/5"
+                    : "border-transparent text-white/95 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                {t(item.key as any)}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Mobile Menu Button Banner */}
+        <div className="lg:hidden flex items-center justify-between w-full h-16">
+          <span className="font-bold text-[16px] uppercase tracking-widest text-white/90">
+            {t("nav_menu")}
+          </span>
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="text-white hover:bg-white/10 p-2 rounded-md focus:outline-none transition-colors border border-white/15"
+          >
+            {isOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Menu Drawer */}
+      {isOpen && (
+        <div className="lg:hidden bg-[#001A4D]/98 backdrop-blur-md border-t border-white/10 divide-y divide-white/5">
+          <div className="px-3 py-3 space-y-1">
+            {navKeys.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setIsOpen(false)}
+                  className={`block px-4 py-3 rounded-lg text-[14px] font-bold uppercase tracking-wider transition-all ${
+                    isActive
+                      ? "bg-[#1E73BE] text-white shadow-md font-extrabold"
+                      : "text-white/80 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  {t(item.key as any)}
+                </Link>
+              );
+            })}
 
             {/* Mobile Dropdown for Circulars */}
             <div className="space-y-1">
@@ -201,26 +176,32 @@ export function Navigation() {
                 onClick={() =>
                   setIsCircularsDropdownOpen(!isCircularsDropdownOpen)
                 }
-                className="w-full text-left flex items-center justify-between px-3 py-2 rounded-md text-lg font-semibold italic text-gray-200 hover:bg-[#1e40af] hover:text-[#e31837]"
+                className="w-full text-left flex items-center justify-between px-4 py-3 rounded-lg text-[14px] font-bold uppercase tracking-wider text-white/80 hover:bg-white/5 hover:text-white focus:outline-none"
               >
-                {t("nav_circulars")}
+                <span>{t("nav_circulars")}</span>
                 <ChevronDown
-                  className={`w-5 h-5 transition-transform ${isCircularsDropdownOpen ? "rotate-180" : ""}`}
+                  className={`w-4 h-4 transition-transform ${isCircularsDropdownOpen ? "rotate-180" : ""}`}
                 />
               </button>
               {isCircularsDropdownOpen && (
-                <div className="pl-6 space-y-1 bg-[#172554] py-2 rounded-md">
+                <div className="pl-4 space-y-1 bg-[#002B6B]/60 py-2 rounded-lg">
                   <Link
                     to="/dar-circulars"
-                    onClick={() => setIsOpen(false)}
-                    className="block px-3 py-2 rounded-md text-base font-semibold italic text-gray-300 hover:text-[#e31837] tracking-wide"
+                    onClick={() => {
+                      setIsOpen(false);
+                      setIsCircularsDropdownOpen(false);
+                    }}
+                    className="block px-4 py-2 text-[13px] font-semibold uppercase tracking-wider text-white/90 hover:bg-[#1E73BE] hover:text-white rounded-md transition-colors"
                   >
                     {t("nav_dar_circulars")}
                   </Link>
                   <Link
                     to="/act-circulars"
-                    onClick={() => setIsOpen(false)}
-                    className="block px-3 py-2 rounded-md text-base font-semibold italic text-gray-300 hover:text-[#e31837] tracking-wide"
+                    onClick={() => {
+                      setIsOpen(false);
+                      setIsCircularsDropdownOpen(false);
+                    }}
+                    className="block px-4 py-2 text-[13px] font-semibold uppercase tracking-wider text-white/90 hover:bg-[#1E73BE] hover:text-white rounded-md transition-colors"
                   >
                     {t("nav_act_circulars")}
                   </Link>
@@ -228,51 +209,36 @@ export function Navigation() {
               )}
             </div>
 
-            {/* Mobile Dropdown */}
-            <div className="space-y-1">
-              <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full text-left flex items-center justify-between px-3 py-2 rounded-md text-lg font-semibold italic text-gray-200 hover:bg-[#1e40af] hover:text-[#e31837]"
-              >
-                {t("nav_important_links")}
-                <ChevronDown
-                  className={`w-5 h-5 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-              {isDropdownOpen && (
-                <div className="pl-6 space-y-1 bg-[#172554] py-2 rounded-md">
-                  <Link
-                    to="/links"
-                    onClick={() => setIsOpen(false)}
-                    className="block px-3 py-2 rounded-md text-base font-semibold italic text-gray-300 hover:text-[#e31837] tracking-wide"
-                  >
-                    {t("nav_external_links")}
-                  </Link>
-                  <Link
-                    to="/internal-links"
-                    onClick={() => setIsOpen(false)}
-                    className="block px-3 py-2 rounded-md text-base font-semibold italic text-gray-300 hover:text-[#e31837] tracking-wide"
-                  >
-                    {t("nav_internal_links")}
-                  </Link>
-                </div>
-              )}
-            </div>
+            {/* Mobile Link for Important Links */}
+            <Link
+              to="/links"
+              onClick={() => setIsOpen(false)}
+              className={`block px-4 py-3 rounded-lg text-[14px] font-bold uppercase tracking-wider transition-all ${
+                location.pathname === "/links"
+                  ? "bg-[#1E73BE] text-white shadow-md font-extrabold"
+                  : "text-white/80 hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              {t("nav_important_links")}
+            </Link>
 
-            {rightNavKeys.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setIsOpen(false)}
-                className={`block px-3 py-2 rounded-md text-lg font-semibold italic ${
-                  location.pathname === item.path
-                    ? "bg-[#e31837] text-white"
-                    : "text-gray-200 hover:bg-[#1e40af] hover:text-[#e31837]"
-                }`}
-              >
-                {t(item.key as any)}
-              </Link>
-            ))}
+            {rightNavKeys.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setIsOpen(false)}
+                  className={`block px-4 py-3 rounded-lg text-[14px] font-bold uppercase tracking-wider transition-all ${
+                    isActive
+                      ? "bg-[#1E73BE] text-white shadow-md font-extrabold"
+                      : "text-white/80 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  {t(item.key as any)}
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}

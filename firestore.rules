@@ -58,6 +58,9 @@ service cloud.firestore {
     match /issuedSFs/{docId} {
       allow read, write: if true;
     }
+    match /apoWorkAllotments/{docId} {
+      allow read, write: if true;
+    }
     match /dynamic_registers/{docId} {
       allow read, write: if true;
     }
@@ -91,10 +94,16 @@ service cloud.firestore {
     match /trade_details/{docId} {
       allow read, write: if true;
     }
-    match /notifications/{docId} {
+    match /audit_logs/{docId} {
       allow read, write: if true;
     }
-    match /audit_logs/{docId} {
+    match /nfrOrgNodes/{docId} {
+      allow read, write: if true;
+    }
+    match /dar_positions/{docId} {
+      allow read, write: if true;
+    }
+    match /pending_sf4_drafts/{docId} {
       allow read, write: if true;
     }
     match /{document=**} {

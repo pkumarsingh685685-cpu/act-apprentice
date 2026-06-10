@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useReactToPrint } from 'react-to-print';
+import { triggerPrint } from '../utils/printHelper';
 import { Printer, FileText, RotateCcw, Plus, Trash2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
@@ -21,11 +21,33 @@ interface SF1Data {
   additionalCopies: string[];
 }
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const formatPrintDate = (dateString: string) => {
+  if (!dateString) return '';
+  const parts = dateString.split('-');
+  if (parts.length !== 3) return dateString;
+  const year = parseInt(parts[0], 10);
+  const monthIdx = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  return `${day} ${months[monthIdx]} ${year}`;
+};
+
 const initialData: SF1Data = {
   fileNo: '',
   railway: 'Admn. NFR/KIR',
-  placeOfIssue: 'DRM (P)/KIR',
-  date: new Date().toISOString().split('T')[0],
+  placeOfIssue: 'DRM(P)/KIR',
+  date: getLocalDateString(),
   salutation: '',
   employeeName: '',
   designation: '',
@@ -39,40 +61,51 @@ const initialData: SF1Data = {
   additionalCopies: ['Ch. O.S/BILL for necessary action.'],
 };
 
-export function SF1Generator() {
+export function SF1Generator({ onBack }: { onBack?: () => void } = {}) {
   const [formData, setFormData] = useState<SF1Data>(initialData);
   const componentRef = useRef<HTMLDivElement>(null);
   const addIssuedSF = useStore((state) => state.addIssuedSF);
+  const config = useStore((state) => state.config);
+  const sfFixedTexts = useStore((state) => state.sfFixedTexts) || {};
+  const sf1Texts = sfFixedTexts["SF-1"] || {};
 
-  useEffect(() => {
-    // No longer needed
-  }, []);
+  const showPreview = config.showSfPdfPreview !== "false";
 
-  const generatePDF = useReactToPrint({
-    contentRef: componentRef,
-    documentTitle: `SF-1_Suspension_Order_${formData.employeeName || 'Draft'}`,
-    onAfterPrint: () => {
-      if (formData.employeeName) {
-        addIssuedSF({
-          sfType: 'SF-1',
-          employeeName: formData.employeeName,
-          designation: formData.designation,
-          issuedDate: new Date().toISOString().split('T')[0],
-          isFinalised: false,
-        });
-      }
-    },
-    print: async (printIframe: HTMLIFrameElement) => {
-      const document = printIframe.contentDocument;
-      if (document) {
-         printIframe.contentWindow?.print();
-      }
-    },
-  });
+  const whereContemplatedPending = sf1Texts.whereContemplatedPending || "Whereas disciplinary proceeding against";
+  const servantContemplatedPending = sf1Texts.servantContemplatedPending || "(Name and designation of the Railway servant) is contemplated/Pending";
+  const whereCriminalCase = sf1Texts.whereCriminalCase || "Whereas a case against";
+  const servantCriminalCase = sf1Texts.servantCriminalCase || "(Name and designation of the Railway servant) in respect of whom a criminal offence is under investigation / inquiry / trail.";
+  const placeUnderSuspensionText = sf1Texts.placeUnderSuspensionText || "Now, therefore, the undersigned (the authority competent to place the Railway Servant under suspension in terms of the Schedules II and III appended to RS (D&A) Rules, 1968/ an authority mentioned in proviso to [Rule 4 of the RS (D&A) Rules, 1968], in exercise of the powers conferred by Rule 4/proviso to Rule 4 of RS (D&A) Rules, 1968, hereby places the said";
+  const placeUnderSuspensionSuff = sf1Texts.placeUnderSuspensionSuff || "under suspension";
+  const furtherOrderedHeader = sf1Texts.furtherOrderedHeader || "It is further ordered that during the period this order shall remain in force, the said";
+  const cannotLeaveHq = sf1Texts.cannotLeaveHq || "shall not leave the headquarters without obtaining the previous permission of the competent authority.";
+  const copyToDefault = sf1Texts.copyToDefault || "Orders regarding subsistence allowance admissible to him during the period of suspension will issue separately.";
 
   const handleGenerateClick = (e: React.FormEvent) => {
     e.preventDefault();
-    generatePDF();
+    triggerPrint({
+      contentRef: componentRef,
+      documentTitle: `SF-1_Suspension_Order_${formData.employeeName || 'Draft'}`,
+      onAfterPrint: () => {
+        if (formData.employeeName) {
+          addIssuedSF({
+            sfType: 'SF-1',
+            employeeName: formData.employeeName,
+            designation: formData.designation,
+            issuedDate: new Date().toISOString().split('T')[0],
+            isFinalised: false,
+            memorandumNo: formData.fileNo || "",
+            salutation: formData.salutation,
+            placeOfIssue: formData.placeOfIssue,
+            railway: formData.railway,
+            workingUnder: formData.workingUnder,
+            signatureName: formData.signatureName,
+            authorityDesignation: formData.authorityDesignation,
+            additionalCopies: formData.additionalCopies || [],
+          });
+        }
+      },
+    });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -106,18 +139,29 @@ export function SF1Generator() {
     setFormData(prev => ({ ...prev, additionalCopies: copies }));
   };
 
-  const formattedDate = formData.date ? new Date(formData.date).toLocaleDateString('en-GB') : '';
+  const formattedDate = formData.date ? formatPrintDate(formData.date) : '';
 
   return (
     <div className="flex flex-col h-full bg-gray-50 flex-1 overflow-hidden">
       {/* Header bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-wrap justify-between items-center gap-4 shrink-0 shadow-sm z-10">
-        <div>
-          <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <FileText className="w-6 h-6 text-indigo-600" />
-            SF-1 Suspension Order Generator
-          </h1>
-          <p className="text-sm text-gray-500">Standard Form for placing Railway Employee under suspension</p>
+      <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-wrap justify-between items-center gap-4 shrink-0 shadow-sm z-10 font-sans">
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-bold transition-all cursor-pointer mr-2 shadow-sm"
+            >
+              ← Back
+            </button>
+          )}
+          <div>
+            <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <FileText className="w-6 h-6 text-indigo-600 font-sans" />
+              SF-1 Suspension Order Generator
+            </h1>
+            <p className="text-sm text-gray-500 font-sans">Standard Form for placing Railway Employee under suspension</p>
+          </div>
         </div>
         
         <div className="flex items-center gap-3">
@@ -141,10 +185,10 @@ export function SF1Generator() {
       </div>
 
       {/* Main Content Split */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden bg-gray-100">
         
         {/* Editor Form (Left Side) */}
-        <div className="w-full lg:w-[400px] bg-white border-r border-gray-200 overflow-y-auto p-5 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)] shrink-0">
+        <div className={`w-full ${showPreview ? 'lg:w-[420px] bg-white border-r border-gray-200 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)]' : 'lg:max-w-4xl lg:mx-auto bg-white p-6 my-6 rounded-lg border border-gray-200 shadow-md'} overflow-y-auto p-5 shrink-0`}>
           <h2 className="font-bold text-gray-700 mb-5 border-b pb-2 uppercase tracking-wide text-xs">Fill Form Details</h2>
           
           <form id="sf1-form" onSubmit={handleGenerateClick} className="space-y-4">
@@ -280,8 +324,8 @@ export function SF1Generator() {
         </div>
 
         {/* Live Preview (Right Side) */}
-        <div className="hidden lg:flex flex-1 flex-col items-center bg-[#525659] overflow-auto pt-8 pb-16 px-4 font-[Times_New_Roman,Times,serif]">
-          <div className="bg-white shrink-0 w-[210mm] min-h-[297mm] shadow-2xl p-[25.4mm] relative text-black leading-snug">
+        <div className={`${showPreview ? 'hidden lg:flex' : 'hidden'} flex-1 flex-col items-center bg-[#525659] overflow-auto pt-8 pb-16 px-4 font-[Times_New_Roman,Times,serif]`}>
+          <div className="bg-white shrink-0 w-[210mm] min-h-[297mm] shadow-2xl p-[18mm] relative text-black leading-snug">
             
             {/* The Document Area to Print */}
             <div ref={componentRef} className="w-full h-full text-[12pt]">
@@ -296,7 +340,7 @@ export function SF1Generator() {
                     body {
                       -webkit-print-color-adjust: exact;
                       print-color-adjust: exact;
-                      padding: 25.4mm;
+                      padding: 18mm;
                       box-sizing: border-box;
                     }
                   }
@@ -304,14 +348,14 @@ export function SF1Generator() {
               </style>
 
               {/* Document Header */}
-              <div className="text-center mb-8 font-[Times_New_Roman,Times,serif]">
+              <div className="text-center mb-4 font-[Times_New_Roman,Times,serif]">
                 <h2 className="font-bold text-[13pt] underline underline-offset-2 decoration-1 tracking-wide">
                   STANDARD FORM NO. 1
                 </h2>
               </div>
 
               {/* Reference Details */}
-              <div className="flex justify-end mb-6 w-full font-[Times_New_Roman,Times,serif] leading-[1.4]">
+              <div className="flex justify-end mb-3 w-full font-[Times_New_Roman,Times,serif] leading-[1.3]">
                 <div className="text-left w-[250px]">
                   <div>No.{formData.fileNo ? formData.fileNo : ''}</div>
                   <div>Railway: {formData.railway ? formData.railway : ''}</div>
@@ -321,49 +365,49 @@ export function SF1Generator() {
               </div>
 
               {/* Order Title */}
-              <div className="text-center font-bold text-[13pt] mb-6 font-[Times_New_Roman,Times,serif]">
+              <div className="text-center font-bold text-[13pt] mb-3 font-[Times_New_Roman,Times,serif]">
                 ORDER
               </div>
 
               {/* Columns Section */}
-              <div className="flex justify-between items-start mb-6 font-[Times_New_Roman,Times,serif] leading-[1.3] text-[12pt]">
+              <div className="flex justify-between items-start mb-3 font-[Times_New_Roman,Times,serif] leading-[1.3] text-[12pt]">
                 {/* Left Column */}
                 <div className="w-[48%]">
-                  <p>Whereas disciplinary proceeding against</p>
+                  <p>{whereContemplatedPending}</p>
                   <div className="font-bold whitespace-pre-wrap mt-1">
                     {(formData.salutation || '__________') + ' ' + (formData.employeeName || '') + ',\n'}
                     {(formData.designation || '') + (formData.designation ? ',\n' : '\n')}
                     {formData.workingUnder ? 'Working under ' + formData.workingUnder + '\n' : ''}
                     {formData.empNo ? '(EMP No. ' + formData.empNo + ')\n' : ''}
                   </div>
-                  <p className="mt-1">(Name and designation of the Railway<br/>servant) is contemplated/Pending</p>
+                  <p className="mt-1">{servantContemplatedPending}</p>
                 </div>
                 
                 {/* Right Column */}
                 <div className={`w-[45%] ${formData.strikeOutRightColumn ? 'line-through opacity-70' : ''}`}>
-                  <p>Whereas a case against {(formData.salutation || '__________')}</p>
+                  <p>{whereCriminalCase} {(formData.salutation || '__________')}</p>
                   <br />
                   <p className="text-justify leading-tight">
-                    (Name and designation of the Railway<br/>servant) in respect of whom a criminal<br/>offence is under investigation / inquiry /<br/>trail.
+                    {servantCriminalCase}
                   </p>
                 </div>
               </div>
 
               {/* Body Content */}
-              <div className="space-y-6 font-[Times_New_Roman,Times,serif] leading-[1.4] text-[12pt] text-justify mt-8">
+              <div className="space-y-3 font-[Times_New_Roman,Times,serif] leading-[1.4] text-[12pt] text-justify mt-4">
                 <p>
-                  Now, therefore, the undersigned (the authority competent to place the Railway Servant under suspension in terms of the Schedules II and III appended to RS (D&A) Rules, 1968/ an authority mentioned in proviso to [Rule 4 of the RS (D&A) Rules, 1968], in exercise of the powers conferred by Rule 4/proviso to Rule 4 of RS (D&A) Rules, 1968, hereby places the said <span className="font-bold">{(formData.salutation || '__________')} {formData.employeeName ? formData.employeeName : ''}{formData.employeeName ? ',' : ''} {formData.designation ? formData.designation : ''}{formData.designation ? ',' : ''} {formData.workingUnder ? 'Working under ' + formData.workingUnder + ',' : ''} {formData.empNo ? '(EMP No. ' + formData.empNo + ')' : ''}</span> under suspension{' '}
+                  {placeUnderSuspensionText} <span className="font-bold">{(formData.salutation || '__________')} {formData.employeeName ? formData.employeeName : ''}{formData.employeeName ? ',' : ''} {formData.designation ? formData.designation : ''}{formData.designation ? ',' : ''} {formData.workingUnder ? 'Working under ' + formData.workingUnder + ',' : ''} {formData.empNo ? '(EMP No. ' + formData.empNo + ')' : ''}</span> {placeUnderSuspensionSuff}{' '}
                   {formData.effectOption === 'immediate' && <span>with immediate effect<strike className="opacity-70">/with effect from</strike></span>}
-                  {formData.effectOption === 'date' && <span><strike className="opacity-70">with immediate effect/</strike>with effect from <span className="font-bold">{formData.effectFromDate ? new Date(formData.effectFromDate).toLocaleDateString('en-GB') : '[DATE]'}</span></span>}
+                  {formData.effectOption === 'date' && <span><strike className="opacity-70">with immediate effect/</strike>with effect from <span className="font-bold">{formData.effectFromDate ? formatPrintDate(formData.effectFromDate) : '[DATE]'}</span></span>}
                 </p>
 
                 <p>
-                  It is further ordered that during the period this order shall remain in force, the said <span className="font-bold">{(formData.salutation || '__________')} {formData.employeeName ? formData.employeeName : ''}{formData.employeeName ? ',' : ''} {formData.designation ? formData.designation : ''}{formData.designation ? ',' : ''} {formData.empNo ? '(EMP No. ' + formData.empNo + ')' : ''}</span> shall not leave the headquarters without obtaining the previous permission of the competent authority.
+                  {furtherOrderedHeader} <span className="font-bold">{(formData.salutation || '__________')} {formData.employeeName ? formData.employeeName : ''}{formData.employeeName ? ',' : ''} {formData.designation ? formData.designation : ''}{formData.designation ? ',' : ''} {formData.empNo ? '(EMP No. ' + formData.empNo + ')' : ''}</span> {cannotLeaveHq}
                 </p>
               </div>
 
               {/* Signatory */}
-              <div className="mt-16 flex justify-end font-[Times_New_Roman,Times,serif]">
+              <div className="mt-6 flex justify-end font-[Times_New_Roman,Times,serif]">
                 <div className="text-left w-[320px]">
                   <div className="flex items-center gap-1">
                     Signature<span className="tracking-[2px]">.........................................................</span>
@@ -390,7 +434,7 @@ export function SF1Generator() {
               </div>
 
               {/* Copy To section */}
-              <div className="mt-12 space-y-2 font-[Times_New_Roman,Times,serif] text-[12pt] leading-[1.3]">
+              <div className="mt-5 space-y-2 font-[Times_New_Roman,Times,serif] text-[12pt] leading-[1.3]">
                 <div className="mb-2">Copy to:</div>
                 <div className="flex gap-4 ml-4">
                   <span>1.</span>
@@ -398,16 +442,16 @@ export function SF1Generator() {
                     <div className="font-bold text-justify">
                       {(formData.salutation || '__________')} {formData.employeeName ? formData.employeeName : ''}{formData.employeeName ? ',' : ''} {formData.designation ? formData.designation : ''}{formData.empNo ? ' (EMP No. ' + formData.empNo + '),' : ','}
                     </div>
-                    <div className="text-justify mt-1">
-                      (Name and designation of the suspended Railway servant) Orders regarding subsistence allowance admissible to him during the period of &nbsp;suspension will issue separately.
+                    <div className="text-justify mt-1 text-[11pt]">
+                      {copyToDefault}
                     </div>
                   </div>
                 </div>
                 
                 {formData.additionalCopies.map((copy, index) => (
-                  <div key={index} className="flex gap-4 ml-4 mt-2">
+                  <div key={index} className="flex gap-4 ml-4 mt-1.5">
                     <span>{index + 2}.</span>
-                    <div className="flex-1 text-justify">
+                    <div className="flex-1 text-justify text-[11pt]">
                       {copy}
                     </div>
                   </div>

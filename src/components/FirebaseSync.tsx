@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useStore } from "../store/useStore";
 import { doc, collection, onSnapshot, getDoc, setDoc } from "firebase/firestore";
-import { db } from "../firebase";
+import { db, handleFirestoreError, OperationType } from "../firebase";
 
 export function FirebaseSync() {
   useEffect(() => {
@@ -46,7 +46,17 @@ export function FirebaseSync() {
           }
         }
       } catch (err) {
-        console.error("Migration error:", err);
+        const errMessage = err instanceof Error ? err.message : String(err);
+        const isOffline = errMessage.toLowerCase().includes("offline") || 
+                          errMessage.toLowerCase().includes("backend") || 
+                          errMessage.toLowerCase().includes("unreachable") ||
+                          errMessage.toLowerCase().includes("unavailable") ||
+                          errMessage.toLowerCase().includes("failed-precondition");
+        if (isOffline) {
+          console.warn("Migration skipped (client is offline):", errMessage);
+        } else {
+          console.error("Migration error:", err);
+        }
       }
     };
     checkMigration();
@@ -76,6 +86,8 @@ export function FirebaseSync() {
             });
           }
         }
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, `${col}/${documentId}`);
       });
       unsubscribes.push(unsub);
     });
@@ -86,6 +98,8 @@ export function FirebaseSync() {
         const data = snapshot.data();
         useStore.setState((state: any) => ({ videoConfig: { ...state.videoConfig, enabled: data.enabled, url: data.url } }));
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "videos/homepage_video");
     }));
 
     // Sync modern noticeImage
@@ -94,6 +108,8 @@ export function FirebaseSync() {
         const data = snapshot.data();
         useStore.setState((state: any) => ({ noticeImage: { ...state.noticeImage, title: data.title, description: data.description, image: data.url, enabled: data.enabled } }));
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "images/homepage_notice");
     }));
 
     // Sync logos
@@ -106,6 +122,8 @@ export function FirebaseSync() {
       if (Object.keys(logosData).length > 0) {
         useStore.setState((state: any) => ({ logos: { ...state.logos, ...logosData } }));
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "logos");
     }));
 
     // Sync slider images (from images collection where category is slider)
@@ -119,6 +137,8 @@ export function FirebaseSync() {
          enabled: d.enabled
       }));
       useStore.setState({ sliderImages: sliders.sort((a,b) => a.order - b.order) } as any);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "images");
     }));
 
     // Sync documents
@@ -134,6 +154,8 @@ export function FirebaseSync() {
         grouped[k] = grouped[k].sort((a: any, b: any) => a.order - b.order);
       });
       useStore.setState(grouped);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "documents");
     }));
 
     // Sync basic links
@@ -141,15 +163,19 @@ export function FirebaseSync() {
       "links",
       "externalLinks",
       "internalLinks",
-      "issuedSFs"
+      "issuedSFs",
+      "apoWorkAllotments",
+      "pending_sf4_drafts"
     ];
 
     linkCollections.forEach((colName) => {
       const unsub = onSnapshot(collection(db, colName), (snapshot) => {
-        const items = snapshot.docs.map(d => d.data());
+        const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         // Sort by order if it exists
         const sorted = items.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
         useStore.setState({ [colName]: sorted } as any);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, colName);
       });
       unsubscribes.push(unsub);
     });
@@ -158,6 +184,39 @@ export function FirebaseSync() {
       unsubscribes.forEach(unsub => unsub());
     };
   }, []);
+
+  const favicon = useStore((state) => state.logos?.favicon);
+
+  useEffect(() => {
+    if (favicon?.enabled && favicon?.image) {
+      try {
+        const iconLinks = document.querySelectorAll("link[rel*='icon']");
+        if (iconLinks.length > 0) {
+          iconLinks.forEach((link: any) => {
+            link.href = favicon.image;
+          });
+        } else {
+          const link = document.createElement("link");
+          link.rel = "icon";
+          link.type = "image/png";
+          link.href = favicon.image;
+          document.head.appendChild(link);
+        }
+
+        const appleLink: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']");
+        if (appleLink) {
+          appleLink.href = favicon.image;
+        } else {
+          const link = document.createElement("link");
+          link.rel = "apple-touch-icon";
+          link.href = favicon.image;
+          document.head.appendChild(link);
+        }
+      } catch (err) {
+        console.error("Error setting favicon dynamically:", err);
+      }
+    }
+  }, [favicon]);
 
   return null;
 }

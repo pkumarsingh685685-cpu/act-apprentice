@@ -28,7 +28,10 @@ export default function Contact() {
     setLoading(true);
     try {
       await addDoc(collection(db, "contact_submissions"), {
-        ...formData,
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        message: formData.message.trim(),
         status: "New",
         createdAt: serverTimestamp(),
       });
@@ -100,7 +103,7 @@ export default function Contact() {
             <h2 className="text-xl font-semibold text-gray-900 border-b pb-2 mb-4">Send us a Message</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name * / पूरा नाम *</label>
                 <input 
                   type="text" 
                   className="w-full p-2.5 border border-gray-300 rounded focus:ring-2 focus:ring-[#1c3f60]"

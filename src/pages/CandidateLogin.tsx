@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useStore } from "../store/useStore";
+import { useNavigate } from "react-router-dom";
 import { User, Calendar, LogIn, AlertCircle, MessageSquare, FileText, Send, Phone, Mail, Clock, Rocket } from "lucide-react";
 import Papa from "papaparse";
 import { toast } from "sonner";
@@ -8,6 +9,7 @@ import { collection, addDoc, serverTimestamp, query, where, orderBy, getDocs } f
 
 export default function CandidateLogin() {
   const config = useStore((state) => state.config) as any;
+  const navigate = useNavigate();
   const sheetUrl = config.candidateDataCsvUrl;
 
   const [employeeNum, setEmployeeNum] = useState("");
@@ -185,7 +187,15 @@ export default function CandidateLogin() {
   };
 
   return (
-    <div className="w-full flex-col flex items-center justify-center py-10 px-4 relative">
+    <div className="w-full flex-col flex items-center justify-center py-10 px-4 relative min-h-screen bg-slate-50">
+      {/* Small Back Button */}
+      <button
+        onClick={() => navigate("/")}
+        className="absolute top-6 left-6 px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer z-50 select-none flex items-center gap-1"
+        title="Go back / पीछे जाएं"
+      >
+        <span>←</span> <span>Back</span>
+      </button>
       
       {showWelcomeAnimation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-blue-900/80 backdrop-blur-md overflow-hidden">
@@ -260,6 +270,32 @@ export default function CandidateLogin() {
               </button>
             </form>
 
+            {/* Test Credentials Helper Box */}
+            <div className="mt-5 p-4 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-800">
+              <div className="font-bold text-amber-900 mb-1 flex items-center gap-1.5">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+                Testing / Demo Account Credentials:
+              </div>
+              <div className="space-y-1 mt-2">
+                <div><span className="font-semibold">Employee No:</span> <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">9199732466</code></div>
+                <div><span className="font-semibold">Date of Birth:</span> <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">20-03-1999</code> or <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">1999-03-20</code></div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmployeeNum("9199732466");
+                  setDob("1999-03-20");
+                  toast.success("Demo credentials autofilled!");
+                }}
+                className="mt-3 w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-3 rounded text-center transition-all flex items-center justify-center gap-1 cursor-pointer"
+              >
+                🪄 Quick Autofill Test ID
+              </button>
+            </div>
+
             <div className="mt-6 text-center text-sm text-gray-500">
               <p>For support, please contact: <a href={`mailto:${config.contactEmail}`} className="text-blue-600 hover:underline">{config.contactEmail}</a></p>
             </div>
@@ -303,52 +339,72 @@ export default function CandidateLogin() {
                  <div className="text-center mb-10 w-full">
                    <h3 className="text-3xl font-bold text-gray-800 mb-3">Welcome to Your Dashboard</h3>
                    <p className="text-gray-500 max-w-xl mx-auto text-lg">
-                     Please select an option below to view your details, submit queries, or access your application form.
+                     Please select an option below to view your details, submit queries, track replies, or access your application form.
                    </p>
                  </div>
                  
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl">
                     {/* Candidate Details Box */}
                     <div 
                       onClick={() => setActiveTab('details')}
-                      className="group cursor-pointer bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 flex flex-col items-center text-center relative overflow-hidden"
+                      className="group cursor-pointer bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 flex flex-col items-center text-center relative overflow-hidden"
                     >
                       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-indigo-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
-                      <div className="bg-white p-5 rounded-full shadow-md text-blue-600 mb-6 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
-                        <FileText className="w-10 h-10" />
+                      <div className="bg-white p-4.5 rounded-full shadow-md text-blue-600 mb-5 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
+                        <FileText className="w-8 h-8" />
                       </div>
-                      <h4 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-blue-700 transition-colors">Candidate Details</h4>
-                      <p className="text-gray-600 text-sm">
+                      <h4 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-blue-700 transition-colors">Candidate Details</h4>
+                      <p className="text-gray-600 text-xs">
                         View your personal information, employment data, and official records seamlessly.
                       </p>
                     </div>
 
                     {/* Submission Form for Query Box */}
                     <div 
-                      onClick={() => setActiveTab('form')}
-                      className="group cursor-pointer bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 flex flex-col items-center text-center relative overflow-hidden"
+                      onClick={() => {
+                        setActiveTab('form');
+                      }}
+                      className="group cursor-pointer bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 flex flex-col items-center text-center relative overflow-hidden"
                     >
                       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 to-orange-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
-                      <div className="bg-white p-5 rounded-full shadow-md text-orange-500 mb-6 group-hover:scale-110 group-hover:bg-orange-500 group-hover:text-white transition-all duration-300">
-                        <MessageSquare className="w-10 h-10" />
+                      <div className="bg-white p-4.5 rounded-full shadow-md text-orange-500 mb-5 group-hover:scale-110 group-hover:bg-orange-500 group-hover:text-white transition-all duration-300">
+                        <MessageSquare className="w-8 h-8" />
                       </div>
-                      <h4 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-orange-600 transition-colors">Submission Form for Query</h4>
-                      <p className="text-gray-600 text-sm">
-                        Submit queries and track your previously submitted queries to the department securely.
+                      <h4 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-orange-600 transition-colors">Submit New Query</h4>
+                      <p className="text-gray-600 text-xs">
+                        Submit a dynamic query or request directly to the administrative department.
+                      </p>
+                    </div>
+
+                    {/* Track Queries & Replies Box */}
+                    <div 
+                      onClick={() => {
+                        setActiveTab('my_queries');
+                        fetchMyQueries();
+                      }}
+                      className="group cursor-pointer bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 flex flex-col items-center text-center relative overflow-hidden"
+                    >
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-400 to-indigo-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
+                      <div className="bg-white p-4.5 rounded-full shadow-md text-purple-600 mb-5 group-hover:scale-110 group-hover:bg-purple-600 group-hover:text-white transition-all duration-300">
+                        <MessageSquare className="w-8 h-8 text-purple-600 group-hover:text-white" />
+                      </div>
+                      <h4 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-purple-700 transition-colors">My Queries & Replies</h4>
+                      <p className="text-gray-600 text-xs">
+                        Track previous issues and instantly read replies given by the department admin.
                       </p>
                     </div>
 
                     {/* Application Form Box */}
                     <div 
                       onClick={() => setActiveTab('application')}
-                      className="group cursor-pointer bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 flex flex-col items-center text-center relative overflow-hidden"
+                      className="group cursor-pointer bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 flex flex-col items-center text-center relative overflow-hidden"
                     >
                       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-teal-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
-                      <div className="bg-white p-5 rounded-full shadow-md text-emerald-600 mb-6 group-hover:scale-110 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300">
-                        <User className="w-10 h-10" />
+                      <div className="bg-white p-4.5 rounded-full shadow-md text-emerald-600 mb-5 group-hover:scale-110 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300">
+                        <User className="w-8 h-8" />
                       </div>
-                      <h4 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-emerald-700 transition-colors">Application Form</h4>
-                      <p className="text-gray-600 text-sm">
+                      <h4 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-emerald-700 transition-colors">Application Form</h4>
+                      <p className="text-gray-600 text-xs">
                         Access, view, and manage your complete application form details with a click.
                       </p>
                     </div>
@@ -555,6 +611,7 @@ export default function CandidateLogin() {
                           <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                             query.status === 'New' ? 'bg-blue-100 text-blue-800' :
                             query.status === 'Processing' ? 'bg-amber-100 text-amber-800' :
+                            query.status === 'Replied' ? 'bg-purple-100 text-purple-800 border border-purple-200 animate-pulse' :
                             query.status === 'Resolved' ? 'bg-green-100 text-green-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
@@ -575,9 +632,22 @@ export default function CandidateLogin() {
                             </span>
                           </div>
                         </div>
-                        <div className="bg-gray-50 p-4 rounded-md border border-gray-100">
-                          <span className="block text-gray-400 text-xs uppercase mb-1.5">Remarks / Issue</span>
-                          <p className="text-gray-700 text-sm whitespace-pre-wrap">{query.remarks}</p>
+                        
+                        <div className="space-y-4">
+                          <div className="bg-gray-50 p-4 rounded-md border border-gray-100">
+                            <span className="block text-gray-500 text-xs font-semibold uppercase mb-1.5">My Remarks / Issue</span>
+                            <p className="text-gray-700 text-sm whitespace-pre-wrap">{query.remarks}</p>
+                          </div>
+
+                          {query.adminReply && (
+                            <div className="bg-purple-50/75 p-4 rounded-md border border-purple-100 shadow-sm">
+                              <span className="block text-purple-600 text-xs font-bold uppercase mb-1.5 flex items-center gap-1">
+                                <span className="inline-block w-2 h-2 rounded-full bg-purple-600"></span>
+                                Administration Reply / विभाग का उत्तर
+                              </span>
+                              <p className="text-indigo-950 text-sm font-medium whitespace-pre-wrap leading-relaxed">{query.adminReply}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}

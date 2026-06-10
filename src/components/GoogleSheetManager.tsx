@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Database, Plus, Trash2, RefreshCw, CheckCircle, AlertTriangle, FileSpreadsheet, ArrowLeft, Loader2, Info } from "lucide-react";
-import { db } from "../firebase";
+import { db, handleFirestoreError, OperationType } from "../firebase";
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs, writeBatch } from "firebase/firestore";
 import { toast } from "sonner";
 
@@ -20,6 +20,9 @@ export function GoogleSheetManager() {
     const q = query(collection(db, "google_sheets_sources"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
       setSheets(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, "google_sheets_sources");
       setLoading(false);
     });
     return unsub;
@@ -50,22 +53,38 @@ export function GoogleSheetManager() {
     }
 
     try {
-      await addDoc(collection(db, "google_sheets_sources"), {
+      const docRef = await addDoc(collection(db, "google_sheets_sources"), {
         name: formName.trim(),
         description: formDesc.trim(),
         url: formUrl.trim(),
         sheetId: sheetId,
         gid: gid,
         category: formCategory,
-        status: "Pending Sync",
+        status: "Syncing...",
         recordCount: 0,
         createdAt: serverTimestamp()
       });
-      toast.success("Sheet added successfully");
+      toast.success("Sheet added successfully! Auto-sync in progress...");
       setIsFormOpen(false);
+
+      const newSheetObj = {
+        id: docRef.id,
+        name: formName.trim(),
+        description: formDesc.trim(),
+        url: formUrl.trim(),
+        sheetId: sheetId,
+        gid: gid,
+        category: formCategory,
+        status: "Syncing...",
+        recordCount: 0
+      };
+
       setFormName("");
       setFormDesc("");
       setFormUrl("");
+
+      // Start the sync process autonomously
+      handleSync(newSheetObj);
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to add sheet");

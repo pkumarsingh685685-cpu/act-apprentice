@@ -10,6 +10,7 @@ import {
   Outlet,
   useLocation,
   useNavigate,
+  Navigate,
 } from "react-router-dom";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -37,8 +38,8 @@ import LinksPage from "./pages/LinksPage";
 import InternalLinksPage from "./pages/InternalLinksPage";
 import CandidateLogin from "./pages/CandidateLogin";
 import AiSearchPage from "./pages/AiSearchPage";
-
 import SFGeneratorPage from "./pages/SFGeneratorPage";
+import ApoAllotmentPage from "./pages/ApoAllotmentPage";
 
 function Layout() {
   const location = useLocation();
@@ -52,13 +53,22 @@ function Layout() {
       <Navigation />
       <main className="flex-1 flex flex-col w-full relative">
         {!isHome && (
-          <div className="w-full max-w-7xl mx-auto px-4 md:px-8 mt-4 -mb-2">
+          <div className="w-full max-w-7xl mx-auto px-4 md:px-8 mt-4 -mb-2 flex flex-wrap items-center gap-3">
             <button 
               onClick={() => navigate(-1)} 
-              className="flex items-center gap-2 text-[#152060] hover:bg-blue-50 font-semibold transition-colors bg-white px-3 py-1.5 rounded border border-gray-200 shadow-sm w-fit"
+              className="flex items-center gap-2 text-[#152060] hover:bg-slate-50 font-bold transition-all bg-white px-4 py-2 rounded-xl border border-gray-200 shadow-md hover:shadow-lg active:translate-y-[1px] cursor-pointer text-xs uppercase tracking-wider"
+              title="Go back one step"
             >
-              <ArrowLeft size={16} />
-              <span>{t("back")}</span>
+              <ArrowLeft size={14} className="text-[#e31837]" />
+              <span>{t("back") || "Back / पीछे जाएं"}</span>
+            </button>
+
+            <button 
+              onClick={() => navigate("/")} 
+              className="flex items-center gap-2 text-white hover:brightness-115 font-black transition-all bg-gradient-to-r from-indigo-600 to-blue-750 px-4 py-2 rounded-xl shadow-md hover:shadow-lg active:translate-y-[1px] cursor-pointer text-xs uppercase tracking-wider"
+              title="Go to Home Screen"
+            >
+              <span>🏠 {t("home_screen") || "Home Screen / मुख्य वेबसाइट"}</span>
             </button>
           </div>
         )}
@@ -72,6 +82,19 @@ function Layout() {
 import { Toaster } from "sonner";
 import { FirebaseSync } from "./components/FirebaseSync";
 import { SEO } from "./components/SEO";
+
+import i18nInstance from "./i18n";
+
+function LanguageInitializer() {
+  const location = useLocation();
+
+  useEffect(() => {
+    i18nInstance.changeLanguage("en");
+    localStorage.setItem("i18nextLng", "en");
+  }, [location.pathname]);
+
+  return null;
+}
 
 export default function App() {
   const checkSession = useStore((state) => state.checkSession);
@@ -90,16 +113,19 @@ export default function App() {
       <FirebaseSync />
       <Toaster position="top-right" richColors />
       <Router>
+        <LanguageInitializer />
         <SEO />
         <Routes>
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/sf-generator" element={<SFGeneratorPage />} />
+          <Route path="/apo-allotment" element={<Navigate to="/sf-generator?tab=WORK_ALLOTMENT" replace />} />
 
           <Route element={<Layout />}>
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
             <Route path="/notice-board" element={<NoticeBoardPage />} />
             <Route path="/notifications" element={<Notifications />} />
-            <Route path="/sf-generator" element={<SFGeneratorPage />} />
+            <Route path="/merit" element={<Merit />} />
             <Route path="/results" element={<Results />} />
             <Route path="/dar-circulars" element={<DARCirculars />} />
             <Route path="/act-circulars" element={<ActCirculars />} />

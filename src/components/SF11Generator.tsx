@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { useReactToPrint } from "react-to-print";
+import { triggerPrint } from "../utils/printHelper";
 import { Printer, RotateCcw, Plus, Trash2 } from "lucide-react";
 import { useStore } from "../store/useStore";
 
@@ -21,11 +21,33 @@ interface SF11Data {
   additionalCopies: string[];
 }
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const formatPrintDate = (dateString: string) => {
+  if (!dateString) return '';
+  const parts = dateString.split('-');
+  if (parts.length !== 3) return dateString;
+  const year = parseInt(parts[0], 10);
+  const monthIdx = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  return `${day} ${months[monthIdx]} ${year}`;
+};
+
 const initialData: SF11Data = {
   fileNo: "",
   railway: "Admn. NFR/KIR",
-  placeOfIssue: "DRM (P)/KIR",
-  date: new Date().toISOString().split("T")[0],
+  placeOfIssue: "DRM(P)/KIR",
+  date: getLocalDateString(),
   salutation: "",
   employeeName: "",
   designation: "",
@@ -40,36 +62,41 @@ const initialData: SF11Data = {
   additionalCopies: ["Ch.OS/EQ-for necessary action please."],
 };
 
-export function SF11Generator() {
+export function SF11Generator({ onBack }: { onBack?: () => void } = {}) {
   const [formData, setFormData] = useState<SF11Data>(initialData);
   const componentRef = useRef<HTMLDivElement>(null);
   const addIssuedSF = useStore((state) => state.addIssuedSF);
+  const config = useStore((state) => state.config);
+  const sfFixedTexts = useStore((state) => state.sfFixedTexts) || {};
+  const sf11Texts = sfFixedTexts["SF-11"] || {};
 
-  const generatePDF = useReactToPrint({
-    contentRef: componentRef,
-    documentTitle: `SF-11_Charge_Sheet_${formData.employeeName || "Draft"}`,
-    onAfterPrint: () => {
-      if (formData.employeeName) {
-        addIssuedSF({
-          sfType: 'SF-11',
-          employeeName: formData.employeeName,
-          designation: formData.designation,
-          issuedDate: new Date().toISOString().split('T')[0],
-          isFinalised: false,
-        });
-      }
-    },
-    print: async (printIframe: HTMLIFrameElement) => {
-      const document = printIframe.contentDocument;
-      if (document) {
-        printIframe.contentWindow?.print();
-      }
-    },
-  });
+  const showPreview = config.showSfPdfPreview !== "false";
+
+  const proposesAction = sf11Texts.proposesAction || "The undersigned proposes to take action against the said Railway servant under Rule 11 of the Railway Servants (Discipline and Appeal) Rules, 1968. The substance of the imputations of misconduct or misbehaviour in respect of which action is proposed to be taken is set out in the enclosed statement of misconduct or misbehaviour.";
+  const givenOpportunity = sf11Texts.givenOpportunity || "The said Railway servant is hereby given an opportunity to make such representation as he may wish to make against the proposal. If he fails to submit his representation within ten days, it will be presumed that he has no representation to make.";
 
   const handleGenerateClick = (e: React.FormEvent) => {
     e.preventDefault();
-    generatePDF();
+    triggerPrint({
+      contentRef: componentRef,
+      documentTitle: `SF-11_Charge_Sheet_${formData.employeeName || "Draft"}`,
+      onAfterPrint: () => {
+        if (formData.employeeName) {
+          addIssuedSF({
+            sfType: 'SF-11',
+            employeeName: formData.employeeName,
+            designation: formData.designation,
+            issuedDate: formData.date || new Date().toISOString().split('T')[0],
+            isFinalised: false,
+            trackStatus: 'untracked',
+            memorandumNo: formData.fileNo || "",
+            nameOfDa: formData.signatureName || "Atul Kumar",
+            designationOfDa: formData.authorityDesignation || "Sr.DPO",
+            charges: formData.misconductStatementPart1 || "",
+          });
+        }
+      },
+    });
   };
 
   const handleChange = (
@@ -118,12 +145,33 @@ export function SF11Generator() {
   };
 
   const formattedDate = formData.date
-    ? new Date(formData.date).toLocaleDateString("en-GB")
+    ? formatPrintDate(formData.date)
     : "";
+
+  const empIdString = `${formData.salutation || '__________'} ${formData.employeeName}${formData.employeeName ? "," : ""} ${formData.designation}, working under ${formData.workingUnder}`;
+  const empIdStringHTML = `<strong>${empIdString}</strong>`;
+
+  const processedProposesAction = proposesAction === "The undersigned proposes to take action against the said Railway servant under Rule 11 of the Railway Servants (Discipline and Appeal) Rules, 1968. The substance of the imputations of misconduct or misbehaviour in respect of which action is proposed to be taken is set out in the enclosed statement of misconduct or misbehaviour."
+    ? `${empIdStringHTML} is hereby informed that the undersigned proposed to take action against him/her under Rule 11 of the Railway Servants (Discipline and Appeal) Rules, 1968. A statement of the imputations of misconduct or misbehavior, on which action is proposed to be taken as mentioned above, is enclosed.`
+    : proposesAction.replace(/the said Railway servant/gi, empIdStringHTML).replace(/the said railway servant/gi, empIdStringHTML);
+
+  const processedGivenOpportunity = givenOpportunity === "The said Railway servant is hereby given an opportunity to make such representation as he may wish to make against the proposal. If he fails to submit his representation within ten days, it will be presumed that he has no representation to make."
+    ? `${empIdStringHTML} is hereby given an opportunity to make such representation as he/she may wish to make against the proposal. The representation, if any, should be submitted to the undersigned so as to reach within ten days of receipt of this Memorandum.`
+    : givenOpportunity.replace(/the said Railway servant/gi, empIdStringHTML).replace(/the said railway servant/gi, empIdStringHTML);
 
   return (
     <div className="w-full h-full flex flex-col lg:flex-row bg-gray-50 overflow-hidden relative">
-      <div className="absolute top-4 right-5 z-20 flex gap-3">
+      <div className="absolute top-4 right-5 z-20 flex gap-3 font-sans">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors shadow-sm cursor-pointer"
+          >
+            ← Back
+          </button>
+        )}
+
         <button
           type="button"
           onClick={handleReset}
@@ -144,7 +192,7 @@ export function SF11Generator() {
       </div>
 
       {/* Editor Form (Left Side) */}
-      <div className="w-full lg:w-[400px] bg-white border-r border-gray-200 overflow-y-auto p-5 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)] shrink-0">
+      <div className={`w-full ${showPreview ? 'lg:w-[420px] bg-white border-r border-gray-200 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)]' : 'lg:max-w-4xl lg:mx-auto bg-white p-6 my-6 rounded-lg border border-gray-200 shadow-md'} overflow-y-auto p-5 shrink-0`}>
         <h2 className="font-bold text-gray-700 mb-5 border-b pb-2 uppercase tracking-wide text-xs">
           Fill Form Details
         </h2>
@@ -379,7 +427,7 @@ export function SF11Generator() {
       </div>
 
       {/* Live Preview (Right Side) */}
-      <div className="flex-1 bg-gray-200 overflow-auto p-4 lg:p-8 flex flex-col items-center">
+      <div className={`${showPreview ? 'flex-1' : 'hidden'} bg-gray-200 overflow-auto p-4 lg:p-8 flex flex-col items-center`}>
         <div
           ref={componentRef}
           className="w-full shrink-0 flex flex-col items-center gap-8 text-[12pt] font-[Times_New_Roman,Times,serif] text-black leading-snug min-w-[210mm]"
@@ -438,33 +486,12 @@ export function SF11Generator() {
               {/* Numbered Points */}
               <div className="space-y-4 text-justify pl-8 relative">
                 <div className="absolute left-4 top-0">1.</div>
-                <div>
-                  <span className="font-bold">
-                    {formData.salutation || '__________'} {formData.employeeName}
-                    {formData.employeeName ? "," : ""} {formData.designation}
-                  </span>
-                  , working under {formData.workingUnder} is hereby informed
-                  that the undersigned proposed to take action against him/her
-                  under Rule 11 of the Railway Servants (Discipline and Appeal)
-                  Rules, 1968. A statement of the imputations of misconduct or
-                  misbehavior, on which action is proposed to be taken as
-                  mentioned above, is enclosed.
-                </div>
+                <div dangerouslySetInnerHTML={{ __html: processedProposesAction }} />
               </div>
 
               <div className="space-y-4 text-justify pl-8 relative mt-2">
                 <div className="absolute left-4 top-0">2.</div>
-                <div>
-                  <span className="font-bold">
-                    {formData.salutation || '__________'} {formData.employeeName}
-                    {formData.employeeName ? "," : ""} {formData.designation}
-                  </span>
-                  , working under {formData.workingUnder} is hereby given an
-                  opportunity to make such representation as he/she may wish to
-                  make against the proposal. The representation, if any, should
-                  be submitted to the undersigned so as to reach within ten days
-                  of receipt of this Memorandum.
-                </div>
+                <div dangerouslySetInnerHTML={{ __html: processedGivenOpportunity }} />
               </div>
 
               <div className="space-y-4 text-justify pl-8 relative mt-2">

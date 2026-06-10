@@ -2,7 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AppState, DocumentCategory, DocumentItem, LinkItem } from "../types";
 import { db } from "../firebase";
-import { doc, setDoc, deleteDoc } from "firebase/firestore";
+import { doc, setDoc, deleteDoc, addDoc, collection } from "firebase/firestore";
+import { toast } from "sonner";
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -62,6 +63,13 @@ export const useStore = create<AppState>()(
         candidateDataCsvUrl: "",
         sfPasscode: "124612",
         sfSessionDuration: "30",
+        showSfPdfPreview: "true",
+        srDpoNameEn: "Sri Sanjeev Kumar",
+        srDpoNameHi: "श्री संजीव कुमार",
+        srDpoDesignationEn: "Sr. DPO / KIR",
+        srDpoDesignationHi: "वरिष्ठ मंडल कार्मिक अधिकारी / कटिहार (Sr. DPO / KIR)",
+        importantMessageText: "ATTENTION CANDIDATES: All Act Apprentice notifications, selection schedules, and physical document verification lists are hosted ONLY on this official web portal. Please do not trust unauthorized agents demanding financial transactions or job guarantees under our DRM/Katihar division name.",
+        importantMessageEnabled: "true",
       },
       updateConfig: (key, value) => set((state) => {
         const newConfig = { ...state.config, [key]: value };
@@ -103,6 +111,7 @@ export const useStore = create<AppState>()(
         govLogo: { image: "", enabled: true },
         nationalEmblem: { image: "", enabled: true },
         ministryLogo: { image: "", enabled: true },
+        favicon: { image: "", enabled: true },
       },
       updateLogo: (key, data) => set((state) => {
         const newLogos = { ...state.logos, [key]: { ...state.logos[key], ...data } };
@@ -248,19 +257,116 @@ export const useStore = create<AppState>()(
         return { sfDescriptions: newDescriptions };
       }),
 
+      sfFixedTexts: {
+        "SF-1": {
+          whereContemplatedPending: "Whereas disciplinary proceeding against",
+          servantContemplatedPending: "(Name and designation of the Railway servant) is contemplated/Pending",
+          whereCriminalCase: "Whereas a case against",
+          servantCriminalCase: "(Name and designation of the Railway servant) in respect of whom a criminal offence is under investigation / inquiry / trail.",
+          placeUnderSuspensionText: "Now, therefore, the undersigned (the authority competent to place the Railway Servant under suspension in terms of the Schedules II and III appended to RS (D&A) Rules, 1968/ an authority mentioned in proviso to [Rule 4 of the RS (D&A) Rules, 1968], in exercise of the powers conferred by Rule 4/proviso to Rule 4 of RS (D&A) Rules, 1968, hereby places the said",
+          placeUnderSuspensionSuff: "under suspension",
+          furtherOrderedHeader: "It is further ordered that during the period this order shall remain in force, the said",
+          cannotLeaveHq: "shall not leave the headquarters without obtaining the previous permission of the competent authority.",
+          copyToDefault: "Orders regarding subsistence allowance admissible to him during the period of suspension will issue separately."
+        },
+        "SF-4": {
+          whereasPlace: "Whereas the order placing",
+          underSuspension: "under suspension",
+          wasMadeDeemed: "was made/was deemed to have been made by the Undersigned on",
+          revokesSaidOrder: "Now, therefore, the undersigned (the authority which made or is deemed to have made the order of suspension or any other authority to which that authority is subordinate) in exercise of the powers conferred by Clause (c) of sub-rule (5) of Rule 5 of the RS (D&A) Rule, 1968, hereby revokes the said order of suspension"
+        },
+        "SF-5": {
+          proposesInquiry: "The undersigned proposes to hold an inquiry against the said Railway servant under Rule 9 of the Railway Servants (Discipline and Appeal) Rules, 1968. The substance of the imputations of misconduct or misbehaviour in respect of which the inquiry is proposed to be held is set out in the enclosed statement of articles of charge (Annexure I). A statement of the imputations of misconduct or misbehaviour in support of each article of charge is enclosed (Annexure II). A list of documents by which and a list of witnesses by whom the articles of charge are proposed to be sustained are also enclosed (Annexures III and IV).",
+          directedSubmit: "The said Railway servant is hereby directed to submit to the undersigned a written statement of his defense within ten days of the receipt of this memorandum."
+        },
+        "SF-11": {
+          proposesAction: "The undersigned proposes to take action against the said Railway servant under Rule 11 of the Railway Servants (Discipline and Appeal) Rules, 1968. The substance of the imputations of misconduct or misbehaviour in respect of which action is proposed to be taken is set out in the enclosed statement of misconduct or misbehaviour.",
+          givenOpportunity: "The said Railway servant is hereby given an opportunity to make such representation as he may wish to make against the proposal. If he fails to submit his representation within ten days, it will be presumed that he has no representation to make."
+        }
+      },
+      updateSFFixedText: (sfType, key, value) => set((state) => {
+        const currentTexts = state.sfFixedTexts || {};
+        const sfTexts = currentTexts[sfType] || {};
+        const newTexts = { ...currentTexts, [sfType]: { ...sfTexts, [key]: value } };
+        setDoc(doc(db, "settings", "sfFixedTexts"), newTexts).catch(console.error);
+        return { sfFixedTexts: newTexts };
+      }),
+
       issuedSFs: [],
+      pending_sf4_drafts: [],
       addIssuedSF: (sf) => set((state) => {
+        const existing = (state.issuedSFs || []).find((item) => 
+          item.employeeName === sf.employeeName &&
+          item.sfType === sf.sfType &&
+          (item.memorandumNo || "").trim().toLowerCase() === (sf.memorandumNo || "").trim().toLowerCase()
+        );
+
+        if (existing) {
+          const nextStatus: "issued" | "untracked" = existing.trackStatus === "issued" ? "issued" : "untracked";
+          const updatedSF = { 
+            ...existing, 
+            ...sf, 
+            trackStatus: nextStatus,
+            pausedUntil: nextStatus === "untracked" ? null : existing.pausedUntil,
+            printedAt: Date.now() 
+          };
+          setDoc(doc(db, "issuedSFs", existing.id), updatedSF).catch(console.error);
+          return { 
+            issuedSFs: state.issuedSFs.map((item) => item.id === existing.id ? updatedSF : item) 
+          };
+        }
+
         const id = generateId();
-        const newSF = { ...sf, id };
+        const newSF = { ...sf, id, printedAt: Date.now() };
         setDoc(doc(db, "issuedSFs", id), newSF).catch(console.error);
         return { issuedSFs: [...(state.issuedSFs || []), newSF] };
       }),
-      toggleIssuedSFFinalised: (id) => set((state) => {
+      updateIssuedSF: (id, updates) => set((state) => {
         const updatedSFs = (state.issuedSFs || []).map((sf) => 
-          sf.id === id ? { ...sf, isFinalised: !sf.isFinalised } : sf
+          sf.id === id ? { ...sf, ...updates } : sf
         );
         const updatedSF = updatedSFs.find((sf) => sf.id === id);
         if (updatedSF) setDoc(doc(db, "issuedSFs", id), updatedSF).catch(console.error);
+        return { issuedSFs: updatedSFs };
+      }),
+      toggleIssuedSFFinalised: (id) => set((state) => {
+        const targetSF = (state.issuedSFs || []).find((sf) => sf.id === id);
+        let updatedSFs = state.issuedSFs || [];
+        
+        if (targetSF) {
+          const nextFinalised = !targetSF.isFinalised;
+          updatedSFs = updatedSFs.map((sf) => 
+            sf.id === id ? { ...sf, isFinalised: nextFinalised } : sf
+          );
+          
+          const updatedSF = { ...targetSF, isFinalised: nextFinalised };
+          setDoc(doc(db, "issuedSFs", id), updatedSF).catch(console.error);
+          
+          if (targetSF.sfType === "SF-1" && nextFinalised) {
+            const pendingSF4Record = {
+              employeeName: targetSF.employeeName || "",
+              designation: targetSF.designation || "",
+              fileNo: targetSF.memorandumNo || "",
+              status: "pending",
+              createdAt: Date.now(),
+              suspensionOrderDate: targetSF.issuedDate || new Date().toISOString().split("T")[0],
+              signatureName: targetSF.signatureName || "",
+              authorityDesignation: targetSF.authorityDesignation || "",
+              salutation: targetSF.salutation || "Shri",
+              workingUnder: targetSF.workingUnder || "",
+              railway: targetSF.railway || "North Frontier Railway",
+              placeOfIssue: targetSF.placeOfIssue || "Katihar",
+              additionalCopies: targetSF.additionalCopies || [],
+            };
+            addDoc(collection(db, "pending_sf4_drafts"), pendingSF4Record)
+              .then(() => {
+                toast.info("SF-4 draft has been automatically generated for this employee!");
+              })
+              .catch((err) => {
+                console.error("Error generating SF-4 draft:", err);
+              });
+          }
+        }
         return { issuedSFs: updatedSFs };
       }),
       deleteIssuedSF: (id) => set((state) => {
@@ -380,6 +486,8 @@ export const useStore = create<AppState>()(
         },
       ],
 
+      apoWorkAllotments: [],
+
       addDocument: (type, docData) => set((state) => {
         const id = generateId();
         const newDoc = { ...docData, id };
@@ -478,6 +586,25 @@ export const useStore = create<AppState>()(
       deleteInternalLink: (id) => set((state) => {
         deleteDoc(doc(db, "internalLinks", id)).catch(console.error);
         return { internalLinks: state.internalLinks.filter((link) => link.id !== id) };
+      }),
+
+      addApoAllotment: (allotment) => set((state) => {
+        const id = generateId();
+        const newAllotment = { ...allotment, id };
+        setDoc(doc(db, "apoWorkAllotments", id), newAllotment).catch(console.error);
+        return { apoWorkAllotments: [...(state.apoWorkAllotments || []), newAllotment] };
+      }),
+
+      updateApoAllotment: (id, changedAllotment) => set((state) => {
+        const updatedAllotments = (state.apoWorkAllotments || []).map((a) => a.id === id ? { ...a, ...changedAllotment } : a);
+        const newAllotment = updatedAllotments.find((a) => a.id === id);
+        if (newAllotment) setDoc(doc(db, "apoWorkAllotments", id), newAllotment).catch(console.error);
+        return { apoWorkAllotments: updatedAllotments };
+      }),
+
+      deleteApoAllotment: (id) => set((state) => {
+        deleteDoc(doc(db, "apoWorkAllotments", id)).catch(console.error);
+        return { apoWorkAllotments: (state.apoWorkAllotments || []).filter((a) => a.id !== id) };
       }),
     }),
     {

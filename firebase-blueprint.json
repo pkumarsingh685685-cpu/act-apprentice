@@ -1,0 +1,59 @@
+{
+  "entities": {
+    "NfrOrgNode": {
+      "title": "NFR Organization Node",
+      "description": "Represents a division or workshop under Northeast Frontier Railway in the organization map.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The custom identifier (e.g. kir, apdj, rny, lmg, tsk, nbq, dbws, ews)"
+        },
+        "nameEn": { "type": "string" },
+        "nameHi": { "type": "string" },
+        "type": { "type": "string", "enum": ["division", "workshop"] },
+        "x": { "type": "number", "description": "X coordinate on the SVG map (0 to 100)" },
+        "y": { "type": "number", "description": "Y coordinate on the SVG map (0 to 80)" },
+        "stateEn": { "type": "string" },
+        "stateHi": { "type": "string" },
+        "drmEn": { "type": "string" },
+        "drmHi": { "type": "string" },
+        "googleMapQuery": { "type": "string" },
+        "coordinatesText": { "type": "string" },
+        "customHighlight": { "type": "boolean" }
+      },
+      "required": ["id", "nameEn", "nameHi", "type", "x", "y"]
+    },
+    "DarPosition": {
+      "title": "DAR Position of Personnel Branch",
+      "description": "Represents a Discipline & Appeal Rules register item in the excel sheet of the Personnel Branch",
+      "type": "object",
+      "properties": {
+        "sn": { "type": "number", "description": "Serial Number" },
+        "name": { "type": "string" },
+        "designation": { "type": "string" },
+        "memorandumNo": { "type": "string" },
+        "natureOfCharge": { "type": "string" },
+        "issuedDate": { "type": "string" },
+        "nameOfDa": { "type": "string" },
+        "designationOfDa": { "type": "string" },
+        "natureOfCase": { "type": "string" },
+        "presentStatus": { "type": "string" },
+        "charges": { "type": "string" },
+        "dateOfDaNip": { "type": "string" },
+        "penalty": { "type": "string" }
+      },
+      "required": ["sn", "name"]
+    }
+  },
+  "firestore": {
+    "/nfrOrgNodes/{nodeId}": {
+      "schema": "NfrOrgNode",
+      "description": "Collections of NFR divisions and workshops displayed in the Interactive Organization Map."
+    },
+    "/dar_positions/{positionId}": {
+      "schema": "DarPosition",
+      "description": "Detailed position statements for the Discipline & Appeal Rules of the Personnel Branch"
+    }
+  }
+}

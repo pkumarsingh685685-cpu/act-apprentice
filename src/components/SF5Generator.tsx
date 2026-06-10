@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { useReactToPrint } from "react-to-print";
+import { triggerPrint } from "../utils/printHelper";
 import { Printer, RotateCcw, Plus, Trash2 } from "lucide-react";
 import { useStore } from "../store/useStore";
 
@@ -23,11 +23,33 @@ interface SF5Data {
   additionalCopies: string[];
 }
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const formatPrintDate = (dateString: string) => {
+  if (!dateString) return '';
+  const parts = dateString.split('-');
+  if (parts.length !== 3) return dateString;
+  const year = parseInt(parts[0], 10);
+  const monthIdx = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  return `${day} ${months[monthIdx]} ${year}`;
+};
+
 const initialData: SF5Data = {
   fileNo: "",
-  railway: "Admn.:NFR",
-  placeOfIssue: "DRM(P)KIR",
-  date: new Date().toISOString().split('T')[0],
+  railway: "Admn. NFR/KIR",
+  placeOfIssue: "DRM(P)/KIR",
+  date: getLocalDateString(),
   salutation: "",
   employeeName: "",
   designation: "",
@@ -66,7 +88,7 @@ function generateFooterText(
   return `By the aforesaid acts of omission and commission, ${empName}, ${desig}${workingPart}, has shown lack of devotion to duty and acted in a manner which is unbecoming of a Railway Servant and thereby violated ${rulesStr} of Railway Services (Conduct) Rules,1966`;
 }
 
-export function SF5Generator() {
+export function SF5Generator({ onBack }: { onBack?: () => void } = {}) {
   const [formData, setFormData] = useState<SF5Data>(initialData);
   const [isFooterEditable, setIsFooterEditable] = useState<boolean>(false);
   const [selectedRules, setSelectedRules] = useState<string[]>([
@@ -74,6 +96,15 @@ export function SF5Generator() {
     "Rule No.3(1) (iii)"
   ]);
   const [customRuleInput, setCustomRuleInput] = useState<string>("");
+
+  const config = useStore((state) => state.config);
+  const sfFixedTexts = useStore((state) => state.sfFixedTexts) || {};
+  const sf5Texts = sfFixedTexts["SF-5"] || {};
+
+  const showPreview = config.showSfPdfPreview !== "false";
+
+  const proposesInquiry = sf5Texts.proposesInquiry || "The undersigned proposes to hold an inquiry against the said Railway servant under Rule 9 of the Railway Servants (Discipline and Appeal) Rules, 1968. The substance of the imputations of misconduct or misbehaviour in respect of which the inquiry is proposed to be held is set out in the enclosed statement of articles of charge (Annexure I). A statement of the imputations of misconduct or misbehaviour in support of each article of charge is enclosed (Annexure II). A list of documents by which and a list of witnesses by whom the articles of charge are proposed to be sustained are also enclosed (Annexures III and IV).";
+  const directedSubmit = sf5Texts.directedSubmit || "The said Railway servant is hereby directed to submit to the undersigned a written statement of his defense within ten days of the receipt of this memorandum.";
 
   React.useEffect(() => {
     if (!isFooterEditable) {
@@ -103,25 +134,28 @@ export function SF5Generator() {
   const componentRef = useRef<HTMLDivElement>(null);
   const addIssuedSF = useStore((state) => state.addIssuedSF);
 
-  const generatePDF = useReactToPrint({
-    contentRef: () => componentRef.current,
-    documentTitle: `SF-5_Charge_Memorandum_${formData.employeeName || "Draft"}`,
-    onAfterPrint: () => {
-      if (formData.employeeName) {
-        addIssuedSF({
-          sfType: 'SF-5',
-          employeeName: formData.employeeName,
-          designation: formData.designation,
-          issuedDate: new Date().toISOString().split('T')[0],
-          isFinalised: false,
-        });
-      }
-    },
-  });
-
   const handleGenerateClick = (e: React.FormEvent) => {
     e.preventDefault();
-    generatePDF();
+    triggerPrint({
+      contentRef: componentRef,
+      documentTitle: `SF-5_Charge_Memorandum_${formData.employeeName || "Draft"}`,
+      onAfterPrint: () => {
+        if (formData.employeeName) {
+          addIssuedSF({
+            sfType: 'SF-5',
+            employeeName: formData.employeeName,
+            designation: formData.designation,
+            issuedDate: formData.date || new Date().toISOString().split('T')[0],
+            isFinalised: false,
+            trackStatus: 'untracked',
+            memorandumNo: formData.fileNo || "",
+            nameOfDa: formData.signatureName || "Atul Kumar",
+            designationOfDa: formData.authorityDesignation || "Sr.DPO",
+            charges: (formData.annexureIArticles || []).filter(Boolean).join("\n"),
+          });
+        }
+      },
+    });
   };
 
   const handleChange = (
@@ -169,18 +203,34 @@ export function SF5Generator() {
   };
 
   const formattedDate = formData.date
-    ? new Date(formData.date).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      }).replace(/\//g, '.')
+    ? formatPrintDate(formData.date)
     : "";
 
   const empString = `${formData.salutation || '__________'} ${formData.employeeName}${formData.designation ? `, ${formData.designation}` : ""}, under ${formData.workingUnder}`;
 
+  const empStringHTML = `<strong>${empString}</strong>`;
+  
+  const processedProposesInquiry = proposesInquiry
+    .replace(/the said Railway servant/gi, empStringHTML)
+    .replace(/the said railway servant/gi, empStringHTML);
+
+  const processedDirectedSubmit = directedSubmit === "The said Railway servant is hereby directed to submit to the undersigned a written statement of his defense within ten days of the receipt of this memorandum."
+    ? `<strong>${empString}</strong> is hereby directed to submit to the undersigned a written statement of his defence which should reach, the undersigned within ten days of receipt of this Memorandum, if he does not require to inspect any documents for the preparation of his defence, and within ten days after completion of inspection of documents if he desires to inspect documents, and also:-`
+    : directedSubmit.replace(/the said Railway servant/gi, empStringHTML).replace(/the said railway servant/gi, empStringHTML);
+
   return (
     <div className="w-full h-full flex flex-col lg:flex-row bg-gray-50 overflow-hidden relative">
-      <div className="absolute top-4 right-5 z-20 flex gap-3">
+      <div className="absolute top-4 right-5 z-20 flex gap-3 font-sans">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors shadow-sm cursor-pointer"
+          >
+            ← Back
+          </button>
+        )}
+
         <button
           type="button"
           onClick={handleReset}
@@ -201,7 +251,7 @@ export function SF5Generator() {
       </div>
 
       {/* Editor Form */}
-      <div className="w-full lg:w-[500px] xl:w-[650px] 2xl:w-[750px] bg-white border-r border-gray-200 overflow-y-auto p-5 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)] shrink-0 pb-20">
+      <div className={`w-full ${showPreview ? 'lg:w-[500px] xl:w-[650px] 2xl:w-[750px] bg-white border-r border-gray-200 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)]' : 'lg:max-w-4xl lg:mx-auto bg-white p-6 my-6 rounded-lg border border-gray-200 shadow-md'} overflow-y-auto p-5 shrink-0 pb-20`}>
         <h2 className="font-bold text-gray-700 mb-5 border-b pb-2 uppercase tracking-wide text-xs">
           Fill Form Details
         </h2>
@@ -239,31 +289,27 @@ export function SF5Generator() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">
-                Railway/Administration <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">
+                Railway/Administration (Locked)
               </label>
               <input
-                required
+                disabled
                 type="text"
                 name="railway"
                 value={formData.railway}
-                onChange={handleChange}
-                className="w-full text-sm border-gray-300 rounded px-2.5 py-1.5 focus:ring-indigo-500 focus:border-indigo-500 border bg-gray-50 focus:bg-white"
-                placeholder="e.g. Admn.:NFR"
+                className="w-full text-sm border-gray-300 rounded px-2.5 py-1.5 border bg-gray-100 text-gray-500 cursor-not-allowed"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">
-                Office/Place of Issue <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">
+                Office/Place of Issue (Locked)
               </label>
               <input
-                required
+                disabled
                 type="text"
                 name="placeOfIssue"
                 value={formData.placeOfIssue}
-                onChange={handleChange}
-                className="w-full text-sm border-gray-300 rounded px-2.5 py-1.5 focus:ring-indigo-500 focus:border-indigo-500 border bg-gray-50 focus:bg-white"
-                placeholder="e.g. DRM(P)KIR"
+                className="w-full text-sm border-gray-300 rounded px-2.5 py-1.5 border bg-gray-100 text-gray-500 cursor-not-allowed"
               />
             </div>
           </div>
@@ -673,7 +719,7 @@ export function SF5Generator() {
       </div>
 
       {/* Preview Container */}
-      <div className="flex-1 bg-gray-200 overflow-y-auto flex flex-col items-center py-8 px-4 overflow-x-hidden">
+      <div className={`${showPreview ? 'flex-1' : 'hidden'} bg-gray-200 overflow-y-auto flex flex-col items-center py-8 px-4 overflow-x-hidden`}>
         <div 
           ref={componentRef}
           className="pdf-preview-wrapper text-black font-['Cambria',_'Times_New_Roman',_serif] text-[13pt] flex flex-col gap-8 print:gap-0"
@@ -741,9 +787,7 @@ export function SF5Generator() {
 
             <div className="flex text-justify leading-relaxed mb-6">
               <span className="w-8 shrink-0">1.</span>
-              <div className="flex-1">
-                The undersigned propose(s) to hold an inquiry against <strong>{empString}</strong> under Rule 9 of the Railway Servants (Discipline and appeal) Rules, 1968. The substance of the imputations of misconduct or misbehavior in respect of which the inquiry is proposed to be held is set out in the enclosed statement of articles of charge (<strong>Annexure-I</strong>). A statement of the imputations of misconduct or misbehavior in support of each article of charge is enclosed (<strong>Annexure-II</strong>). A list of documents by which and a list of witnesses by whom, the articles of charge are proposed to be sustained are also enclosed (<strong>Annexure-III & IV</strong>). Further, copies of documents mentioned in the list of documents, as per <strong>Annexure III</strong> are enclosed.
-              </div>
+              <div className="flex-1" dangerouslySetInnerHTML={{ __html: processedProposesInquiry }} />
             </div>
 
             <div className="flex text-justify leading-relaxed mb-6">
@@ -763,15 +807,19 @@ export function SF5Generator() {
             <div className="flex text-justify leading-relaxed mb-6">
               <span className="w-8 shrink-0">4.</span>
               <div className="flex-1">
-                <strong>{empString}</strong> is hereby directed to submit to the undersigned a written statement of his defence which should reach, the undersigned within ten days of receipt of this Memorandum, if he does not require to inspect any documents for the preparation of his defence, and within ten days after completion of inspection of documents if he desires to inspect documents, and also:-
-                <div className="flex mt-2">
-                  <span className="w-8 shrink-0 text-right pr-2">a)</span>
-                  <span className="flex-1">to state whether he wishes to be heard in person, and </span>
-                </div>
-                <div className="flex mt-1">
-                  <span className="w-8 shrink-0 text-right pr-2">b)</span>
-                  <span className="flex-1">to furnish the names and addresses of the witnesses, if any, whom he wishes to call in support of her defence.</span>
-                </div>
+                <div dangerouslySetInnerHTML={{ __html: processedDirectedSubmit }} />
+                {directedSubmit === "The said Railway servant is hereby directed to submit to the undersigned a written statement of his defense within ten days of the receipt of this memorandum." && (
+                  <>
+                    <div className="flex mt-2">
+                      <span className="w-8 shrink-0 text-right pr-2">a)</span>
+                      <span className="flex-1">to state whether he wishes to be heard in person, and </span>
+                    </div>
+                    <div className="flex mt-1">
+                      <span className="w-8 shrink-0 text-right pr-2">b)</span>
+                      <span className="flex-1">to furnish the names and addresses of the witnesses, if any, whom he wishes to call in support of her defence.</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 

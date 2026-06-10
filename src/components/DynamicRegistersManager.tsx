@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, List as ListIcon, Loader2, Save, X, Database, Search, ArrowLeft, Download, FileText, Settings, Eye } from "lucide-react";
-import { db } from "../firebase";
+import { db, handleFirestoreError, OperationType } from "../firebase";
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs } from "firebase/firestore";
 import { toast } from "sonner";
 
@@ -20,6 +20,9 @@ export function DynamicRegistersManager() {
     const q = query(collection(db, "dynamic_registers"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
       setRegisters(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, "dynamic_registers");
       setLoading(false);
     });
     return unsub;
@@ -300,6 +303,9 @@ function DynamicRegisterDataView({ register, onBack }: { register: any, onBack: 
       const allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       const myDocs = allDocs.filter((d: any) => d.registerId === register.id);
       setRecords(myDocs);
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, "dynamic_register_records");
       setLoading(false);
     });
     return unsub;

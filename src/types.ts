@@ -49,6 +49,13 @@ export interface SiteConfig {
   candidateDataCsvUrl?: string;
   sfPasscode?: string;
   sfSessionDuration?: string;
+  showSfPdfPreview?: string;
+  srDpoNameEn?: string;
+  srDpoNameHi?: string;
+  srDpoDesignationEn?: string;
+  srDpoDesignationHi?: string;
+  importantMessageText?: string;
+  importantMessageEnabled?: string;
 }
 
 export interface LogoItem {
@@ -68,6 +75,7 @@ export interface SiteLogos {
   govLogo: LogoItem;
   nationalEmblem: LogoItem;
   ministryLogo?: LogoItem;
+  favicon?: LogoItem;
 }
 
 export interface SliderImageItem {
@@ -103,6 +111,30 @@ export interface IssuedSF {
   designation: string;
   issuedDate: string;
   isFinalised: boolean;
+  trackStatus?: "untracked" | "issued" | "not_issued" | "paused";
+  pausedUntil?: number | null;
+  memorandumNo?: string;
+  nameOfDa?: string;
+  designationOfDa?: string;
+  charges?: string;
+  printedAt?: number;
+  signatureName?: string;
+  authorityDesignation?: string;
+  salutation?: string;
+  workingUnder?: string;
+  railway?: string;
+  placeOfIssue?: string;
+  additionalCopies?: string[];
+}
+
+export interface ApoWorkAllotment {
+  id: string;
+  name: string;
+  designation: string;
+  departments: string[];
+  contactEmail?: string;
+  contactPhone?: string;
+  order: number;
 }
 
 export interface AppState {
@@ -170,8 +202,12 @@ export interface AppState {
   sfDescriptions: Record<string, string>;
   updateSFDescription: (id: string, description: string) => void;
 
+  sfFixedTexts?: Record<string, Record<string, string>>;
+  updateSFFixedText?: (sfType: string, key: string, value: string) => void;
+
   issuedSFs: IssuedSF[];
   addIssuedSF: (sf: Omit<IssuedSF, "id">) => void;
+  updateIssuedSF: (id: string, updates: Partial<IssuedSF>) => void;
   toggleIssuedSFFinalised: (id: string) => void;
   deleteIssuedSF: (id: string) => void;
 
@@ -194,6 +230,12 @@ export interface AppState {
   addInternalLink: (link: Omit<LinkItem, "id">) => void;
   updateInternalLink: (id: string, link: Partial<LinkItem>) => void;
   deleteInternalLink: (id: string) => void;
+
+  apoWorkAllotments: ApoWorkAllotment[];
+  addApoAllotment: (allotment: Omit<ApoWorkAllotment, "id">) => void;
+  updateApoAllotment: (id: string, allotment: Partial<ApoWorkAllotment>) => void;
+  deleteApoAllotment: (id: string) => void;
+  pending_sf4_drafts?: any[];
 }
 
 export type DocumentCategory =

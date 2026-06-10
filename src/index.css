@@ -113,3 +113,35 @@ body {
   background-size: 8px 8px, 6px 6px, 10px 10px;
   background-position: 0 0, 3px 3px, 4px 4px;
 }
+
+/* Printing styles for sandbox-safe printing */
+#print-container {
+  display: none !important;
+}
+
+@media print {
+  body.printing-mode {
+    background-color: white !important;
+    background-image: none !important;
+    color: black !important;
+  }
+  body.printing-mode > *:not(#print-container) {
+    display: none !important;
+  }
+  body.printing-mode #print-container {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+  body.printing-mode #print-container * {
+    color-scheme: light !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+

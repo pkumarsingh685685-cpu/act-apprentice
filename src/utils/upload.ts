@@ -4,44 +4,44 @@ import { useStore } from "../store/useStore";
 export async function uploadToStorage(file: File, folder: string = 'uploads'): Promise<string> {
   if (!file) throw new Error("No file provided");
 
-  const config = useStore.getState().config;
-  const cloudName = config.cloudinaryName || import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = config.cloudinaryPreset || import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+  console.log("=== CLIENT UPLOAD TO PROXY ===", { fileName: file.name, folder });
 
-  // Fallback to Firebase Storage if Cloudinary is not configured
-  if (!cloudName || !uploadPreset) {
-    try {
-      const { storage } = await import('../firebase');
-      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
-      const storageRef = ref(storage, `${folder}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`);
-      await uploadBytes(storageRef, file);
-      const downloadUrl = await getDownloadURL(storageRef);
-      return downloadUrl;
-    } catch (err) {
-      console.error("Firebase Storage Upload Error:", err);
-      const errMsg = err instanceof Error ? err.message : String(err);
-      throw new Error(`Firebase Storage Upload Error: ${errMsg}. Cloudinary is not configured and Firebase Storage failed.`);
-    }
-  }
+  const config = useStore.getState().config;
+  const cloudName = (config.cloudinaryName || "").trim();
+  const uploadPreset = (config.cloudinaryPreset || "").trim();
 
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("upload_preset", uploadPreset);
-
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
-    {
-      method: "POST",
-      body: formData,
-    }
-  );
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    console.error("Cloudinary upload error:", errorData);
-    throw new Error(errorData.error?.message || "Failed to upload to Cloudinary");
+  formData.append("folder", folder);
+  if (cloudName) {
+    formData.append("cloudinaryName", cloudName);
+  }
+  if (uploadPreset) {
+    formData.append("cloudinaryPreset", uploadPreset);
   }
 
-  const data = await response.json();
-  return data.secure_url;
+  try {
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Upload failed via server proxy");
+    }
+
+    const data = await response.json();
+    if (!data.url) {
+      throw new Error("No file URL returned from server upload handler");
+    }
+
+    console.log("=== PROXY UPLOAD SUCCESS ===", data.url);
+    return data.url;
+  } catch (error: any) {
+    console.error("Client Upload Proxy Error:", error);
+    throw new Error(error.message || "File upload failed via server proxy. Please check connection.");
+  }
 }
+
+
