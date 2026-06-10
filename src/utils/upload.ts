@@ -26,20 +26,12 @@ export async function uploadToStorage(file: File, folder: string = 'uploads'): P
       body: formData,
     });
 
-    const responseText = await response.text();
-    let data: any;
-    try {
-      data = JSON.parse(responseText);
-    } catch (parseErr) {
-      console.error("=== CLIENT RESILIENT UPLOAD PARSE ERROR ===", responseText);
-      const cleanTextSample = responseText.replace(/<[^>]*>/g, ' ').slice(0, 120).trim();
-      throw new Error(`Server returned invalid response (Not JSON): ${cleanTextSample || 'Empty response'}`);
-    }
-
     if (!response.ok) {
-      throw new Error(data.error || `Upload failed with status code ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Upload failed via server proxy");
     }
 
+    const data = await response.json();
     if (!data.url) {
       throw new Error("No file URL returned from server upload handler");
     }

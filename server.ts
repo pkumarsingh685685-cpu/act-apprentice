@@ -19,16 +19,8 @@ async function startServer() {
   // Serve uploaded files statically under /uploads from the public/uploads directory
   app.use("/uploads", express.static(path.join(process.cwd(), "public/uploads")));
 
-  // Upload endpoint with custom multer error catching
-  app.post("/api/upload", (req, res, next) => {
-    upload.single("file")(req, res, (err) => {
-      if (err) {
-        console.error("=== MULTER PARSE ERROR ===", err);
-        return res.status(400).json({ error: err.message || "Multer parsing error" });
-      }
-      next();
-    });
-  }, async (req, res) => {
+  // Upload endpoint
+  app.post("/api/upload", upload.single("file"), async (req, res) => {
     try {
       const file = req.file;
       if (!file) {
@@ -68,13 +60,6 @@ async function startServer() {
       if (cloudinaryName && cloudinaryPreset) {
         try {
           console.log("Server uploading to Cloudinary...", { cloudinaryName, cloudinaryPreset });
-          
-          // Check if global objects like Blob or FormData are defined
-          if (typeof FormData === "undefined" || typeof Blob === "undefined") {
-            console.warn("FormData or Blob is not defined in this Node environment. Falling back to local storage.");
-            return res.json({ url: localUrl });
-          }
-
           const formData = new FormData();
           const blob = new Blob([file.buffer], { type: file.mimetype });
           formData.append("file", blob, file.originalname);
@@ -364,14 +349,6 @@ Provide your final outcome strictly as a valid JSON object matching the requeste
       console.error("AI Response Orchestration error:", error);
       res.status(500).json({ error: error.message || "Failed to orchestrate AI responses." });
     }
-  });
-
-  // Global API Error Handler
-  app.use("/api", (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error("=== SERVER API ROUTE ERROR ===", err);
-    res.status(err.status || 500).json({
-      error: err.message || "An internal server error occurred while processing your request"
-    });
   });
 
   // Vite middleware for development

@@ -35,7 +35,7 @@ export function Navigation() {
         `
       }}
     >
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 lg:h-20 flex items-center justify-between">
+      <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 h-16 lg:h-20 flex items-center justify-between">
         {/* Desktop Menu */}
         <div className="hidden lg:flex items-center justify-center w-full h-full gap-x-1 xl:gap-x-1.5 2xl:gap-x-2">
           {navKeys.map((item) => {
