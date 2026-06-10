@@ -14,87 +14,144 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use((req, res, next) => {
+    const logMsg = `[${new Date().toISOString()}] ${req.method} ${req.url} - Type: ${req.headers["content-type"]} - UserAgent: ${req.headers["user-agent"]}\n`;
+    try {
+      fs.appendFileSync(path.join(process.cwd(), "public", "server-debug.log"), logMsg);
+    } catch (e) {}
+    console.log(`[SERVER REQUEST LOG] ${req.method} ${req.url}`);
+    next();
+  });
+
   app.use(express.json());
 
   // Serve uploaded files statically under /uploads from the public/uploads directory
   app.use("/uploads", express.static(path.join(process.cwd(), "public/uploads")));
 
-  // Upload endpoint
-  app.post("/api/upload", upload.single("file"), async (req, res) => {
+  // Diagnostic route
+  app.get("/api/test-log", (req, res) => {
     try {
-      const file = req.file;
-      if (!file) {
-        return res.status(400).json({ error: "No file uploaded" });
+      fs.writeFileSync(path.join(process.cwd(), "test-write.txt"), "Express server is functioning and writeable!");
+      res.json({ ok: true, message: "Logged successfully", cwd: process.cwd() });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  // Upload endpoint
+  app.post("/api/upload", (req, res) => {
+    const logMsg = `[${new Date().toISOString()}] ENTERED /api/upload - Content-Type: ${req.headers["content-type"]}\n`;
+    try {
+      fs.appendFileSync(path.join(process.cwd(), "server-debug.log"), logMsg);
+    } catch (e) {}
+
+    upload.single("file")(req, res, async (err) => {
+      if (err) {
+        const errMsg = err.message || String(err);
+        const errLog = `[${new Date().toISOString()}] MULTER ERROR IN ROUTE: ${errMsg}\n`;
+        try {
+          fs.appendFileSync(path.join(process.cwd(), "server-debug.log"), errLog);
+        } catch (e) {}
+        console.error("=== MULTER ERROR ===", err);
+        return res.status(400).json({ error: `File parsing failed: ${errMsg}` });
       }
-
-      const folder = req.body.folder || "uploads";
-      const cloudinaryName = (req.body.cloudinaryName || "").trim();
-      const cloudinaryPreset = (req.body.cloudinaryPreset || "").trim();
-
-      console.log("=== SERVER SIDE UPLOAD ===", {
-        fileName: file.originalname,
-        fileSize: file.size,
-        contentType: file.mimetype,
-        folder,
-        hasCloudinary: !!(cloudinaryName && cloudinaryPreset)
-      });
-
-      // Save file locally to disk under public/uploads/
-      const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '');
-      const uniqueFileName = `${Date.now()}_${sanitizedName}`;
-      const uploadsDir = path.join(process.cwd(), "public", "uploads");
 
       try {
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
+        const file = req.file;
+        if (!file) {
+          const noFileLog = `[${new Date().toISOString()}] FILE IS MISSING IN REQUEST\n`;
+          try {
+            fs.appendFileSync(path.join(process.cwd(), "server-debug.log"), noFileLog);
+          } catch (e) {}
+          console.warn("Client requested upload but no file field was populated under key 'file'");
+          return res.status(400).json({ error: "No file uploaded. Please ensure the parameter name is 'file'." });
         }
-        const filePath = path.join(uploadsDir, uniqueFileName);
-        fs.writeFileSync(filePath, file.buffer);
-        console.log("File successfully saved to direct disk path:", filePath);
-      } catch (err) {
-        console.error("Failed to write file to local disk:", err);
-      }
 
-      const localUrl = `/uploads/${uniqueFileName}`;
+        const folder = req.body.folder || "uploads";
+        const cloudinaryName = (req.body.cloudinaryName || "").trim();
+        const cloudinaryPreset = (req.body.cloudinaryPreset || "").trim();
 
-      if (cloudinaryName && cloudinaryPreset) {
+        const successLog = `[${new Date().toISOString()}] MULTER PARSED SUCCESS - File: ${file.originalname}, Size: ${file.size}, Folder: ${folder}\n`;
         try {
-          console.log("Server uploading to Cloudinary...", { cloudinaryName, cloudinaryPreset });
-          const formData = new FormData();
-          const blob = new Blob([file.buffer], { type: file.mimetype });
-          formData.append("file", blob, file.originalname);
-          formData.append("upload_preset", cloudinaryPreset);
+          fs.appendFileSync(path.join(process.cwd(), "server-debug.log"), successLog);
+        } catch (e) {}
 
-          const response = await fetch(
-            `https://api.cloudinary.com/v1_1/${cloudinaryName}/auto/upload`,
-            {
-              method: "POST",
-              body: formData,
+        console.log("=== SERVER SIDE UPLOAD ===", {
+          fileName: file.originalname,
+          fileSize: file.size,
+          contentType: file.mimetype,
+          folder,
+          hasCloudinary: !!(cloudinaryName && cloudinaryPreset)
+        });
+
+        // Save file locally to disk under public/uploads/
+        const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '');
+        const uniqueFileName = `${Date.now()}_${sanitizedName}`;
+        const uploadsDir = path.join(process.cwd(), "public", "uploads");
+
+        try {
+          if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+          }
+          const filePath = path.join(uploadsDir, uniqueFileName);
+          fs.writeFileSync(filePath, file.buffer);
+          console.log("File successfully saved to local path:", filePath);
+        } catch (localWriteErr: any) {
+          console.error("Failed to write file to local disk:", localWriteErr);
+        }
+
+        const localUrl = `/uploads/${uniqueFileName}`;
+
+        if (cloudinaryName && cloudinaryPreset) {
+          try {
+            console.log("Uploading to Cloudinary...", { cloudinaryName, cloudinaryPreset });
+            
+            if (typeof FormData === "undefined" || typeof Blob === "undefined") {
+              console.warn("FormData or Blob is not defined in this Node environment. Falling back to local storage.");
+              return res.json({ url: localUrl });
             }
-          );
 
-          if (response.ok) {
-            const data = await response.json() as any;
-            console.log("Server Cloudinary upload success:", data.secure_url);
-            return res.json({ url: data.secure_url });
-          } else {
-            const errorData = await response.json() as any;
-            const cloudinaryErrorMsg = errorData.error?.message || "Failed to upload to Cloudinary";
-            console.warn("Server Cloudinary failed, falling back to local storage:", cloudinaryErrorMsg);
+            const formData = new FormData();
+            const blob = new Blob([file.buffer], { type: file.mimetype });
+            formData.append("file", blob, file.originalname);
+            formData.append("upload_preset", cloudinaryPreset);
+
+            const response = await fetch(
+              `https://api.cloudinary.com/v1_1/${cloudinaryName}/auto/upload`,
+              {
+                method: "POST",
+                body: formData,
+              }
+            );
+
+            if (response.ok) {
+              const data = await response.json() as any;
+              console.log("Cloudinary upload success:", data.secure_url);
+              return res.json({ url: data.secure_url });
+            } else {
+              const errorData = await response.json() as any;
+              const cloudinaryErrorMsg = errorData.error?.message || "Failed to upload to Cloudinary";
+              console.warn("Cloudinary failed, falling back to local storage:", cloudinaryErrorMsg);
+              return res.json({ url: localUrl });
+            }
+          } catch (cloudinaryErr: any) {
+            console.warn("Cloudinary exception, falling back to local storage:", cloudinaryErr.message || String(cloudinaryErr));
             return res.json({ url: localUrl });
           }
-        } catch (cloudinaryErr: any) {
-          console.warn("Server Cloudinary exception, falling back to local storage:", cloudinaryErr.message || String(cloudinaryErr));
+        } else {
+          console.log("Cloudinary credentials not completely provided. Storing file on local server.");
           return res.json({ url: localUrl });
         }
-      } else {
-        console.log("Cloudinary credentials not completely provided. Storing file on local server.");
-        return res.json({ url: localUrl });
+      } catch (globalErr: any) {
+        const errMsg = globalErr.message || String(globalErr);
+        const logMsg = `[${new Date().toISOString()}] GLOBAL UPLOAD ERROR: ${errMsg}\n`;
+        try {
+          fs.appendFileSync(path.join(process.cwd(), "server-debug.log"), logMsg);
+        } catch (e) {}
+        console.error("Global upload handler error:", globalErr);
+        res.status(500).json({ error: globalErr.message || "Failed to upload file." });
       }
-    } catch (globalErr: any) {
-      console.error("Global upload handler error:", globalErr);
-      res.status(500).json({ error: globalErr.message || "Failed to upload file." });
-    }
+    });
   });
 
   // AI Search endpoint
@@ -349,6 +406,24 @@ Provide your final outcome strictly as a valid JSON object matching the requeste
       console.error("AI Response Orchestration error:", error);
       res.status(500).json({ error: error.message || "Failed to orchestrate AI responses." });
     }
+  });
+
+  // Global API Error Handler
+  app.use("/api", (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error("=== SERVER API ROUTE ERROR ===", err);
+    res.status(err.status || 500).json({
+      error: err.message || "An internal server error occurred while processing your request"
+    });
+  });
+
+  // Return JSON 404 for any unmatched /api requests so they never fall through to SPA HTML
+  app.all("/api/*", (req, res) => {
+    const unmatchedLog = `[${new Date().toISOString()}] UNMATCHED API ROUTE: ${req.method} ${req.url}\n`;
+    try {
+      fs.appendFileSync(path.join(process.cwd(), "server-debug.log"), unmatchedLog);
+    } catch (e) {}
+    console.warn(`[API 404] Unmatched API path: ${req.method} ${req.url}`);
+    res.status(404).json({ error: `API endpoint ${req.method} ${req.url} was not found on this server.` });
   });
 
   // Vite middleware for development

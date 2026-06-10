@@ -69,7 +69,7 @@ export function Header({
     <header className="w-full bg-white">
       {/* Top Government Strip */}
       <div className="bg-gradient-to-r from-[#0a0f1d] via-[#1a365d] to-[#0a0f1d] text-[white] py-2.5 border-b-[2px] border-[#cda052]/40 shadow-[0_2px_10px_rgba(0,0,0,0.2)]">
-        <div className="w-full mx-auto px-4 sm:px-8 flex flex-col sm:flex-row justify-between items-center text-sm font-medium">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row justify-between items-center text-sm font-medium">
           <div className="flex gap-4 items-center">
             {logos?.govLogo?.enabled && (
               logos.govLogo.image ? (
@@ -121,26 +121,26 @@ export function Header({
 
       {/* Main Header / Branding */}
       <div className={`w-full bg-[#dbebfc] border-t-2 border-[#b5915f] relative transition-all duration-300 ${isHome ? 'pb-[46px]' : 'pb-2 sm:pb-3'}`}>
-        <div className={`w-full mx-auto px-4 sm:px-8 flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6 relative z-10 transition-all duration-300 ${isHome ? 'py-3 sm:py-5' : 'py-2 sm:py-2.5'}`}>
+        <div className={`max-w-5xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-14 relative z-10 transition-all duration-300 ${isHome ? 'py-3 sm:py-5' : 'py-2 sm:py-2.5'}`}>
           
           {/* Left: Railway Logo and Title */}
-          <div className="flex items-center gap-3 sm:gap-4 shrink-0 max-w-full overflow-hidden">
+          <div className="flex items-center gap-4 shrink-0 max-w-full overflow-hidden justify-center">
             {logos?.railwayLogo?.enabled && (
               logos.railwayLogo.image ? (
                 <img 
                   src={logos.railwayLogo.image} 
                   alt="Railway Logo" 
-                  className={`object-contain mix-blend-multiply transition-all duration-300 ${isHome ? 'w-20 h-20 sm:w-28 sm:h-28 md:w-[130px] md:h-[130px]' : 'w-12 h-12 sm:w-16 sm:h-16'}`}
+                  className={`object-contain mix-blend-multiply transition-all duration-300 ${isHome ? 'w-24 h-24 sm:w-28 sm:h-28 md:w-[130px] md:h-[130px]' : 'w-16 h-16 sm:w-20 sm:h-20'}`}
                 />
               ) : (
-                <PlaceholderImage text="Logo" className={`shrink-0 transition-all duration-300 ${isHome ? 'w-20 h-20 sm:w-24 sm:h-24' : 'w-12 h-12 sm:w-16 sm:h-16'}`} />
+                <PlaceholderImage text="Logo" className={`shrink-0 transition-all duration-300 ${isHome ? 'w-24 h-24 sm:w-28 sm:h-28' : 'w-16 h-16 sm:w-20 sm:h-20'}`} />
               )
             )}
             
             <div className="flex flex-col items-center justify-center text-center">
               {headerText.mainTitleEnabled && (
                 <div className={`border-b-[2.5px] border-[#2e3791] pb-0.5 inline-block transition-all duration-300 ${isHome ? 'mb-1.5' : 'mb-0.5'}`}>
-                  <h1 className="font-black text-[#2e3791] tracking-tight leading-none uppercase transition-all duration-300" style={{ fontFamily: "Arial, sans-serif", WebkitTextStroke: isHome ? "0.5px #2e3791" : "0.2px #2e3791", fontSize: isHome ? undefined : "1.25rem" }}>
+                  <h1 className={`font-black text-[#2e3791] tracking-tight leading-none uppercase transition-all duration-300 ${isHome ? 'text-3xl sm:text-4xl md:text-5xl lg:text-[2.6rem]' : 'text-xl sm:text-2xl md:text-3xl'}`} style={{ fontFamily: "Arial, sans-serif", WebkitTextStroke: isHome ? "0.6px #2e3791" : "0.3px #2e3791" }}>
                     {headerText.mainTitleText}
                   </h1>
                 </div>
@@ -148,13 +148,13 @@ export function Header({
               
               <div className="flex flex-col items-center text-[#911d1d]">
                 {headerText.railwayEnglishEnabled && (
-                  <h2 className={`font-bold tracking-wide uppercase leading-tight transition-all duration-300 ${isHome ? 'text-sm sm:text-base md:text-lg lg:text-xl' : 'text-[11px] sm:text-xs md:text-sm'}`} style={{ fontFamily: "Arial, sans-serif" }}>
+                  <h2 className={`font-bold tracking-wide uppercase leading-tight transition-all duration-300 ${isHome ? 'text-base sm:text-lg md:text-xl' : 'text-xs sm:text-sm md:text-base'}`} style={{ fontFamily: "Arial, sans-serif" }}>
                     {headerText.railwayEnglishText}
                   </h2>
                 )}
                 
                 {headerText.divisionEnglishEnabled && (
-                  <h3 className={`font-bold tracking-wide uppercase leading-tight transition-all duration-300 ${isHome ? 'text-sm sm:text-base md:text-lg lg:text-xl' : 'text-[11px] sm:text-xs md:text-sm'}`} style={{ fontFamily: "Arial, sans-serif" }}>
+                  <h3 className={`font-bold tracking-wide uppercase leading-tight transition-all duration-300 ${isHome ? 'text-base sm:text-lg md:text-xl' : 'text-xs sm:text-sm md:text-base'}`} style={{ fontFamily: "Arial, sans-serif" }}>
                     {headerText.divisionEnglishText}
                   </h3>
                 )}
@@ -191,7 +191,7 @@ export function Header({
 
           {/* Right: National Emblem */}
           {isHome && (
-            <div className="hidden md:flex items-center shrink-0">
+            <div className="hidden md:flex items-center shrink-0 justify-center">
               {logos?.nationalEmblem?.enabled && (
                 logos.nationalEmblem.image ? (
                   <img 
