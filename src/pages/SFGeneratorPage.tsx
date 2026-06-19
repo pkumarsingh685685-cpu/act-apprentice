@@ -2,17 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { SF1Generator } from '../components/SF1Generator';
 import { SF2Generator } from '../components/SF2Generator';
+import { SF3Generator } from '../components/SF3Generator';
 import { SF4Generator } from '../components/SF4Generator';
 import { SF11Generator } from '../components/SF11Generator';
 import { SF5Generator } from '../components/SF5Generator';
 import { SF14IIGenerator } from '../components/SF14IIGenerator';
-import { FileText, Info, X, Clock, ExternalLink, Inbox as InboxIcon, Link as LinkIcon, Briefcase, FileSpreadsheet } from 'lucide-react';
+import { FileText, Info, X, Clock, ExternalLink, Inbox as InboxIcon, Link as LinkIcon, Briefcase, FileSpreadsheet, Layers2, ShieldCheck, Stamp, Coins } from 'lucide-react';
 import Inbox from './Inbox';
+import { ClaimTaManager } from '../components/ClaimTaManager';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ApoAllotmentPage from './ApoAllotmentPage';
 import { DarPositionManager } from '../components/DarPositionManager';
+import HqMaterialManager from '../components/HqMaterialManager';
+import { OfficePdfStamper } from '../components/OfficePdfStamper';
 import { PromptIssuedSFModal } from '../components/PromptIssuedSFModal';
+import { DARCirculars, ActCirculars } from './DocumentPages';
 
 const SF_TABS = [
   "SF-1", "SF-2", "SF-3", "SF-4", "SF-5", "SF-6", "SF-7", 
@@ -36,29 +41,90 @@ export default function SFGeneratorPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const queryParams = new URLSearchParams(location.search);
-  const tabParam = queryParams.get('tab') as "TYPE_OF_STANDARD_FORM" | "INBOX" | "OFFICE_LINKS" | "WORK_ALLOTMENT" | "DAR_POSITION";
-  const savedTab = localStorage.getItem("lastSelectedSFTab") as "TYPE_OF_STANDARD_FORM" | "INBOX" | "OFFICE_LINKS" | "WORK_ALLOTMENT" | "DAR_POSITION";
-  const initialTab = tabParam || savedTab || "TYPE_OF_STANDARD_FORM";
+  const tabParam = queryParams.get('tab') as any;
+  const savedTab = localStorage.getItem("lastSelectedSFTab") as any;
+  const savedSubTab = localStorage.getItem("lastSelectedDARSubTab") as any;
+  // fallback for legacy values in cookies/localStorage
+  const fallbackTab = (savedTab === "TYPE_OF_STANDARD_FORM" || savedTab === "DAR_POSITION" || !savedTab) ? "DAR_SECTION" : savedTab;
+  const initialTab = (tabParam === "TYPE_OF_STANDARD_FORM" || tabParam === "DAR_POSITION" || !tabParam) ? fallbackTab : tabParam;
 
-  const [mainTab, setMainTab] = useState<"TYPE_OF_STANDARD_FORM" | "INBOX" | "OFFICE_LINKS" | "WORK_ALLOTMENT" | "DAR_POSITION">(initialTab);
+  const [mainTab, setMainTab] = useState<"DAR_SECTION" | "PDF_STAMP" | "INBOX" | "OFFICE_LINKS" | "WORK_ALLOTMENT" | "OFFICE_ORDERS" | "CLAIM_TA">(
+    initialTab === "HQ_MATERIAL" || initialTab === "INBOX" ? "DAR_SECTION" : initialTab
+  );
+  const [darSubTab, setDarSubTab] = useState<"TYPES_OF_SF" | "DAR_POSITION" | "HQ_MATERIAL" | "INBOX">(
+    initialTab === "HQ_MATERIAL" 
+      ? "HQ_MATERIAL" 
+      : initialTab === "INBOX" 
+        ? "INBOX" 
+        : (savedSubTab || "TYPES_OF_SF")
+  );
 
-  const selectMainTab = (tab: "TYPE_OF_STANDARD_FORM" | "INBOX" | "OFFICE_LINKS" | "WORK_ALLOTMENT" | "DAR_POSITION") => {
+  const selectDarSubTab = (sub: "TYPES_OF_SF" | "DAR_POSITION" | "HQ_MATERIAL" | "INBOX") => {
+    setDarSubTab(sub);
+    localStorage.setItem("lastSelectedDARSubTab", sub);
+    const qParams = new URLSearchParams(location.search);
+    qParams.set('tab', 'DAR_SECTION');
+    qParams.set('sub', sub);
+    navigate({ search: qParams.toString() }, { replace: true });
+  };
+
+  const selectMainTab = (tab: "DAR_SECTION" | "PDF_STAMP" | "INBOX" | "OFFICE_LINKS" | "WORK_ALLOTMENT" | "OFFICE_ORDERS" | "CLAIM_TA") => {
+    if (tab === "INBOX") {
+      setMainTab("DAR_SECTION");
+      selectDarSubTab("INBOX");
+      return;
+    }
     setMainTab(tab);
     localStorage.setItem("lastSelectedSFTab", tab);
     const qParams = new URLSearchParams(location.search);
     qParams.set('tab', tab);
+    qParams.delete('sub');
     navigate({ search: qParams.toString() }, { replace: true });
   };
 
   useEffect(() => {
     const qParams = new URLSearchParams(location.search);
-    const tabParam = qParams.get('tab') as "TYPE_OF_STANDARD_FORM" | "INBOX" | "OFFICE_LINKS" | "WORK_ALLOTMENT" | "DAR_POSITION";
+    const tabParam = qParams.get('tab') as any;
+    const subParam = qParams.get('sub') as any;
     if (tabParam) {
-      setMainTab(tabParam);
+      if (tabParam === "TYPE_OF_STANDARD_FORM" || tabParam === "DAR_POSITION") {
+        setMainTab("DAR_SECTION");
+        setDarSubTab(tabParam === "TYPE_OF_STANDARD_FORM" ? "TYPES_OF_SF" : "DAR_POSITION");
+      } else if (tabParam === "HQ_MATERIAL") {
+        setMainTab("DAR_SECTION");
+        setDarSubTab("HQ_MATERIAL");
+      } else if (tabParam === "INBOX") {
+        setMainTab("DAR_SECTION");
+        setDarSubTab("INBOX");
+      } else if (tabParam === "DAR_SECTION") {
+        setMainTab("DAR_SECTION");
+        if (subParam) {
+          setDarSubTab(subParam);
+        }
+      } else {
+        setMainTab(tabParam);
+      }
     } else {
       const saved = localStorage.getItem("lastSelectedSFTab") as any;
+      const savedSub = localStorage.getItem("lastSelectedDARSubTab") as any;
       if (saved) {
-        setMainTab(saved);
+        if (saved === "TYPE_OF_STANDARD_FORM" || saved === "DAR_POSITION") {
+          setMainTab("DAR_SECTION");
+          setDarSubTab(saved === "TYPE_OF_STANDARD_FORM" ? "TYPES_OF_SF" : "DAR_POSITION");
+        } else if (saved === "HQ_MATERIAL") {
+          setMainTab("DAR_SECTION");
+          setDarSubTab("HQ_MATERIAL");
+        } else if (saved === "INBOX") {
+          setMainTab("DAR_SECTION");
+          setDarSubTab("INBOX");
+        } else if (saved === "DAR_SECTION") {
+          setMainTab("DAR_SECTION");
+          if (savedSub) {
+            setDarSubTab(savedSub);
+          }
+        } else {
+          setMainTab(saved);
+        }
       }
     }
   }, [location.search]);
@@ -175,6 +241,8 @@ export default function SFGeneratorPage() {
         return <SF1Generator onBack={() => setActiveTab("")} />;
       case "SF-2":
         return <SF2Generator onBack={() => setActiveTab("")} />;
+      case "SF-3":
+        return <SF3Generator onBack={() => setActiveTab("")} />;
       case "SF-4":
         return <SF4Generator onBack={() => setActiveTab("")} />;
       case "SF-5":
@@ -248,241 +316,268 @@ export default function SFGeneratorPage() {
     );
   }
 
+  if (activeTab) {
+    return (
+      <div className="w-full h-screen flex flex-col bg-gray-50 overflow-hidden font-sans">
+        {renderContent()}
+      </div>
+    );
+  }
+
+  const listTabs = [
+    { id: "DAR_SECTION", label: "DAR Section", sub: "Disciplinary", icon: ShieldCheck },
+    { id: "PDF_STAMP", label: "PDF Stamp Studio", sub: "Authority Seal Maker", icon: Stamp },
+    { id: "INBOX", label: "Inbox", sub: "Messaging", icon: InboxIcon, badge: issuedSFs.length },
+    { id: "OFFICE_LINKS", label: "Office Links", sub: "Portals", icon: LinkIcon },
+    { id: "WORK_ALLOTMENT", label: t("nav_apo_allotment") || "Work Allotment", sub: "Personnel", icon: Briefcase },
+    { id: "OFFICE_ORDERS", label: t("nav_circulars") || "Circulars", sub: "Office Orders", icon: FileText },
+    { id: "CLAIM_TA", label: "Claim TA", sub: "Traveling Allowance", icon: Coins }
+  ];
+
   return (
-    <div className="w-full max-w-full mx-auto flex-1 flex flex-col bg-gray-100 h-[calc(100vh-4rem)] p-2 lg:px-4 lg:py-4 gap-4 overflow-hidden">
-      {/* Premium 3D Digital Console Navigation Bar */}
-      <div className="bg-slate-900 border border-slate-800 p-2.5 sm:p-3 rounded-2xl shadow-[0_12px_30px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.08)] flex flex-col lg:flex-row lg:items-center lg:justify-between shrink-0 gap-4 relative overflow-hidden backdrop-blur-md z-30">
-        {/* Dynamic decorative backdrop accents */}
+    <div className="w-full max-w-full mx-auto flex-1 flex flex-col lg:flex-row bg-gray-100 min-h-screen lg:h-[calc(100vh-4rem)] p-2 lg:p-4 gap-4 overflow-y-auto lg:overflow-hidden font-sans">
+      {/* Premium left navigation vertical sidebar (Up to Down) layout */}
+      <div className="w-full lg:w-80 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl shadow-[0_12px_30px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.08)] shrink-0 p-4 gap-4 backdrop-blur-md relative overflow-hidden z-30">
+        {/* Decorative dynamic backdrop visuals */}
         <div className="absolute top-0 left-1/4 w-36 h-0.5 bg-gradient-to-r from-transparent via-violet-500 to-transparent blur-sm animate-pulse" />
         <div className="absolute bottom-0 right-1/4 w-44 h-[1px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-60" />
 
-        {/* Counter and Log Out option (Right side, and on top in mobile) */}
-        <div className="flex flex-wrap items-center justify-end gap-2.5 px-1.5 py-1 bg-slate-950/40 border border-slate-800/80 rounded-xl shrink-0 z-10 order-1 lg:order-2 w-full lg:w-auto">
-          {msLeft !== null && (
-            <span className="text-[10px] sm:text-[11px] text-slate-300 font-black font-mono bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-850 shadow-inner flex items-center gap-1.5 shrink-0">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.7)]"></span>
-              <Clock className="w-3 h-3 text-emerald-500" />
-              SESSION: <span className="text-red-400 tracking-wider tabular-nums font-black">{formatFractionalTime(msLeft)}</span>
+        {/* Console Header */}
+        <div className="border-b border-slate-800 pb-3 flex items-center justify-between gap-1 shrink-0 z-10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-700 flex items-center justify-center text-white font-extrabold text-xs shadow-md">
+              NFR
+            </div>
+            <div>
+              <h2 className="text-xs font-black text-white uppercase tracking-wider leading-none">
+                Office Use Only
+              </h2>
+              <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-1 block">
+                Katihar Desk Console
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Console Session Indicator */}
+        {msLeft !== null && (
+          <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-850 shadow-inner flex items-center justify-between gap-1.5 shrink-0 z-10">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
+              <span className="text-[10px] text-slate-400 font-black tracking-wider uppercase truncate">Security Session</span>
+            </div>
+            <span className="text-[11px] text-red-400 tracking-wider font-mono font-bold">
+              {formatFractionalTime(msLeft)}
             </span>
-          )}
-          <button
-            onClick={() => {
-              if (activeTab) {
-                setActiveTab("");
-              } else if (mainTab !== "TYPE_OF_STANDARD_FORM") {
-                selectMainTab("TYPE_OF_STANDARD_FORM");
-              } else {
-                navigate("/");
-              }
-            }}
-            className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-100 text-[11px] font-black px-3 py-1.5 rounded-lg transition-colors border border-slate-700 cursor-pointer active:translate-y-[2px] uppercase tracking-widest shadow-sm hover:text-white shrink-0"
-            title="Go Back / पीछे जाएं"
-          >
-            ← Back / पीछे
-          </button>
-          <button
-            onClick={() => navigate("/")}
-            className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black px-3.5 py-1.5 rounded-lg transition-colors shadow-[0_2.5px_0_0_#4338ca] cursor-pointer hover:shadow-[0_4px_12px_rgba(99,102,241,0.35)] active:translate-y-[1.5px] active:shadow-none uppercase tracking-widest shrink-0"
-          >
-            🏠 Home
-          </button>
+          </div>
+        )}
+
+        {/* Up-to-Down Vertical List Navigation Options */}
+        <div className="flex flex-row lg:flex-col gap-2.5 overflow-x-auto lg:overflow-x-hidden lg:overflow-y-auto scrollbar-none pb-1.5 lg:pb-0 whitespace-nowrap lg:whitespace-normal flex-1 z-10">
+          {listTabs.map((tab) => {
+            const isTabActive = mainTab === tab.id || (tab.id === "INBOX" && mainTab === "DAR_SECTION" && darSubTab === "INBOX");
+            
+            return (
+              <button
+                key={tab.id}
+                onClick={() => selectMainTab(tab.id as any)}
+                className={`relative px-4 py-2.5 rounded-xl transition-all duration-150 flex items-center gap-3 select-none group cursor-pointer shrink-0 lg:w-full text-left ${
+                  isTabActive
+                    ? "bg-gradient-to-b from-indigo-600 to-indigo-700 text-white shadow-[0_0_15px_rgba(99,102,241,0.3),0_3px_0_0_#4338ca,inset_0_1px_1px_rgba(255,255,255,0.25)] translate-y-[1px]"
+                    : "bg-slate-950/50 hover:bg-slate-950/90 border border-slate-800 text-slate-400 hover:text-white shadow-[0_2.5px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.03)] hover:shadow-[0_2.5px_6px_rgba(99,102,241,0.08),0_2.5px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.05)] hover:-translate-y-[1.5px] active:translate-y-[0px]"
+                }`}
+              >
+                {isTabActive && (
+                  <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping" />
+                )}
+                <tab.icon className={`w-4 h-4 shrink-0 ${isTabActive ? "text-indigo-150" : "text-slate-500 group-hover:text-indigo-400"} transition-colors`} />
+                <div className="text-left font-sans leading-tight">
+                  <span className={`block text-[8px] font-extrabold uppercase tracking-widest leading-none mb-0.5 ${isTabActive ? 'text-indigo-200' : 'text-slate-500'}`}>
+                    {tab.sub}
+                  </span>
+                  <span className="block text-xs font-black tracking-wide uppercase">
+                    {tab.label}
+                  </span>
+                </div>
+                {tab.badge !== undefined && tab.badge > 0 && (
+                  <span className="ml-auto bg-rose-600/90 text-rose-100 text-[10px] font-sans font-black px-1.5 py-0.5 rounded border border-rose-800 animate-pulse">
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Footer / Exit Console Action Buttons */}
+        <div className="border-t border-slate-850 pt-3 flex flex-row lg:flex-col gap-2 shrink-0 z-10">
+          <div className="flex gap-2 w-full">
+            <button
+              onClick={() => {
+                if (activeTab) {
+                  setActiveTab("");
+                } else if (mainTab !== "DAR_SECTION") {
+                  selectMainTab("DAR_SECTION");
+                } else {
+                  navigate("/");
+                }
+              }}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-755 text-slate-250 text-[11px] font-bold px-3 py-2 rounded-xl transition-all border border-slate-705 cursor-pointer active:translate-y-[1.5px]"
+              title="Go Back"
+            >
+              ← Back
+            </button>
+            <button
+              onClick={() => navigate("/")}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-indigo-600/95 hover:bg-indigo-700 text-white text-[11px] font-bold px-3 py-2 rounded-xl transition-all shadow-[0_2px_0_0_#4338ca] cursor-pointer active:translate-y-[1.5px] active:shadow-none"
+            >
+              🏠 Home
+            </button>
+          </div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-black px-3.5 py-1.5 rounded-lg transition-colors shadow-[0_2.5px_0_0_#9f1239] cursor-pointer active:translate-y-[1.5px] active:shadow-none uppercase tracking-widest shrink-0"
+            className="w-full flex items-center justify-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-black py-2.5 rounded-xl transition-colors shadow-[0_2.5px_0_0_#9f1239] cursor-pointer active:translate-y-[1.5px] active:shadow-none uppercase tracking-widest"
           >
             Log Out
           </button>
         </div>
-
-        {/* Tabs Container (Types Of SF, Inbox, Office Links, Work Allotment, DAR position - Left side, strictly on a single horizontal row) */}
-        <div className="flex flex-row items-center justify-start gap-2 sm:gap-3 z-10 w-full lg:w-auto order-2 lg:order-1 overflow-x-auto whitespace-nowrap scrollbar-none py-1">
-          {/* TAB 1: TYPE OF STANDARD FORM */}
-          <button
-            onClick={() => selectMainTab("TYPE_OF_STANDARD_FORM")}
-            className={`relative px-4 py-2 sm:py-2.5 rounded-xl transition-all duration-150 flex items-center justify-center gap-2.5 overflow-hidden select-none group cursor-pointer shrink-0 ${
-              mainTab === "TYPE_OF_STANDARD_FORM"
-                ? "bg-gradient-to-b from-indigo-600 to-indigo-700 text-white shadow-[0_0_15px_rgba(99,102,241,0.4),0_3px_0_0_#4338ca,inset_0_1px_1px_rgba(255,255,255,0.3)] translate-y-[1.5px]"
-                : "bg-slate-950/65 hover:bg-slate-950/90 border border-slate-800 text-slate-400 hover:text-white shadow-[0_3px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.05)] hover:shadow-[0_3px_8px_rgba(99,102,241,0.12),0_3px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.08)] hover:-translate-y-[1.5px] active:translate-y-[0px] active:shadow-[0_1.5px_0_0_#020617]"
-            }`}
-          >
-            {mainTab === "TYPE_OF_STANDARD_FORM" && (
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping" />
-            )}
-            <FileText className={`w-4 h-4 shrink-0 ${mainTab === "TYPE_OF_STANDARD_FORM" ? "text-indigo-200 animate-pulse" : "text-slate-500 group-hover:text-indigo-400"} transition-colors`} />
-            <div className="text-left font-sans">
-              <span className="block text-[8px] font-bold text-indigo-300 uppercase tracking-widest leading-none mb-0.5">
-                Form Module
-              </span>
-              <span className="block text-xs font-black tracking-wide uppercase">
-                Types Of SF
-              </span>
-            </div>
-            <span className="ml-1 sm:ml-1.5 bg-slate-900/60 text-slate-400 text-[10px] font-mono px-1.5 py-0.5 rounded border border-slate-800">
-              {SF_TABS.length}
-            </span>
-          </button>
-
-          {/* TAB 2: INBOX */}
-          <button
-            onClick={() => selectMainTab("INBOX")}
-            className={`relative px-4 py-2 sm:py-2.5 rounded-xl transition-all duration-150 flex items-center justify-center gap-2.5 overflow-hidden select-none group cursor-pointer shrink-0 ${
-              mainTab === "INBOX"
-                ? "bg-gradient-to-b from-indigo-600 to-indigo-700 text-white shadow-[0_0_15px_rgba(99,102,241,0.4),0_3px_0_0_#4338ca,inset_0_1px_1px_rgba(255,255,255,0.3)] translate-y-[1.5px]"
-                : "bg-slate-950/65 hover:bg-slate-950/90 border border-slate-800 text-slate-400 hover:text-white shadow-[0_3px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.05)] hover:shadow-[0_3px_8px_rgba(99,102,241,0.12),0_3px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.08)] hover:-translate-y-[1.5px] active:translate-y-[0px] active:shadow-[0_1.5px_0_0_#020617]"
-            }`}
-          >
-            {mainTab === "INBOX" && (
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping" />
-            )}
-            <InboxIcon className={`w-4 h-4 shrink-0 ${mainTab === "INBOX" ? "text-indigo-200 animate-pulse" : "text-slate-500 group-hover:text-indigo-400"} transition-colors`} />
-            <div className="text-left font-sans">
-              <span className="block text-[8px] font-bold text-indigo-300 uppercase tracking-widest leading-none mb-0.5">
-                Messaging
-              </span>
-              <span className="block text-xs font-black tracking-wide uppercase">
-                Inbox
-              </span>
-            </div>
-            {issuedSFs.length > 0 && (
-              <span className="ml-1 sm:ml-1.5 bg-rose-950/80 text-rose-300 text-[10px] font-sans font-black px-1.5 py-0.5 rounded border border-rose-850 animate-pulse">
-                {issuedSFs.length}
-              </span>
-            )}
-          </button>
-
-          {/* TAB 3: OFFICE LINKS */}
-          <button
-            onClick={() => selectMainTab("OFFICE_LINKS")}
-            className={`relative px-4 py-2 sm:py-2.5 rounded-xl transition-all duration-150 flex items-center justify-center gap-2.5 overflow-hidden select-none group cursor-pointer shrink-0 ${
-              mainTab === "OFFICE_LINKS"
-                ? "bg-gradient-to-b from-indigo-600 to-indigo-700 text-white shadow-[0_0_15px_rgba(99,102,241,0.4),0_3px_0_0_#4338ca,inset_0_1px_1px_rgba(255,255,255,0.3)] translate-y-[1.5px]"
-                : "bg-slate-950/65 hover:bg-slate-950/90 border border-slate-800 text-slate-400 hover:text-white shadow-[0_3px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.05)] hover:shadow-[0_3px_8px_rgba(99,102,241,0.12),0_3px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.08)] hover:-translate-y-[1.5px] active:translate-y-[0px] active:shadow-[0_1.5px_0_0_#020617]"
-            }`}
-          >
-            {mainTab === "OFFICE_LINKS" && (
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping" />
-            )}
-            <LinkIcon className={`w-4 h-4 shrink-0 ${mainTab === "OFFICE_LINKS" ? "text-indigo-200 animate-pulse" : "text-slate-500 group-hover:text-indigo-400"} transition-colors`} />
-            <div className="text-left font-sans">
-              <span className="block text-[8px] font-bold text-indigo-300 uppercase tracking-widest leading-none mb-0.5">
-                Portals
-              </span>
-              <span className="block text-xs font-black tracking-wide uppercase">
-                Office Links
-              </span>
-            </div>
-            {internalLinks.length > 0 && (
-              <span className="ml-1 sm:ml-1.5 bg-slate-900/60 text-slate-400 text-[10px] font-mono px-1.5 py-0.5 rounded border border-slate-800">
-                {internalLinks.length}
-              </span>
-            )}
-          </button>
-
-          {/* TAB 4: WORK ALLOTMENT */}
-          <button
-            onClick={() => selectMainTab("WORK_ALLOTMENT")}
-            className={`relative px-4 py-2 sm:py-2.5 rounded-xl transition-all duration-150 flex items-center justify-center gap-2.5 overflow-hidden select-none group cursor-pointer shrink-0 ${
-              mainTab === "WORK_ALLOTMENT"
-                ? "bg-gradient-to-b from-indigo-600 to-indigo-700 text-white shadow-[0_0_15px_rgba(99,102,241,0.4),0_3px_0_0_#4338ca,inset_0_1px_1px_rgba(255,255,255,0.3)] translate-y-[1.5px]"
-                : "bg-slate-950/65 hover:bg-slate-950/90 border border-slate-800 text-slate-400 hover:text-white shadow-[0_3px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.05)] hover:shadow-[0_3px_8px_rgba(99,102,241,0.12),0_3px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.08)] hover:-translate-y-[1.5px] active:translate-y-[0px] active:shadow-[0_1.5px_0_0_#020617]"
-            }`}
-          >
-            {mainTab === "WORK_ALLOTMENT" && (
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping" />
-            )}
-            <Briefcase className={`w-4 h-4 shrink-0 ${mainTab === "WORK_ALLOTMENT" ? "text-indigo-200 animate-pulse" : "text-slate-500 group-hover:text-indigo-400"} transition-colors`} />
-            <div className="text-left font-sans">
-              <span className="block text-[8px] font-bold text-indigo-300 uppercase tracking-widest leading-none mb-0.5">
-                Personnel
-              </span>
-              <span className="block text-xs font-black tracking-wide uppercase">
-                {t("nav_apo_allotment")}
-              </span>
-            </div>
-          </button>
-
-          {/* TAB 5: DAR POSITION */}
-          <button
-            onClick={() => selectMainTab("DAR_POSITION")}
-            className={`relative px-4 py-2 sm:py-2.5 rounded-xl transition-all duration-150 flex items-center justify-center gap-2.5 overflow-hidden select-none group cursor-pointer shrink-0 ${
-              mainTab === "DAR_POSITION"
-                ? "bg-gradient-to-b from-[#b45309] to-[#92400e] text-white shadow-[0_0_15px_rgba(245,158,11,0.3),0_3px_0_0_#78350f,inset_0_1px_1px_rgba(255,255,255,0.3)] translate-y-[1.5px]"
-                : "bg-slate-950/65 hover:bg-slate-950/90 border border-slate-800 text-slate-400 hover:text-white shadow-[0_3px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.05)] hover:shadow-[0_3px_8px_rgba(245,158,11,0.12),0_3px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.08)] hover:-translate-y-[1.5px] active:translate-y-[0px] active:shadow-[0_1.5px_0_0_#020617]"
-            }`}
-          >
-            {mainTab === "DAR_POSITION" && (
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-amber-400 rounded-full animate-ping" />
-            )}
-            <FileSpreadsheet className={`w-4 h-4 shrink-0 ${mainTab === "DAR_POSITION" ? "text-amber-200 animate-pulse" : "text-slate-500 group-hover:text-amber-450"} transition-colors`} />
-            <div className="text-left font-sans">
-              <span className="block text-[8px] font-bold text-amber-300 uppercase tracking-widest leading-none mb-0.5">
-                Disciplinary
-              </span>
-              <span className="block text-xs font-black tracking-wide uppercase">
-                DAR Position
-              </span>
-            </div>
-          </button>
-        </div>
       </div>
 
-      {mainTab === "TYPE_OF_STANDARD_FORM" && (
-        <div className="flex-1 flex flex-col gap-6 overflow-hidden relative">
-          {/* Premium Purple Gradient 3D Navigation Bar */}
-          <div className="w-full bg-gradient-to-r from-[#4C1D95] via-[#7C3AED] to-[#4C1D95] border border-white/15 shadow-2xl shrink-0 rounded-2xl overflow-hidden z-20 p-4">
-            <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-              <div className="flex items-center justify-between min-w-[1240px] gap-3 px-1 py-1">
-                {SF_TABS.map((sf) => {
-                  const label = sf.replace('-', ' '); // "SF-1" -> "SF 1"
-                  const isActive = activeTab === sf;
-                  const pendingCount = getPendingHighlights(sf);
-                  const hasPending = pendingCount > 0;
-                  
-                  return (
-                    <div
-                      key={sf}
-                      onClick={() => setActiveTab(sf)}
-                      className={`relative flex items-center justify-center h-14 px-3.5 rounded-xl cursor-pointer select-none transition-all duration-300 flex-1 group ${
-                        isActive
-                          ? "bg-white/20 border border-white/40 text-white font-extrabold shadow-[0_0_15px_rgba(196,181,253,0.65),0_1px_0_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.5)] translate-y-[1px]"
-                          : "bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 text-white font-bold shadow-[0_3px_0_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.25)] hover:shadow-[0_4px_12px_rgba(167,139,250,0.45),0_3px_0_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.3)] hover:-translate-y-[2px]"
-                      }`}
-                    >
-                      <span className="font-bold text-[13px] tracking-wider uppercase flex items-center gap-1.5 whitespace-nowrap text-center justify-center">
-                        {label}
-                        {hasPending && (
-                          <span className={sf === "SF-4" ? "inline-flex items-center justify-center w-5 h-5 bg-red-600 rounded-full text-[11px] text-white font-extrabold animate-pulse ring-2 ring-white shadow-[0_0_8px_rgba(239,68,68,0.9)]" : "inline-flex items-center justify-center w-4 h-4 bg-red-500 rounded-full text-[10px] text-white font-black animate-pulse"}>
-                            {sf === "SF-4" ? pendingCount : "!"}
-                          </span>
-                        )}
-                      </span>
-                      
-                      {/* Interactive Help Trigger */}
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setInfoModalSf(sf);
-                        }}
-                        className={`ml-1.5 p-0.5 rounded-full transition-all duration-200 focus:outline-none z-30 ${
-                          isActive 
-                            ? "text-white hover:bg-white/20" 
-                            : "opacity-40 group-hover:opacity-100 text-white/70 hover:text-white hover:bg-white/15"
-                        }`}
-                        title={`Info about ${sf}`}
-                      >
-                        <Info size={13} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+      {/* Main Canvas Area (Right Side of Sidebar on Desktop) */}
+      <div className="flex-1 flex flex-col h-full min-w-0 overflow-y-auto lg:overflow-hidden relative z-10 gap-4">
+
+      {mainTab === "DAR_SECTION" && (
+        <div className="flex-1 flex flex-col gap-4 overflow-hidden relative">
+          {/* Sub Navigation Console under DAR SECTION */}
+          <div className="flex items-center justify-start gap-2 bg-slate-200/50 p-1 rounded-xl max-w-full lg:max-w-2xl shrink-0 border border-slate-300 overflow-x-auto whitespace-nowrap scrollbar-none py-1">
+            <button
+              onClick={() => selectDarSubTab("TYPES_OF_SF")}
+              className={`flex-1 py-1.5 px-3.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
+                darSubTab === "TYPES_OF_SF"
+                  ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
+                  : "text-slate-600 hover:text-slate-800 hover:bg-white/40"
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Types of SF
+            </button>
+            <button
+              onClick={() => selectDarSubTab("DAR_POSITION")}
+              className={`flex-1 py-1.5 px-3.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
+                darSubTab === "DAR_POSITION"
+                  ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
+                  : "text-slate-600 hover:text-slate-800 hover:bg-white/40"
+              }`}
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              DAR Position Register
+            </button>
+            <button
+              onClick={() => selectDarSubTab("HQ_MATERIAL")}
+              className={`flex-1 py-1.5 px-3.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
+                darSubTab === "HQ_MATERIAL"
+                  ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
+                  : "text-slate-600 hover:text-slate-800 hover:bg-white/40"
+              }`}
+            >
+              <Layers2 className="w-3.5 h-3.5" />
+              HQ Material
+            </button>
+            <button
+              onClick={() => selectDarSubTab("INBOX")}
+              className={`flex-1 py-1.5 px-3.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-2 relative ${
+                darSubTab === "INBOX"
+                  ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
+                  : "text-slate-600 hover:text-slate-800 hover:bg-white/40"
+              }`}
+            >
+              <InboxIcon className="w-3.5 h-3.5" />
+              Inbox (संदेश)
+              {issuedSFs.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
+                  {issuedSFs.length}
+                </span>
+              )}
+            </button>
           </div>
 
-          {/* Main Content Area */}
-          <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col overflow-hidden relative z-10 w-full h-full min-w-0">
-            {renderContent()}
-          </div>
+          {darSubTab === "TYPES_OF_SF" && (
+            <div className="flex-1 flex flex-col gap-4 overflow-hidden relative">
+              {/* Premium Purple Gradient 3D Navigation Bar */}
+              <div className="w-full bg-gradient-to-r from-[#4C1D95] via-[#7C3AED] to-[#4C1D95] border border-white/15 shadow-2xl shrink-0 rounded-2xl overflow-hidden z-25 p-3">
+                <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+                  <div className="flex items-center justify-between min-w-[1240px] gap-3 px-1 py-1">
+                    {SF_TABS.map((sf) => {
+                      const label = sf.replace('-', ' '); // "SF-1" -> "SF 1"
+                      const isActive = activeTab === sf;
+                      const pendingCount = getPendingHighlights(sf);
+                      const hasPending = pendingCount > 0;
+                      
+                      return (
+                        <div
+                          key={sf}
+                          onClick={() => setActiveTab(sf)}
+                          className={`relative flex items-center justify-center h-12 px-3 rounded-xl cursor-pointer select-none transition-all duration-300 flex-1 group ${
+                            isActive
+                              ? "bg-white/20 border border-white/40 text-white font-extrabold shadow-[0_0_15px_rgba(196,181,253,0.65),0_1px_0_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.5)] translate-y-[1px]"
+                              : "bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 text-white font-bold shadow-[0_3px_0_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.25)] hover:shadow-[0_4px_12px_rgba(167,139,250,0.45),0_3px_0_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.3)] hover:-translate-y-[2px]"
+                          }`}
+                        >
+                          <span className="font-bold text-[12px] tracking-wider uppercase flex items-center gap-1.5 whitespace-nowrap text-center justify-center">
+                            {label}
+                            {hasPending && (
+                              <span className={sf === "SF-4" ? "inline-flex items-center justify-center w-5 h-5 bg-red-600 rounded-full text-[11px] text-white font-extrabold animate-pulse ring-2 ring-white shadow-[0_0_8px_rgba(239,68,68,0.9)]" : "inline-flex items-center justify-center w-4 h-4 bg-red-500 rounded-full text-[10px] text-white font-black animate-pulse"}>
+                                {sf === "SF-4" ? pendingCount : "!"}
+                              </span>
+                            )}
+                          </span>
+                          
+                          {/* Interactive Help Trigger */}
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setInfoModalSf(sf);
+                            }}
+                            className={`ml-1.5 p-0.5 rounded-full transition-all duration-200 focus:outline-none z-30 ${
+                              isActive 
+                                ? "text-white hover:bg-white/20" 
+                                : "opacity-40 group-hover:opacity-100 text-white/70 hover:text-white hover:bg-white/15"
+                            }`}
+                            title={`Info about ${sf}`}
+                          >
+                            <Info size={13} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Main Content Area */}
+              <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col overflow-hidden relative z-10 w-full h-full min-w-0">
+                {renderContent()}
+              </div>
+            </div>
+          )}
+
+          {darSubTab === "DAR_POSITION" && (
+            <div className="flex-1 bg-[#132039] border border-[#223354] rounded-2xl shadow-2xl flex flex-col overflow-hidden p-4 w-full z-10 h-full">
+              <DarPositionManager />
+            </div>
+          )}
+
+          {darSubTab === "HQ_MATERIAL" && (
+            <div className="flex-1 overflow-hidden relative z-10 w-full h-full min-w-0">
+              <HqMaterialManager />
+            </div>
+          )}
+
+          {darSubTab === "INBOX" && (
+            <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col overflow-hidden relative z-10 w-full h-full min-w-0">
+              <Inbox />
+            </div>
+          )}
         </div>
       )}
 
@@ -536,7 +631,7 @@ export default function SFGeneratorPage() {
       )}
 
       {mainTab === "WORK_ALLOTMENT" && (
-        <div className="flex-1 bg-slate-950 border border-slate-850 rounded-xl shadow-2xl flex flex-col overflow-hidden w-full z-10 h-full relative">
+        <div className="flex-1 bg-[#132039] border border-[#223354] rounded-xl shadow-2xl flex flex-col overflow-hidden w-full z-10 h-full relative">
           {/* Subheader */}
           <div className="bg-slate-900 border-b border-slate-850 px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
             <div>
@@ -553,11 +648,53 @@ export default function SFGeneratorPage() {
         </div>
       )}
 
-      {mainTab === "DAR_POSITION" && (
-        <div className="flex-1 bg-slate-950 border border-slate-850 rounded-2xl shadow-2xl flex flex-col overflow-hidden p-4 w-full z-10 h-full">
-          <DarPositionManager />
+      {mainTab === "PDF_STAMP" && (
+        <div className="flex-1 overflow-hidden relative z-10 w-full h-full min-w-0">
+          <OfficePdfStamper />
         </div>
       )}
+
+      {mainTab === "CLAIM_TA" && (
+        <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col overflow-hidden relative z-10 w-full h-full min-w-0">
+          <ClaimTaManager />
+        </div>
+      )}
+
+      {mainTab === "OFFICE_ORDERS" && (
+        <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col p-6 max-w-5xl mx-auto w-full z-10 h-full min-h-[400px] overflow-y-auto">
+          <div className="border-b border-gray-200 pb-4 mb-6">
+            <h2 className="text-xl font-bold text-gray-800 uppercase flex items-center gap-2">
+              <span className="w-2.5 h-6 bg-indigo-600 rounded-full inline-block"></span>
+              {t("nav_circulars") || "Office Orders"} / कार्यालय आदेश
+            </h2>
+            <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider">
+              Official circulars, notifications, and orders regarding DAR procedure and apprentice cells
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <div className="border border-slate-100 rounded-xl bg-white shadow-sm overflow-hidden">
+              <div className="bg-slate-50 border-b border-slate-100 px-4 py-3 font-extrabold text-slate-800 rounded-t-xl text-center uppercase tracking-wide text-sm">
+                ⚠️ {t("nav_dar_circulars") || "D&AR Orders"}
+              </div>
+              <div className="px-1 py-1">
+                <DARCirculars />
+              </div>
+            </div>
+            
+            <div className="border border-slate-100 rounded-xl bg-white shadow-sm overflow-hidden">
+              <div className="bg-slate-50 border-b border-slate-100 px-4 py-3 font-extrabold text-slate-800 rounded-t-xl text-center uppercase tracking-wide text-sm">
+                🎓 {t("nav_act_circulars") || "Act Apprentice Orders"}
+              </div>
+              <div className="px-1 py-1">
+                <ActCirculars />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      </div>
 
       {/* Info Modal */}
       {infoModalSf && (

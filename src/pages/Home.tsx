@@ -158,8 +158,6 @@ export default function Home() {
     ...(notifications || []).map((n) => ({ ...n, id: `notification-${n.id}`, title: n.title })),
     ...(meritPanels || []).map((n) => ({ ...n, id: `merit-${n.id}`, title: n.title })),
     ...(results || []).map((n) => ({ ...n, id: `result-${n.id}`, title: n.title })),
-    ...(darCirculars || []).map((n) => ({ ...n, id: `dar-${n.id}`, title: n.title })),
-    ...(actCirculars || []).map((n) => ({ ...n, id: `act-${n.id}`, title: n.title })),
   ];
 
   const topRecent = allDocuments
@@ -167,6 +165,15 @@ export default function Home() {
     .slice(0, 7);
 
   const videoConfig = useStore((state) => state.videoConfig);
+
+  // Office Orders logic for new badges (first 10 items)
+  const processedDarCirculars = [...(darCirculars || [])]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .map((item, index) => ({ ...item, isNew: index < 10 }));
+    
+  const processedActCirculars = [...(actCirculars || [])]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .map((item, index) => ({ ...item, isNew: index < 10 }));
 
   const leftColSpan = "lg:col-span-3";
 
@@ -197,16 +204,16 @@ export default function Home() {
         <div className={`${leftColSpan} flex flex-col gap-6 h-full`}>
           <HeroSlider />
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
             <QuickLinkCard
               to="/notifications"
-              icon={<Bell className="w-8 h-8" />}
+              icon={<Bell className="w-8 h-8 md:w-8 md:h-8 w-7 h-7" />}
               title={t('home_notifications')}
               color="bg-blue-50 text-blue-700"
             />
             <button
               onClick={handleOfficeUseClick}
-              className="relative flex flex-col items-center justify-center p-6 rounded-lg shadow-sm border border-emerald-200 transition-all group bg-emerald-50 text-emerald-700 hover:shadow-md cursor-pointer"
+              className="relative flex flex-col items-center justify-center p-3.5 sm:p-5 md:p-6 rounded-lg shadow-sm border border-emerald-200 transition-all group bg-emerald-50 text-emerald-700 hover:shadow-md cursor-pointer"
             >
               {hasPendingSFs && (
                 <div className="absolute top-2 right-2 w-3.5 h-3.5 bg-red-600 rounded-full animate-ping z-10"></div>
@@ -215,34 +222,49 @@ export default function Home() {
                 <div className="absolute top-2 right-2 w-3.5 h-3.5 bg-red-600 rounded-full z-10 border border-white"></div>
               )}
               <div className="mb-3 group-hover:scale-110 transition-transform">
-                <FileText className="w-8 h-8" />
+                <FileText className="w-8 h-8 md:w-8 md:h-8 w-7 h-7" />
               </div>
-              <h3 className="font-semibold text-center text-sm md:text-base uppercase">
+              <h3 className="font-semibold text-center text-xs sm:text-sm md:text-base uppercase leading-tight">
                 OFFICE USE ONLY
               </h3>
             </button>
             <QuickLinkCard
               to="/ai-search"
-              icon={<Search className="w-8 h-8" />}
+              icon={<Search className="w-8 h-8 md:w-8 md:h-8 w-7 h-7" />}
               title={t('nav_ai_search') || 'Nav AI Search'}
               color="bg-purple-50 text-purple-700"
             />
-            <QuickLinkCard
-              to="/dar-circulars"
-              icon={<FileText className="w-8 h-8" />}
-              title={t('home_circulars')}
-              color="bg-orange-50 text-orange-700"
-            />
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                if (isStillValid) {
+                  navigate(`/sf-generator?tab=OFFICE_ORDERS`);
+                } else {
+                  setIsOfficePasswordModalOpen(true);
+                  localStorage.setItem("lastSelectedSFTab", "OFFICE_ORDERS");
+                  setOfficePassword("");
+                  setOfficePasswordError("");
+                }
+              }}
+              className="flex flex-col items-center justify-center p-3.5 sm:p-5 md:p-6 rounded-lg shadow-sm border border-gray-105 hover:shadow-md transition-all group bg-orange-50 text-orange-705 cursor-pointer"
+            >
+              <div className="mb-3 group-hover:scale-110 transition-transform">
+                <FileText className="w-8 h-8 md:w-8 md:h-8 w-7 h-7" />
+              </div>
+              <h3 className="font-semibold text-center text-xs sm:text-sm md:text-base leading-tight">
+                {t('home_circulars')}
+              </h3>
+            </button>
             <Link
               to="/candidate-login"
-              className="flex flex-col items-center justify-center p-6 rounded-lg shadow-[0_0_15px_rgba(239,68,68,0.5)] border border-red-200 hover:shadow-[0_0_25px_rgba(239,68,68,0.8)] hover:-translate-y-1 transition-all group bg-gradient-to-br from-red-50 to-red-100 text-red-700 relative overflow-hidden"
+              className="flex flex-col items-center justify-center p-3.5 sm:p-5 md:p-6 rounded-lg shadow-[0_0_15px_rgba(239,68,68,0.5)] border border-red-200 hover:shadow-[0_0_25px_rgba(239,68,68,0.8)] hover:-translate-y-1 transition-all group bg-gradient-to-br from-red-50 to-red-100 text-red-700 relative overflow-hidden"
             >
               <div className="absolute inset-0 bg-red-400 opacity-20 blur-xl rounded-full scale-150 animate-pulse"></div>
               <div className="mb-3 group-hover:scale-110 transition-transform relative z-10 flex items-center justify-center">
                 <div className="absolute inset-0 bg-red-400 opacity-30 blur-md rounded-full"></div>
-                <User className="w-8 h-8" />
+                <User className="w-8 h-8 md:w-8 md:h-8 w-7 h-7" />
               </div>
-              <h3 className="font-bold text-center text-sm md:text-base relative z-10">
+              <h3 className="font-bold text-center text-xs sm:text-sm md:text-base relative z-10 leading-tight">
                 {t('nav_candidate_login') || 'Candidate Login'}
               </h3>
             </Link>
@@ -282,19 +304,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Circulars Section */}
-      <div className="w-full mx-auto px-4 md:px-8 grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-        <DocumentPanel
-          title={t('home_latest_dar')}
-          items={darCirculars}
-          theme="teal"
-        />
-        <DocumentPanel
-          title={t('home_latest_act')}
-          items={actCirculars}
-          theme="purple"
-        />
-      </div>
+
 
       {/* Important Links */}
       <div className="w-full mx-auto px-4 md:px-8 mt-4">
@@ -419,12 +429,12 @@ function QuickLinkCard({
   return (
     <Link
       to={to}
-      className={`flex flex-col items-center justify-center p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all group ${color}`}
+      className={`flex flex-col items-center justify-center p-3.5 sm:p-5 md:p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all group ${color}`}
     >
       <div className="mb-3 group-hover:scale-110 transition-transform">
         {icon}
       </div>
-      <h3 className="font-semibold text-center text-sm md:text-base">
+      <h3 className="font-semibold text-center text-xs sm:text-sm md:text-base leading-tight">
         {title}
       </h3>
     </Link>

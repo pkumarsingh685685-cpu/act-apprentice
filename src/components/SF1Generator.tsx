@@ -2,6 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { triggerPrint } from '../utils/printHelper';
 import { Printer, FileText, RotateCcw, Plus, Trash2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { useAutoSaveDraft } from '../hooks/useAutoSaveDraft';
+import { DraftIndicator } from './DraftIndicator';
+import { PrintCustomizer, PrintSettings, RenderPrintOverlayWatermark, RenderPrintOverlaySeal, RenderPrintOverlaySignature } from './PrintCustomizer';
+import { db } from '../firebase';
+import { collection, addDoc } from 'firebase/firestore';
 
 interface SF1Data {
   fileNo: string;
@@ -71,6 +76,28 @@ export function SF1Generator({ onBack }: { onBack?: () => void } = {}) {
 
   const showPreview = config.showSfPdfPreview !== "false";
 
+  // Use Dynamic Auto Save Draft Hook!
+  const { status, triggerManualSave, clearDraft } = useAutoSaveDraft<SF1Data>(
+    "SF-1",
+    formData,
+    setFormData,
+    initialData
+  );
+
+  // Print settings state
+  const [printSettings, setPrintSettings] = useState<PrintSettings>({
+    watermark: "none",
+    seal: "none",
+    customSealText: "",
+    sealImageData: null,
+    signature: "none",
+    sigCursiveText: "",
+    sigImageData: null,
+    sigScale: 100,
+    sigXOffset: 0,
+    sigYOffset: 0
+  });
+
   const whereContemplatedPending = sf1Texts.whereContemplatedPending || "Whereas disciplinary proceeding against";
   const servantContemplatedPending = sf1Texts.servantContemplatedPending || "(Name and designation of the Railway servant) is contemplated/Pending";
   const whereCriminalCase = sf1Texts.whereCriminalCase || "Whereas a case against";
@@ -103,6 +130,22 @@ export function SF1Generator({ onBack }: { onBack?: () => void } = {}) {
             authorityDesignation: formData.authorityDesignation,
             additionalCopies: formData.additionalCopies || [],
           });
+
+          // Write Admin Audit Log to Firestore
+          addDoc(collection(db, "audit_logs"), {
+            type: "SF_GENERATED",
+            action: `Generated & printed Standard Form SF-1 (Suspension Order) for ${formData.salutation} ${formData.employeeName}`,
+            details: {
+              sfType: "SF-1",
+              employeeName: formData.employeeName,
+              designation: formData.designation,
+              fileNo: formData.fileNo,
+              updatedAt: new Date().toISOString()
+            },
+            user: "Admin / Personnel Officer",
+            timestamp: new Date().toISOString(),
+            agent: "DRM Katihar Portal Audit Trail"
+          }).catch(console.error);
         }
       },
     });
@@ -119,7 +162,7 @@ export function SF1Generator({ onBack }: { onBack?: () => void } = {}) {
   };
 
   const resetForm = () => {
-    setFormData(initialData);
+    clearDraft();
   };
 
   const addCopy = () => {
@@ -188,7 +231,11 @@ export function SF1Generator({ onBack }: { onBack?: () => void } = {}) {
       <div className="flex flex-1 overflow-hidden bg-gray-100">
         
         {/* Editor Form (Left Side) */}
-        <div className={`w-full ${showPreview ? 'lg:w-[420px] bg-white border-r border-gray-200 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)]' : 'lg:max-w-4xl lg:mx-auto bg-white p-6 my-6 rounded-lg border border-gray-200 shadow-md'} overflow-y-auto p-5 shrink-0`}>
+        <div className={`w-full ${showPreview ? 'lg:w-[720px] bg-white border-r border-gray-200 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)]' : 'lg:max-w-4xl lg:mx-auto bg-white p-6 my-6 rounded-lg border border-gray-200 shadow-md'} overflow-y-auto p-5 shrink-0`}>
+          
+          <DraftIndicator status={status} onManualSave={triggerManualSave} onClear={clearDraft} sfName="SF-1 Suspension" />
+          <PrintCustomizer settings={printSettings} onChange={setPrintSettings} />
+
           <h2 className="font-bold text-gray-700 mb-5 border-b pb-2 uppercase tracking-wide text-xs">Fill Form Details</h2>
           
           <form id="sf1-form" onSubmit={handleGenerateClick} className="space-y-4">
@@ -328,7 +375,8 @@ export function SF1Generator({ onBack }: { onBack?: () => void } = {}) {
           <div className="bg-white shrink-0 w-[210mm] min-h-[297mm] shadow-2xl p-[18mm] relative text-black leading-snug">
             
             {/* The Document Area to Print */}
-            <div ref={componentRef} className="w-full h-full text-[12pt]">
+            <div ref={componentRef} className="w-full h-full text-[12pt] relative">
+              <RenderPrintOverlayWatermark watermark={printSettings.watermark} />
               
               <style type="text/css" media="print">
                 {`
@@ -408,9 +456,24 @@ export function SF1Generator({ onBack }: { onBack?: () => void } = {}) {
 
               {/* Signatory */}
               <div className="mt-6 flex justify-end font-[Times_New_Roman,Times,serif]">
-                <div className="text-left w-[320px]">
+                <div className="text-left w-[320px] relative">
+                  <div className="absolute -top-10 left-12 pointer-events-none select-none z-10">
+                    <RenderPrintOverlaySignature 
+                      signature={printSettings.signature} 
+                      sigCursiveText={printSettings.sigCursiveText} 
+                      sigImageData={printSettings.sigImageData} 
+                      defaultName={formData.signatureName} 
+                      scale={printSettings.sigScale}
+                      xOffset={printSettings.sigXOffset}
+                      yOffset={printSettings.sigYOffset}
+                    />
+                  </div>
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none select-none z-10">
+                    <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
+                  </div>
+                  
                   <div className="flex items-center gap-1">
-                    Signature<span className="tracking-[2px]">.........................................................</span>
+                    Signature<span className="tracking-[2px]">................................</span>
                   </div>
                   <div className="flex items-start gap-1 mt-1">
                     <span className="w-16">Name –</span> 

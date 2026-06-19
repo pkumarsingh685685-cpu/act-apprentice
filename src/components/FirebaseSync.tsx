@@ -165,12 +165,22 @@ export function FirebaseSync() {
       "internalLinks",
       "issuedSFs",
       "apoWorkAllotments",
-      "pending_sf4_drafts"
+      "pending_sf4_drafts",
+      "part2Template"
     ];
 
     linkCollections.forEach((colName) => {
       const unsub = onSnapshot(collection(db, colName), (snapshot) => {
         const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (colName === "part2Template" && items.length === 0) {
+          // Auto-seed empty Firestore template
+          import("../store/useStore").then(({ DEFAULT_PART2_TEMPLATE }) => {
+            DEFAULT_PART2_TEMPLATE.forEach(item => {
+              setDoc(doc(db, "part2Template", item.id), item).catch(console.error);
+            });
+          });
+          return;
+        }
         // Sort by order if it exists
         const sorted = items.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
         useStore.setState({ [colName]: sorted } as any);

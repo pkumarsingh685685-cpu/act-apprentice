@@ -5,6 +5,7 @@ import { useStore } from '../store/useStore';
 import { db } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
+import { PrintCustomizer, PrintSettings, RenderPrintOverlayWatermark, RenderPrintOverlaySeal, RenderPrintOverlaySignature } from './PrintCustomizer';
 
 interface SF4Data {
   fileNo: string;
@@ -81,6 +82,20 @@ export function SF4Generator({ onBack }: { onBack?: () => void } = {}) {
   const pendingDrafts = pending_sf4_drafts.filter((d: any) => d.status === "pending");
 
   const showPreview = config.showSfPdfPreview !== "false";
+
+  // Print settings state
+  const [printSettings, setPrintSettings] = useState<PrintSettings>({
+    watermark: "none",
+    seal: "none",
+    customSealText: "",
+    sealImageData: null,
+    signature: "none",
+    sigCursiveText: "",
+    sigImageData: null,
+    sigScale: 100,
+    sigXOffset: 0,
+    sigYOffset: 0
+  });
 
   const whereasPlace = sf4Texts.whereasPlace || "Whereas the order placing";
   const underSuspension = sf4Texts.underSuspension || "under suspension";
@@ -219,7 +234,10 @@ export function SF4Generator({ onBack }: { onBack?: () => void } = {}) {
       <div className="flex flex-1 overflow-hidden bg-gray-100">
         
         {/* Editor Form (Left Side) */}
-        <div className={`w-full ${showPreview ? 'lg:w-[420px] bg-white border-r border-gray-200 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)]' : 'lg:max-w-4xl lg:mx-auto bg-white p-6 my-6 rounded-lg border border-gray-200 shadow-md'} overflow-y-auto p-5 shrink-0`}>
+        <div className={`w-full ${showPreview ? 'lg:w-[720px] bg-white border-r border-gray-200 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)]' : 'lg:max-w-4xl lg:mx-auto bg-white p-6 my-6 rounded-lg border border-gray-200 shadow-md'} overflow-y-auto p-5 shrink-0`}>
+          
+          <PrintCustomizer settings={printSettings} onChange={setPrintSettings} />
+
           {/* Pending Auto-Generated Drafts from SF-1 */}
           {pendingDrafts.length > 0 && (
             <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-5 shadow-sm">
@@ -452,7 +470,8 @@ export function SF4Generator({ onBack }: { onBack?: () => void } = {}) {
           <div className="bg-white shrink-0 w-[210mm] min-h-[297mm] shadow-2xl p-[18mm] relative text-black leading-snug">
             
             {/* The Document Area to Print */}
-            <div ref={componentRef} className="w-full h-full text-[12pt] font-['Times_New_Roman',Times,serif]">
+            <div ref={componentRef} className="w-full h-full text-[12pt] font-['Times_New_Roman',Times,serif] relative">
+              <RenderPrintOverlayWatermark watermark={printSettings.watermark} />
               
               <style type="text/css" media="print">
                 {`
@@ -525,9 +544,24 @@ export function SF4Generator({ onBack }: { onBack?: () => void } = {}) {
 
               {/* Signatory */}
               <div className="mt-8 flex justify-end font-['Times_New_Roman',Times,serif] leading-[1.1]">
-                <div className="text-left w-[300px] flex flex-col gap-0.5">
+                <div className="text-left w-[300px] flex flex-col gap-0.5 relative">
+                  <div className="absolute -top-10 left-12 pointer-events-none select-none z-10">
+                    <RenderPrintOverlaySignature 
+                      signature={printSettings.signature} 
+                      sigCursiveText={printSettings.sigCursiveText} 
+                      sigImageData={printSettings.sigImageData} 
+                      defaultName={formData.signatureName} 
+                      scale={printSettings.sigScale}
+                      xOffset={printSettings.sigXOffset}
+                      yOffset={printSettings.sigYOffset}
+                    />
+                  </div>
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none select-none z-10">
+                    <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
+                  </div>
+
                   <div className="flex items-center">
-                    <span className="font-bold w-16 inline-block">Signature</span><span className="tracking-[2px] font-bold">.........................................</span>
+                    <span className="font-bold w-16 inline-block">Signature</span><span className="tracking-[2px] font-bold">................................</span>
                   </div>
                   <div className="flex items-start">
                     <span className="w-16 font-bold">Name –</span> 

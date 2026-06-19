@@ -31,7 +31,7 @@ export function Navigation() {
         background: `
           radial-gradient(ellipse 60% 40% at 50% 0%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 80%),
           linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 50%, transparent 50.1%, transparent 100%),
-          linear-gradient(90deg, #001A4D 0%, #002B6B 20%, #1E73BE 50%, #002B6B 80%, #001A4D 100%)
+          linear-gradient(90deg, #0f2c59 0%, #1c4b82 20%, #2563eb 50%, #1c4b82 80%, #0f2c59 100%)
         `
       }}
     >
@@ -54,55 +54,6 @@ export function Navigation() {
               </Link>
             );
           })}
-
-          {/* Dropdown for Circulars */}
-          <div
-            className="relative h-full flex items-center"
-            onMouseEnter={() => setIsCircularsDropdownOpen(true)}
-            onMouseLeave={() => setIsCircularsDropdownOpen(false)}
-          >
-            <button
-              className={`flex items-center h-20 px-1.5 xl:px-2.5 2xl:px-3.5 text-[11px] xl:text-[13px] 2xl:text-[14px] font-extrabold uppercase tracking-widest whitespace-nowrap transition-all duration-200 border-b-[3px] select-none ${
-                location.pathname.includes("/dar-circulars") ||
-                location.pathname.includes("/act-circulars")
-                  ? "border-white text-white bg-white/5"
-                  : "border-transparent text-white/95 hover:text-white hover:bg-white/10"
-              }`}
-            >
-              <span>{t("nav_circulars")}</span>
-              <ChevronDown className="ml-1 w-3.5 h-3.5 shrink-0 opacity-80" />
-            </button>
-
-            {/* Dropdown Menu */}
-            {isCircularsDropdownOpen && (
-              <div className="absolute left-0 top-20 w-64 bg-[#001A4D]/95 backdrop-blur-md text-white shadow-2xl overflow-hidden border-t-2 border-white/25 border-x border-b border-[#1E73BE]/50 divide-y divide-[#002B6B] z-[60] rounded-b-lg">
-                <Link
-                  to="/dar-circulars"
-                  className="block px-5 py-3.5 text-[13px] font-bold uppercase tracking-wide hover:bg-[#1E73BE] hover:text-white transition-all group"
-                  onClick={() => setIsCircularsDropdownOpen(false)}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-100 group-hover:text-white transition-colors">
-                      {t("nav_dar_circulars")}
-                    </span>
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 block opacity-0 group-hover:opacity-100 transition-opacity"></span>
-                  </div>
-                </Link>
-                <Link
-                  to="/act-circulars"
-                  className="block px-5 py-3.5 text-[13px] font-bold uppercase tracking-wide hover:bg-[#1E73BE] hover:text-white transition-all group"
-                  onClick={() => setIsCircularsDropdownOpen(false)}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-100 group-hover:text-white transition-colors">
-                      {t("nav_act_circulars")}
-                    </span>
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 block opacity-0 group-hover:opacity-100 transition-opacity"></span>
-                  </div>
-                </Link>
-              </div>
-            )}
-          </div>
 
           {/* Direct Link for Important Links */}
           <Link
@@ -150,7 +101,7 @@ export function Navigation() {
 
       {/* Mobile Menu Drawer */}
       {isOpen && (
-        <div className="lg:hidden bg-[#001A4D]/98 backdrop-blur-md border-t border-white/10 divide-y divide-white/5">
+        <div className="lg:hidden bg-[#0f2c59]/98 backdrop-blur-md border-t border-white/10 divide-y divide-white/5">
           <div className="px-3 py-3 space-y-1">
             {navKeys.map((item) => {
               const isActive = location.pathname === item.path;
@@ -169,45 +120,6 @@ export function Navigation() {
                 </Link>
               );
             })}
-
-            {/* Mobile Dropdown for Circulars */}
-            <div className="space-y-1">
-              <button
-                onClick={() =>
-                  setIsCircularsDropdownOpen(!isCircularsDropdownOpen)
-                }
-                className="w-full text-left flex items-center justify-between px-4 py-3 rounded-lg text-[14px] font-bold uppercase tracking-wider text-white/80 hover:bg-white/5 hover:text-white focus:outline-none"
-              >
-                <span>{t("nav_circulars")}</span>
-                <ChevronDown
-                  className={`w-4 h-4 transition-transform ${isCircularsDropdownOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-              {isCircularsDropdownOpen && (
-                <div className="pl-4 space-y-1 bg-[#002B6B]/60 py-2 rounded-lg">
-                  <Link
-                    to="/dar-circulars"
-                    onClick={() => {
-                      setIsOpen(false);
-                      setIsCircularsDropdownOpen(false);
-                    }}
-                    className="block px-4 py-2 text-[13px] font-semibold uppercase tracking-wider text-white/90 hover:bg-[#1E73BE] hover:text-white rounded-md transition-colors"
-                  >
-                    {t("nav_dar_circulars")}
-                  </Link>
-                  <Link
-                    to="/act-circulars"
-                    onClick={() => {
-                      setIsOpen(false);
-                      setIsCircularsDropdownOpen(false);
-                    }}
-                    className="block px-4 py-2 text-[13px] font-semibold uppercase tracking-wider text-white/90 hover:bg-[#1E73BE] hover:text-white rounded-md transition-colors"
-                  >
-                    {t("nav_act_circulars")}
-                  </Link>
-                </div>
-              )}
-            </div>
 
             {/* Mobile Link for Important Links */}
             <Link

@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import { triggerPrint } from "../utils/printHelper";
 import { Printer, RotateCcw, Plus, Trash2 } from "lucide-react";
 import { useStore } from "../store/useStore";
+import { PrintCustomizer, PrintSettings, RenderPrintOverlayWatermark, RenderPrintOverlaySeal, RenderPrintOverlaySignature } from './PrintCustomizer';
 
 interface SF14IIData {
   fileNo: string;
@@ -69,6 +70,20 @@ export function SF14IIGenerator({ onBack }: { onBack?: () => void } = {}) {
   const config = useStore((state) => state.config);
 
   const showPreview = config.showSfPdfPreview !== "false";
+
+  // Print settings state
+  const [printSettings, setPrintSettings] = useState<PrintSettings>({
+    watermark: "none",
+    seal: "none",
+    customSealText: "",
+    sealImageData: null,
+    signature: "none",
+    sigCursiveText: "",
+    sigImageData: null,
+    sigScale: 100,
+    sigXOffset: 0,
+    sigYOffset: 0
+  });
 
   const handleGenerateClick = (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,7 +193,10 @@ export function SF14IIGenerator({ onBack }: { onBack?: () => void } = {}) {
       </div>
 
       {/* Editor Form (Left Side) */}
-      <div className={`w-full ${showPreview ? "lg:w-[420px] bg-white border-r border-gray-200 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)]" : "lg:max-w-4xl lg:mx-auto bg-white p-6 my-6 rounded-lg border border-gray-200 shadow-md"} overflow-y-auto p-5 shrink-0`}>
+      <div className={`w-full ${showPreview ? "lg:w-[720px] bg-white border-r border-gray-200 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)]" : "lg:max-w-4xl lg:mx-auto bg-white p-6 my-6 rounded-lg border border-gray-200 shadow-md"} overflow-y-auto p-5 shrink-0`}>
+        
+        <PrintCustomizer settings={printSettings} onChange={setPrintSettings} />
+
         <h2 className="font-bold text-gray-700 mb-5 border-b pb-2 uppercase tracking-wide text-xs">
           SF-14(II) Form Details (Pensioner Charge-Sheet)
         </h2>
@@ -450,6 +468,7 @@ export function SF14IIGenerator({ onBack }: { onBack?: () => void } = {}) {
             ref={componentRef}
             className="bg-white w-[210mm] min-h-[297mm] shadow-2xl relative box-border p-[25mm] print:shadow-none print_page flex flex-col justify-between"
           >
+            <RenderPrintOverlayWatermark watermark={printSettings.watermark} />
             {/* Page 1 */}
             <div>
               <div className="text-center font-bold tracking-tight text-base leading-snug">
@@ -496,7 +515,22 @@ export function SF14IIGenerator({ onBack }: { onBack?: () => void } = {}) {
 
               {/* Signatures */}
               <div className="mt-12 flex justify-end">
-                <div className="w-[300px] text-center text-xs">
+                <div className="w-[300px] text-center text-xs relative">
+                  <div className="absolute -top-10 left-12 pointer-events-none select-none z-10">
+                    <RenderPrintOverlaySignature 
+                      signature={printSettings.signature} 
+                      sigCursiveText={printSettings.sigCursiveText} 
+                      sigImageData={printSettings.sigImageData} 
+                      defaultName={formData.signatureName} 
+                      scale={printSettings.sigScale}
+                      xOffset={printSettings.sigXOffset}
+                      yOffset={printSettings.sigYOffset}
+                    />
+                  </div>
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none select-none z-10">
+                    <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
+                  </div>
+
                   <div className="flex items-end mb-1">
                     <span className="w-20 text-left">Signature</span>
                     <span className="flex-1 border-b border-black border-dotted"></span>

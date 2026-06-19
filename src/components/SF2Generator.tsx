@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { triggerPrint } from '../utils/printHelper';
 import { Printer, FileText, RotateCcw, Plus, Trash2, Info } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { PrintCustomizer, PrintSettings, RenderPrintOverlayWatermark, RenderPrintOverlaySeal, RenderPrintOverlaySignature } from './PrintCustomizer';
 
 interface SF2Data {
   fileNo: string;
@@ -64,6 +65,20 @@ export function SF2Generator({ onBack }: { onBack?: () => void } = {}) {
   const config = useStore((state) => state.config);
 
   const showPreview = config.showSfPdfPreview !== "false";
+
+  // Print settings state
+  const [printSettings, setPrintSettings] = useState<PrintSettings>({
+    watermark: "none",
+    seal: "none",
+    customSealText: "",
+    sealImageData: null,
+    signature: "none",
+    sigCursiveText: "",
+    sigImageData: null,
+    sigScale: 100,
+    sigXOffset: 0,
+    sigYOffset: 0
+  });
 
   const handleGenerateClick = (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,7 +207,10 @@ export function SF2Generator({ onBack }: { onBack?: () => void } = {}) {
       <div className="flex flex-1 overflow-hidden">
         
         {/* Editor Form (Left Side) */}
-        <div className="w-full lg:w-[450px] bg-slate-950 border-r border-slate-800 overflow-y-auto p-5 shrink-0 flex flex-col gap-5 text-slate-200">
+        <div className={`w-full ${showPreview ? 'lg:w-[720px] bg-slate-950 border-r border-slate-800 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)]' : 'lg:max-w-4xl lg:mx-auto bg-slate-950 p-6 my-6 rounded-lg border border-slate-800 shadow-md'} overflow-y-auto p-5 shrink-0 flex flex-col gap-5 text-slate-200`}>
+          
+          <PrintCustomizer settings={printSettings} onChange={setPrintSettings} />
+
           <div className="flex items-start gap-2.5 bg-indigo-950/40 p-3 rounded-lg border border-indigo-900/50 text-[11px] text-indigo-300 leading-normal">
             <Info className="w-4 h-4 shrink-0 mt-0.5" />
             <div>
@@ -318,7 +336,8 @@ export function SF2Generator({ onBack }: { onBack?: () => void } = {}) {
           <div className="bg-white shrink-0 w-[210mm] min-h-[297mm] shadow-2xl p-[18mm] relative text-black leading-snug">
             
             {/* The Document Area to Print */}
-            <div ref={componentRef} className="w-full h-full text-[12pt]">
+            <div ref={componentRef} className="w-full h-full text-[12pt] relative">
+              <RenderPrintOverlayWatermark watermark={printSettings.watermark} />
               
               <style type="text/css" media="print">
                 {`
@@ -379,9 +398,24 @@ export function SF2Generator({ onBack }: { onBack?: () => void } = {}) {
 
               {/* Signatory */}
               <div className="mt-6 flex justify-end font-[Times_New_Roman,Times,serif]">
-                <div className="text-left w-[320px]">
+                <div className="text-left w-[320px] relative">
+                  <div className="absolute -top-10 left-12 pointer-events-none select-none z-10">
+                    <RenderPrintOverlaySignature 
+                      signature={printSettings.signature} 
+                      sigCursiveText={printSettings.sigCursiveText} 
+                      sigImageData={printSettings.sigImageData} 
+                      defaultName={formData.signatureName} 
+                      scale={printSettings.sigScale}
+                      xOffset={printSettings.sigXOffset}
+                      yOffset={printSettings.sigYOffset}
+                    />
+                  </div>
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none select-none z-10">
+                    <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
+                  </div>
+
                   <div className="flex items-center gap-1">
-                    Signature<span className="tracking-[2px]">.........................................................</span>
+                    Signature<span className="tracking-[2px]">................................</span>
                   </div>
                   <div className="flex items-start gap-1 mt-1">
                     <span className="w-16">Name –</span> 

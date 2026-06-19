@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import { triggerPrint } from "../utils/printHelper";
 import { Printer, RotateCcw, Plus, Trash2 } from "lucide-react";
 import { useStore } from "../store/useStore";
+import { PrintCustomizer, PrintSettings, RenderPrintOverlayWatermark, RenderPrintOverlaySeal, RenderPrintOverlaySignature } from './PrintCustomizer';
 
 interface SF5Data {
   fileNo: string;
@@ -102,6 +103,20 @@ export function SF5Generator({ onBack }: { onBack?: () => void } = {}) {
   const sf5Texts = sfFixedTexts["SF-5"] || {};
 
   const showPreview = config.showSfPdfPreview !== "false";
+
+  // Print settings state
+  const [printSettings, setPrintSettings] = useState<PrintSettings>({
+    watermark: "none",
+    seal: "none",
+    customSealText: "",
+    sealImageData: null,
+    signature: "none",
+    sigCursiveText: "",
+    sigImageData: null,
+    sigScale: 100,
+    sigXOffset: 0,
+    sigYOffset: 0
+  });
 
   const proposesInquiry = sf5Texts.proposesInquiry || "The undersigned proposes to hold an inquiry against the said Railway servant under Rule 9 of the Railway Servants (Discipline and Appeal) Rules, 1968. The substance of the imputations of misconduct or misbehaviour in respect of which the inquiry is proposed to be held is set out in the enclosed statement of articles of charge (Annexure I). A statement of the imputations of misconduct or misbehaviour in support of each article of charge is enclosed (Annexure II). A list of documents by which and a list of witnesses by whom the articles of charge are proposed to be sustained are also enclosed (Annexures III and IV).";
   const directedSubmit = sf5Texts.directedSubmit || "The said Railway servant is hereby directed to submit to the undersigned a written statement of his defense within ten days of the receipt of this memorandum.";
@@ -251,7 +266,10 @@ export function SF5Generator({ onBack }: { onBack?: () => void } = {}) {
       </div>
 
       {/* Editor Form */}
-      <div className={`w-full ${showPreview ? 'lg:w-[500px] xl:w-[650px] 2xl:w-[750px] bg-white border-r border-gray-200 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)]' : 'lg:max-w-4xl lg:mx-auto bg-white p-6 my-6 rounded-lg border border-gray-200 shadow-md'} overflow-y-auto p-5 shrink-0 pb-20`}>
+      <div className={`w-full ${showPreview ? 'lg:w-[720px] bg-white border-r border-gray-200 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)]' : 'lg:max-w-4xl lg:mx-auto bg-white p-6 my-6 rounded-lg border border-gray-200 shadow-md'} overflow-y-auto p-5 shrink-0 pb-20`}>
+        
+        <PrintCustomizer settings={printSettings} onChange={setPrintSettings} />
+
         <h2 className="font-bold text-gray-700 mb-5 border-b pb-2 uppercase tracking-wide text-xs">
           Fill Form Details
         </h2>
@@ -722,8 +740,9 @@ export function SF5Generator({ onBack }: { onBack?: () => void } = {}) {
       <div className={`${showPreview ? 'flex-1' : 'hidden'} bg-gray-200 overflow-y-auto flex flex-col items-center py-8 px-4 overflow-x-hidden`}>
         <div 
           ref={componentRef}
-          className="pdf-preview-wrapper text-black font-['Cambria',_'Times_New_Roman',_serif] text-[13pt] flex flex-col gap-8 print:gap-0"
+          className="pdf-preview-wrapper text-black font-['Cambria',_'Times_New_Roman',_serif] text-[13pt] flex flex-col gap-8 print:gap-0 relative"
         >
+          <RenderPrintOverlayWatermark watermark={printSettings.watermark} />
           <style>{`
             @media screen {
               .pdf-preview-wrapper {
@@ -855,9 +874,24 @@ export function SF5Generator({ onBack }: { onBack?: () => void } = {}) {
               </div>
             </div>
             <div className="mt-8 mb-4 flex justify-end font-['Times_New_Roman',_serif]">
-              <div className="text-left w-[380px]">
+              <div className="text-left w-[380px] relative">
+                <div className="absolute -top-10 left-12 pointer-events-none select-none z-10">
+                  <RenderPrintOverlaySignature 
+                    signature={printSettings.signature} 
+                    sigCursiveText={printSettings.sigCursiveText} 
+                    sigImageData={printSettings.sigImageData} 
+                    defaultName={formData.signatureName} 
+                    scale={printSettings.sigScale}
+                    xOffset={printSettings.sigXOffset}
+                    yOffset={printSettings.sigYOffset}
+                  />
+                </div>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none select-none z-10">
+                  <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
+                </div>
+
                 <div className="flex items-center gap-1">
-                  <span className="font-bold">Signature</span><span className="tracking-[2px] font-bold">.........................................................</span>
+                  <span className="font-bold">Signature</span><span className="tracking-[2px] font-bold">................................</span>
                 </div>
                 <div className="flex items-start gap-1 mt-1 mb-1">
                   <span className="w-16 font-bold">Name –</span> 
@@ -901,9 +935,24 @@ export function SF5Generator({ onBack }: { onBack?: () => void } = {}) {
             </div>
 
             <div className="mt-8 mb-4 flex justify-end font-['Times_New_Roman',_serif]">
-              <div className="text-left w-[380px]">
+              <div className="text-left w-[380px] relative">
+                <div className="absolute -top-10 left-12 pointer-events-none select-none z-10">
+                  <RenderPrintOverlaySignature 
+                    signature={printSettings.signature} 
+                    sigCursiveText={printSettings.sigCursiveText} 
+                    sigImageData={printSettings.sigImageData} 
+                    defaultName={formData.signatureName} 
+                    scale={printSettings.sigScale}
+                    xOffset={printSettings.sigXOffset}
+                    yOffset={printSettings.sigYOffset}
+                  />
+                </div>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none select-none z-10">
+                  <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
+                </div>
+
                 <div className="flex items-center gap-1">
-                  <span className="font-bold">Signature</span><span className="tracking-[2px] font-bold">.........................................................</span>
+                  <span className="font-bold">Signature</span><span className="tracking-[2px] font-bold">................................</span>
                 </div>
                 <div className="flex items-start gap-1 mt-1 mb-1">
                   <span className="w-16 font-bold">Name –</span> 
@@ -954,7 +1003,7 @@ export function SF5Generator({ onBack }: { onBack?: () => void } = {}) {
             <div className="mt-8 mb-4 flex justify-end font-['Times_New_Roman',_serif]">
               <div className="text-left w-[380px]">
                 <div className="flex items-center gap-1">
-                  <span className="font-bold">Signature</span><span className="tracking-[2px] font-bold">.........................................................</span>
+                  <span className="font-bold">Signature</span><span className="tracking-[2px] font-bold">................................</span>
                 </div>
                 <div className="flex items-start gap-1 mt-1 mb-1">
                   <span className="w-16 font-bold">Name –</span> 
@@ -998,9 +1047,24 @@ export function SF5Generator({ onBack }: { onBack?: () => void } = {}) {
             </div>
 
             <div className="mt-8 mb-4 flex justify-end font-['Times_New_Roman',_serif]">
-              <div className="text-left w-[380px]">
+              <div className="text-left w-[380px] relative">
+                <div className="absolute -top-10 left-12 pointer-events-none select-none z-10">
+                  <RenderPrintOverlaySignature 
+                    signature={printSettings.signature} 
+                    sigCursiveText={printSettings.sigCursiveText} 
+                    sigImageData={printSettings.sigImageData} 
+                    defaultName={formData.signatureName} 
+                    scale={printSettings.sigScale}
+                    xOffset={printSettings.sigXOffset}
+                    yOffset={printSettings.sigYOffset}
+                  />
+                </div>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none select-none z-10">
+                  <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
+                </div>
+
                 <div className="flex items-center gap-1">
-                  <span className="font-bold">Signature</span><span className="tracking-[2px] font-bold">.........................................................</span>
+                  <span className="font-bold">Signature</span><span className="tracking-[2px] font-bold">................................</span>
                 </div>
                 <div className="flex items-start gap-1 mt-1 mb-1">
                   <span className="w-16 font-bold">Name –</span> 
@@ -1066,9 +1130,24 @@ export function SF5Generator({ onBack }: { onBack?: () => void } = {}) {
             </div>
 
             <div className="mt-8 mb-4 flex justify-end font-['Times_New_Roman',_serif]">
-              <div className="text-left w-[380px]">
+              <div className="text-left w-[380px] relative">
+                <div className="absolute -top-10 left-12 pointer-events-none select-none z-10">
+                  <RenderPrintOverlaySignature 
+                    signature={printSettings.signature} 
+                    sigCursiveText={printSettings.sigCursiveText} 
+                    sigImageData={printSettings.sigImageData} 
+                    defaultName={formData.signatureName} 
+                    scale={printSettings.sigScale}
+                    xOffset={printSettings.sigXOffset}
+                    yOffset={printSettings.sigYOffset}
+                  />
+                </div>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none select-none z-10">
+                  <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
+                </div>
+
                 <div className="flex items-center gap-1">
-                  <span className="font-bold">Signature</span><span className="tracking-[2px] font-bold">.........................................................</span>
+                  <span className="font-bold">Signature</span><span className="tracking-[2px] font-bold">................................</span>
                 </div>
                 <div className="flex items-start gap-1 mt-1 mb-1">
                   <span className="w-16 font-bold">Name –</span> 
@@ -1113,9 +1192,24 @@ export function SF5Generator({ onBack }: { onBack?: () => void } = {}) {
             </div>
 
             <div className="mt-8 mb-4 flex justify-end font-['Times_New_Roman',_serif]">
-              <div className="text-left w-[380px]">
+              <div className="text-left w-[380px] relative">
+                <div className="absolute -top-10 left-12 pointer-events-none select-none z-10">
+                  <RenderPrintOverlaySignature 
+                    signature={printSettings.signature} 
+                    sigCursiveText={printSettings.sigCursiveText} 
+                    sigImageData={printSettings.sigImageData} 
+                    defaultName={formData.signatureName} 
+                    scale={printSettings.sigScale}
+                    xOffset={printSettings.sigXOffset}
+                    yOffset={printSettings.sigYOffset}
+                  />
+                </div>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none select-none z-10">
+                  <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
+                </div>
+
                 <div className="flex items-center gap-1">
-                  <span className="font-bold">Signature</span><span className="tracking-[2px] font-bold">.........................................................</span>
+                  <span className="font-bold">Signature</span><span className="tracking-[2px] font-bold">................................</span>
                 </div>
                 <div className="flex items-start gap-1 mt-1 mb-1">
                   <span className="w-16 font-bold">Name –</span> 

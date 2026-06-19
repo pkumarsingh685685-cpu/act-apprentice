@@ -103,7 +103,22 @@ service cloud.firestore {
     match /dar_positions/{docId} {
       allow read, write: if true;
     }
+    match /dar_hq_cases/{docId} {
+      allow read, write: if true;
+    }
+    match /part2Template/{docId} {
+      allow read, write: if true;
+    }
     match /pending_sf4_drafts/{docId} {
+      allow read, write: if true;
+    }
+    match /pending_sf_drafts/{docId} {
+      allow read, write: if true;
+    }
+    match /sec_office_stamps/{docId} {
+      allow read, write: if true;
+    }
+    match /ta_claims/{docId} {
       allow read, write: if true;
     }
     match /{document=**} {

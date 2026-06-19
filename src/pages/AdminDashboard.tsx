@@ -40,6 +40,9 @@ import { DynamicRegistersManager } from "../components/DynamicRegistersManager";
 import { GoogleSheetManager } from "../components/GoogleSheetManager";
 import { ApoAllotmentManager } from "../components/ApoAllotmentManager";
 import { NfrOrgNodesManager } from "../components/NfrOrgNodesManager";
+import { ChecklistManager } from "../components/ChecklistManager";
+import { AuditLogManager } from "../components/AuditLogManager";
+import { OfficePdfStamper } from "../components/OfficePdfStamper";
 
 export default function AdminDashboard() {
   const { t, i18n } = useTranslation();
@@ -99,6 +102,36 @@ export default function AdminDashboard() {
       categoryHi: "सिस्टम सेटिंग्स",
       desc: "Customize all English and Hindi texts or labels displayed across the public portal.",
       descHi: "सार्वजनिक पोर्टल पर दिखने वाले सभी अंग्रेजी और हिंदी शीर्षकों व शब्दों को बदलें।"
+    },
+    { 
+      id: "checklist", 
+      name: "Checklist Management", 
+      nameHi: "चेकलिस्ट नियंत्रण",
+      icon: List, 
+      category: "System Settings",
+      categoryHi: "सिस्टम सेटिंग्स",
+      desc: "Add, edit, delete, and reorder all rows of the HQ Material Check List dynamically.",
+      descHi: "मुख्यालय सामग्री चेकलिस्ट पंक्तियों को जोड़ें, संपादित करें, हटाएं या क्रम बदलें।"
+    },
+    { 
+      id: "audit_logs", 
+      name: "Personnel Audit Logs", 
+      nameHi: "ऑडिट लॉग ट्रैकर",
+      icon: Database, 
+      category: "System Settings",
+      categoryHi: "सिस्टम सेटिंग्स",
+      desc: "Monitor all administrator activities, form generations, checklist modifications in real-time.",
+      descHi: "सभी व्यवस्थापकीय गतिविधियों, प्रप्रत्र निर्माण और चेकलिस्ट संपादन को लाइव ट्रैक करें।"
+    },
+    { 
+      id: "pdfStamper", 
+      name: "Office PDF Stamp Studio", 
+      nameHi: "पीडीएफ डिजिटल स्टाम्प स्टूडियो",
+      icon: FileSignature, 
+      category: "System Settings",
+      categoryHi: "सिस्टम सेटिंग्स",
+      desc: "Upload external files to visually position and apply official round seals, approval stamps and watermarks.",
+      descHi: "कार्यालय उपयोग हेतु फाइलों पर डिजिटल गोल मुहर, स्वीकृत हस्ताक्षर और वाटरमार्क लगाकर डाउनलोड करें।"
     },
     { 
       id: "header", 
@@ -212,23 +245,23 @@ export default function AdminDashboard() {
     },
     { 
       id: "darCirculars", 
-      name: "DAR Circulars Registry", 
-      nameHi: "डीएआर नियम परिपत्र",
+      name: "Office Order (For DAR)", 
+      nameHi: "कार्यालय आदेश (DAR के लिए)",
       icon: FileText, 
       category: "Documents & Notices",
       categoryHi: "दस्तावेज और नोटिस",
       desc: "Upload Discipline & Appeal Rules documents, handbooks, and amendments.",
-      descHi: "अनुशासन एवं अपील नियमों से संबन्धित परिपत्रों व नियमावली को बदलें।"
+      descHi: "अनुशासन एवं अपील नियमों से संबन्धित कार्यालय आदेशों को बदलें।"
     },
     { 
       id: "actCirculars", 
-      name: "Act Apprentice Circulars", 
-      nameHi: "एक्ट अपरेंटिस सर्कुलर",
+      name: "Office Order (For Act Apprentice)", 
+      nameHi: "कार्यालय आदेश (अधिनियम शिक्षु के लिए)",
       icon: FileText, 
       category: "Documents & Notices",
       categoryHi: "दस्तावेज और नोटिस",
       desc: "Manage recruitment rules, training guidelines, and statutory notifications.",
-      descHi: "अधिनियम प्रशिक्षुओं से संबन्धित नियमों व परिपत्रों को प्रबंधित करें।"
+      descHi: "अधिनियम प्रशिक्षुओं से संबन्धित कार्यालय आदेश प्रबंधित करें।"
     },
     { 
       id: "sfDescriptions", 
@@ -710,6 +743,9 @@ export default function AdminDashboard() {
           )}
           {activeTab === "settings" && <SettingsForm />}
           {activeTab === "translations" && <TranslationManager />}
+          {activeTab === "checklist" && <ChecklistManager />}
+          {activeTab === "audit_logs" && <AuditLogManager />}
+          {activeTab === "pdfStamper" && <OfficePdfStamper />}
           {activeTab === "header" && <HeaderManager />}
           {activeTab === "audio" && <AudioManager />}
           {activeTab === "logo" && <LogoManager />}
@@ -1752,6 +1788,73 @@ function SettingsForm() {
                 className="w-full p-2 border rounded"
               />
               <p className="text-xs text-gray-500 mt-1">Number of minutes a user stays authenticated once logged in.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* TA Daily Allowance Rates Configuration */}
+        <div className="md:col-span-2 mt-4 pt-4 border-t bg-slate-50 p-4 rounded-lg border border-slate-200">
+          <h4 className="text-md font-bold text-violet-800 mb-2 flex items-center gap-1.5">
+            🎫 Traveling Allowance Rates (यात्रा भत्ता दैनिक दरें)
+          </h4>
+          <p className="text-xs text-slate-600 mb-4">
+            Configure the 7th CPC Daily Allowance (DA) rates (in ₹) representing 100% entitlement per pay level category.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Levels 1 to 5</label>
+              <input
+                name="ta_rate_l1_l5"
+                type="number"
+                value={localConfig.ta_rate_l1_l5 || '500'}
+                onChange={handleChange}
+                placeholder="500"
+                className="w-full p-2 border rounded text-sm font-mono font-bold bg-white focus:ring-1 focus:ring-violet-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Levels 6 to 8</label>
+              <input
+                name="ta_rate_l6_l8"
+                type="number"
+                value={localConfig.ta_rate_l6_l8 || '800'}
+                onChange={handleChange}
+                placeholder="800"
+                className="w-full p-2 border rounded text-sm font-mono font-bold bg-white focus:ring-1 focus:ring-violet-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Levels 9 to 11</label>
+              <input
+                name="ta_rate_l9_l11"
+                type="number"
+                value={localConfig.ta_rate_l9_l11 || '900'}
+                onChange={handleChange}
+                placeholder="900"
+                className="w-full p-2 border rounded text-sm font-mono font-bold bg-white focus:ring-1 focus:ring-violet-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Levels 12 to 13</label>
+              <input
+                name="ta_rate_l12_l13"
+                type="number"
+                value={localConfig.ta_rate_l12_l13 || '1000'}
+                onChange={handleChange}
+                placeholder="1000"
+                className="w-full p-2 border rounded text-sm font-mono font-bold bg-white focus:ring-1 focus:ring-violet-500"
+              />
+            </div>
+            <div className="col-span-2 md:col-span-1">
+              <label className="block text-xs font-bold text-slate-700 mb-1">Levels 14 to 18</label>
+              <input
+                name="ta_rate_l14_l18"
+                type="number"
+                value={localConfig.ta_rate_l14_l18 || '1200'}
+                onChange={handleChange}
+                placeholder="1200"
+                className="w-full p-2 border rounded text-sm font-mono font-bold bg-white focus:ring-1 focus:ring-violet-500"
+              />
             </div>
           </div>
         </div>

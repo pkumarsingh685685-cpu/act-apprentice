@@ -56,7 +56,7 @@ export default function ApoAllotmentPage({ isEmbedded = false }: { isEmbedded?: 
   };
 
   return (
-    <div className={`${isEmbedded ? "min-h-full py-6" : "min-h-screen py-12"} bg-slate-950 text-white selection:bg-violet-600/30 selection:text-white px-4 sm:px-6 lg:px-8 relative overflow-hidden`}>
+    <div className={`${isEmbedded ? "min-h-full py-6" : "min-h-screen py-12"} bg-[#132039] text-white selection:bg-violet-600/30 selection:text-white px-4 sm:px-6 lg:px-8 relative overflow-hidden`}>
       {!isEmbedded && <SEO title={`${currentLabels.title} | Personnel Branch Kir`} />}
 
       {/* Decorative Glow Elements */}

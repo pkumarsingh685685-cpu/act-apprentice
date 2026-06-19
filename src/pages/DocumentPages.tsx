@@ -35,9 +35,14 @@ export function Results() {
 export function DARCirculars() {
   const items = useStore((state) => state.darCirculars);
   const { t } = useTranslation();
+  
+  const processedItems = [...(items || [])]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .map((item, index) => ({ ...item, isNew: index < 10 }));
+
   return (
     <div className="w-full px-4 py-8">
-      <DocumentPanel title={t('nav_dar_circulars')} items={items} theme="blue" />
+      <DocumentPanel title={t('nav_dar_circulars')} items={processedItems} theme="blue" />
     </div>
   );
 }
@@ -45,9 +50,14 @@ export function DARCirculars() {
 export function ActCirculars() {
   const items = useStore((state) => state.actCirculars);
   const { t } = useTranslation();
+
+  const processedItems = [...(items || [])]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .map((item, index) => ({ ...item, isNew: index < 10 }));
+
   return (
     <div className="w-full px-4 py-8">
-      <DocumentPanel title={t('nav_act_circulars')} items={items} theme="blue" />
+      <DocumentPanel title={t('nav_act_circulars')} items={processedItems} theme="blue" />
     </div>
   );
 }

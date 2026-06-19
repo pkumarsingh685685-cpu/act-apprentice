@@ -44,6 +44,79 @@
         "penalty": { "type": "string" }
       },
       "required": ["sn", "name"]
+    },
+    "DarHqCase": {
+      "title": "DAR HQ Case Docket",
+      "description": "Represents a case checklist and page indexes for HQ submissions",
+      "type": "object",
+      "properties": {
+        "caseName": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "designation": { "type": "string" },
+        "department": { "type": "string" },
+        "pfNpsNo": { "type": "string" },
+        "sfNo": { "type": "string" },
+        "sfDate": { "type": "string" },
+        "daName": { "type": "string" },
+        "ioName": { "type": "string" },
+        "poName": { "type": "string" },
+        "finalNipNo": { "type": "string" },
+        "nipDate": { "type": "string" }
+      },
+      "required": ["caseName"]
+    },
+    "Part2Field": {
+      "title": "Checklist Row Template Field",
+      "description": "Represents a templated question/checklist item dynamically editable in Checklist Settings",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "choice": { "type": "string", "enum": ["Yes", "No", "N/A", "MAJOR", "MINOR", "Superannuation", ""] },
+        "value": { "type": "string" },
+        "isSubField": { "type": "boolean" },
+        "order": { "type": "number" }
+      },
+      "required": ["id", "label"]
+    },
+    "PendingSFDraft": {
+      "title": "Standard Form Draft",
+      "description": "Autosaved draft of fully and partially completed standard forms",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sfType": { "type": "string" },
+        "formData": { "type": "object" },
+        "updatedAt": { "type": "string" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["id", "sfType", "formData", "updatedAt"]
+    },
+    "CustomSecStamp": {
+      "title": "Custom Office Stamp",
+      "description": "Admin uploaded transparent stamp or signature image saved securely in firestore",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "imageData": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "imageData"]
+    },
+    "TaClaim": {
+      "title": "Traveling Allowance Claim",
+      "description": "Traveling Allowance Claim for railway employees containing general information and journey legs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "designation": { "type": "string" },
+        "payLevel": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["employeeName", "payLevel"]
     }
   },
   "firestore": {
@@ -54,6 +127,26 @@
     "/dar_positions/{positionId}": {
       "schema": "DarPosition",
       "description": "Detailed position statements for the Discipline & Appeal Rules of the Personnel Branch"
+    },
+    "/dar_hq_cases/{caseId}": {
+      "schema": "DarHqCase",
+      "description": "Checklist and index register for DAR compliance filings ready for HQ submission"
+    },
+    "/part2Template/{fieldId}": {
+      "schema": "Part2Field",
+      "description": "Dynamic HQ materials checklist form row configurations"
+    },
+    "/pending_sf_drafts/{draftId}": {
+      "schema": "PendingSFDraft",
+      "description": "Dynamic collection of standard form drafts auto-saved every 5 seconds"
+    },
+    "/sec_office_stamps/{stampId}": {
+      "schema": "CustomSecStamp",
+      "description": "Uploaded signatures and divisional stamps available across the system"
+    },
+    "/ta_claims/{claimId}": {
+      "schema": "TaClaim",
+      "description": "Traveling Allowance Claims saved by the application with nested journey legs and calculations."
     }
   }
 }

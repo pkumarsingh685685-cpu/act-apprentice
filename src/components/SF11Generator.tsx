@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import { triggerPrint } from "../utils/printHelper";
 import { Printer, RotateCcw, Plus, Trash2 } from "lucide-react";
 import { useStore } from "../store/useStore";
+import { PrintCustomizer, PrintSettings, RenderPrintOverlayWatermark, RenderPrintOverlaySeal, RenderPrintOverlaySignature } from './PrintCustomizer';
 
 interface SF11Data {
   fileNo: string;
@@ -71,6 +72,20 @@ export function SF11Generator({ onBack }: { onBack?: () => void } = {}) {
   const sf11Texts = sfFixedTexts["SF-11"] || {};
 
   const showPreview = config.showSfPdfPreview !== "false";
+
+  // Print settings state
+  const [printSettings, setPrintSettings] = useState<PrintSettings>({
+    watermark: "none",
+    seal: "none",
+    customSealText: "",
+    sealImageData: null,
+    signature: "none",
+    sigCursiveText: "",
+    sigImageData: null,
+    sigScale: 100,
+    sigXOffset: 0,
+    sigYOffset: 0
+  });
 
   const proposesAction = sf11Texts.proposesAction || "The undersigned proposes to take action against the said Railway servant under Rule 11 of the Railway Servants (Discipline and Appeal) Rules, 1968. The substance of the imputations of misconduct or misbehaviour in respect of which action is proposed to be taken is set out in the enclosed statement of misconduct or misbehaviour.";
   const givenOpportunity = sf11Texts.givenOpportunity || "The said Railway servant is hereby given an opportunity to make such representation as he may wish to make against the proposal. If he fails to submit his representation within ten days, it will be presumed that he has no representation to make.";
@@ -192,7 +207,10 @@ export function SF11Generator({ onBack }: { onBack?: () => void } = {}) {
       </div>
 
       {/* Editor Form (Left Side) */}
-      <div className={`w-full ${showPreview ? 'lg:w-[420px] bg-white border-r border-gray-200 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)]' : 'lg:max-w-4xl lg:mx-auto bg-white p-6 my-6 rounded-lg border border-gray-200 shadow-md'} overflow-y-auto p-5 shrink-0`}>
+      <div className={`w-full ${showPreview ? 'lg:w-[720px] bg-white border-r border-gray-200 shadow-[inset_-4px_0_10px_-10px_rgba(0,0,0,0.1)]' : 'lg:max-w-4xl lg:mx-auto bg-white p-6 my-6 rounded-lg border border-gray-200 shadow-md'} overflow-y-auto p-5 shrink-0`}>
+        
+        <PrintCustomizer settings={printSettings} onChange={setPrintSettings} />
+
         <h2 className="font-bold text-gray-700 mb-5 border-b pb-2 uppercase tracking-wide text-xs">
           Fill Form Details
         </h2>
@@ -430,8 +448,9 @@ export function SF11Generator({ onBack }: { onBack?: () => void } = {}) {
       <div className={`${showPreview ? 'flex-1' : 'hidden'} bg-gray-200 overflow-auto p-4 lg:p-8 flex flex-col items-center`}>
         <div
           ref={componentRef}
-          className="w-full shrink-0 flex flex-col items-center gap-8 text-[12pt] font-[Times_New_Roman,Times,serif] text-black leading-snug min-w-[210mm]"
+          className="w-full shrink-0 flex flex-col items-center gap-8 text-[12pt] font-[Times_New_Roman,Times,serif] text-black leading-snug min-w-[210mm] relative"
         >
+          <RenderPrintOverlayWatermark watermark={printSettings.watermark} />
           <style type="text/css" media="print">
             {`
               @page {
@@ -527,7 +546,22 @@ export function SF11Generator({ onBack }: { onBack?: () => void } = {}) {
 
               {/* Signatory 1 */}
               <div className="mt-12 flex justify-end">
-                <div className="w-[350px] text-center">
+                <div className="w-[350px] text-center relative">
+                  <div className="absolute -top-10 left-12 pointer-events-none select-none z-10">
+                    <RenderPrintOverlaySignature 
+                      signature={printSettings.signature} 
+                      sigCursiveText={printSettings.sigCursiveText} 
+                      sigImageData={printSettings.sigImageData} 
+                      defaultName={formData.signatureName} 
+                      scale={printSettings.sigScale}
+                      xOffset={printSettings.sigXOffset}
+                      yOffset={printSettings.sigYOffset}
+                    />
+                  </div>
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none select-none z-10">
+                    <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
+                  </div>
+
                   <div className="flex items-end mb-1">
                     <span className="w-20 text-left">Signature</span>
                     <span className="flex-1 border-b border-black border-dotted"></span>
@@ -577,7 +611,22 @@ export function SF11Generator({ onBack }: { onBack?: () => void } = {}) {
 
               {/* Signatory 2 */}
               <div className="mt-12 flex justify-end pb-8">
-                <div className="w-[350px] text-center">
+                <div className="w-[350px] text-center relative">
+                  <div className="absolute -top-10 left-12 pointer-events-none select-none z-10">
+                    <RenderPrintOverlaySignature 
+                      signature={printSettings.signature} 
+                      sigCursiveText={printSettings.sigCursiveText} 
+                      sigImageData={printSettings.sigImageData} 
+                      defaultName={formData.signatureName} 
+                      scale={printSettings.sigScale}
+                      xOffset={printSettings.sigXOffset}
+                      yOffset={printSettings.sigYOffset}
+                    />
+                  </div>
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none select-none z-10">
+                    <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
+                  </div>
+
                   <div className="flex items-end mb-1">
                     <span className="w-20 text-left">Signature</span>
                     <span className="flex-1 border-b border-black border-dotted"></span>
@@ -627,7 +676,22 @@ export function SF11Generator({ onBack }: { onBack?: () => void } = {}) {
 
               {/* Signatory 3 */}
               <div className="mt-16 flex justify-end">
-                <div className="w-[350px] text-center">
+                <div className="w-[350px] text-center relative">
+                  <div className="absolute -top-10 left-12 pointer-events-none select-none z-10">
+                    <RenderPrintOverlaySignature 
+                      signature={printSettings.signature} 
+                      sigCursiveText={printSettings.sigCursiveText} 
+                      sigImageData={printSettings.sigImageData} 
+                      defaultName={formData.signatureName} 
+                      scale={printSettings.sigScale}
+                      xOffset={printSettings.sigXOffset}
+                      yOffset={printSettings.sigYOffset}
+                    />
+                  </div>
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none select-none z-10">
+                    <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
+                  </div>
+
                   <div className="flex items-end mb-1">
                     <span className="w-20 text-left">Signature</span>
                     <span className="flex-1 border-b border-black border-dotted"></span>

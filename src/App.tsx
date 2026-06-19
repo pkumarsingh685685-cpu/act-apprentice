@@ -45,6 +45,7 @@ function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === "/";
+  const isDashboardOrGenerator = location.pathname.includes("/admin-dashboard") || location.pathname.includes("/sf-generator");
   const { t } = useTranslation();
 
   return (
@@ -52,7 +53,7 @@ function Layout() {
       <Header />
       <Navigation />
       <main className="flex-1 flex flex-col w-full relative">
-        {!isHome && (
+        {!isHome && !isDashboardOrGenerator && (
           <div className="w-full max-w-7xl mx-auto px-4 md:px-8 mt-4 -mb-2 flex flex-wrap items-center gap-3">
             <button 
               onClick={() => navigate(-1)} 
@@ -119,6 +120,8 @@ export default function App() {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/sf-generator" element={<SFGeneratorPage />} />
           <Route path="/apo-allotment" element={<Navigate to="/sf-generator?tab=WORK_ALLOTMENT" replace />} />
+          <Route path="/dar-circulars" element={<Navigate to="/sf-generator?tab=OFFICE_ORDERS" replace />} />
+          <Route path="/act-circulars" element={<Navigate to="/sf-generator?tab=OFFICE_ORDERS" replace />} />
 
           <Route element={<Layout />}>
             <Route path="/" element={<Home />} />
@@ -127,8 +130,6 @@ export default function App() {
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/merit" element={<Merit />} />
             <Route path="/results" element={<Results />} />
-            <Route path="/dar-circulars" element={<DARCirculars />} />
-            <Route path="/act-circulars" element={<ActCirculars />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/candidate-login" element={<CandidateLogin />} />
             <Route path="/ai-search" element={<AiSearchPage />} />

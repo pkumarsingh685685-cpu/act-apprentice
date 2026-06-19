@@ -9,7 +9,7 @@ export function Footer() {
   const { t } = useTranslation();
   
   return (
-    <footer className="bg-[#1c3f60] text-gray-200 mt-12 py-8 mt-auto">
+    <footer className="bg-[#294f7c] text-gray-200 mt-12 py-8 mt-auto">
       <div className="w-full mx-auto px-4 sm:px-8 grid grid-cols-1 md:grid-cols-3 gap-8">
         <div>
           <h3 className="text-lg font-semibold text-white border-b border-gray-600 pb-2 mb-4">

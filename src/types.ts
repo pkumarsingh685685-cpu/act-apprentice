@@ -56,6 +56,11 @@ export interface SiteConfig {
   srDpoDesignationHi?: string;
   importantMessageText?: string;
   importantMessageEnabled?: string;
+  ta_rate_l1_l5?: string;
+  ta_rate_l6_l8?: string;
+  ta_rate_l9_l11?: string;
+  ta_rate_l12_l13?: string;
+  ta_rate_l14_l18?: string;
 }
 
 export interface LogoItem {
@@ -236,6 +241,21 @@ export interface AppState {
   updateApoAllotment: (id: string, allotment: Partial<ApoWorkAllotment>) => void;
   deleteApoAllotment: (id: string) => void;
   pending_sf4_drafts?: any[];
+
+  part2Template: Part2Field[];
+  addPart2TemplateField: (field: Omit<Part2Field, "choice" | "value">) => void;
+  updatePart2TemplateField: (id: string, updates: Partial<Part2Field>) => void;
+  deletePart2TemplateField: (id: string) => void;
+  reorderPart2TemplateFields: (orderedFields: Part2Field[]) => void;
+}
+
+export interface Part2Field {
+  id: string;
+  label: string;
+  choice: "Yes" | "No" | "N/A" | "MAJOR" | "MINOR" | "Superannuation" | "";
+  value: string;
+  isSubField?: boolean;
+  order?: number;
 }
 
 export type DocumentCategory =

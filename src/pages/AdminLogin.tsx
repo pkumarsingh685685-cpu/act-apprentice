@@ -142,16 +142,7 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4 bg-slate-950 min-h-screen relative overflow-hidden font-sans">
-      {/* Small Back Button */}
-      <button
-        onClick={() => navigate("/")}
-        className="absolute top-6 left-6 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white text-xs font-bold rounded-lg shadow-md transition-all cursor-pointer z-50 select-none flex items-center gap-1"
-        title="Go back / पीछे जाएं"
-      >
-        <span>←</span> <span>Back</span>
-      </button>
-
+    <div className="flex-1 flex items-center justify-center p-4 bg-[#132039] min-h-screen relative overflow-hidden font-sans">
       {/* Immersive Background Gradients */}
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-red-600/10 rounded-full blur-[100px] pointer-events-none animate-pulse" />
       <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-600/10 rounded-full blur-[100px] pointer-events-none animate-pulse" />

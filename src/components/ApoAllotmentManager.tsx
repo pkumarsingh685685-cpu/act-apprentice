@@ -3,6 +3,8 @@ import { useStore } from "../store/useStore";
 import { Plus, Trash2, Edit, Save, X, User, Mail, Phone, RefreshCw, Layers, Award } from "lucide-react";
 import { toast } from "sonner";
 import { ApoWorkAllotment } from "../types";
+import { db } from "../firebase";
+import { collection, addDoc } from "firebase/firestore";
 
 export function ApoAllotmentManager() {
   const apoWorkAllotments = useStore((state) => state.apoWorkAllotments || []);
@@ -36,6 +38,16 @@ export function ApoAllotmentManager() {
     updateConfig("srDpoNameHi", srDpoNameHi);
     updateConfig("srDpoDesignationEn", srDpoDesignationEn);
     updateConfig("srDpoDesignationHi", srDpoDesignationHi);
+    
+    addDoc(collection(db, "audit_logs"), {
+      type: "APO_ALLOTMENT",
+      action: `Modified Sr. DPO core credentials profile: ${srDpoNameEn}`,
+      details: { srDpoNameEn, srDpoNameHi, srDpoDesignationEn, srDpoDesignationHi },
+      user: "Admin / Personnel Officer",
+      timestamp: new Date().toISOString(),
+      agent: "APO Registry Central Link"
+    }).catch(console.error);
+
     toast.success("Senior Divisional Personnel Officer (Sr. DPO) details updated successfully!");
   };
 
@@ -79,6 +91,15 @@ export function ApoAllotmentManager() {
       contactPhone: contactPhone.trim() || undefined,
       order: Number(order) || 1,
     });
+
+    addDoc(collection(db, "audit_logs"), {
+      type: "APO_ALLOTMENT",
+      action: `Allotted new APO Work profile: ${name.trim()} (${designation.trim()})`,
+      details: { name: name.trim(), designation: designation.trim(), departments },
+      user: "Admin / Personnel Officer",
+      timestamp: new Date().toISOString(),
+      agent: "APO Registry Central Link"
+    }).catch(console.error);
 
     toast.success("APO Work Allotment added successfully");
     setName("");
@@ -124,13 +145,31 @@ export function ApoAllotmentManager() {
       order: Number(editOrder) || 1,
     });
 
+    addDoc(collection(db, "audit_logs"), {
+      type: "APO_ALLOTMENT",
+      action: `Updated APO Work details for: ${editName.trim()} (${editDesignation.trim()})`,
+      details: { id, name: editName.trim(), designation: editDesignation.trim(), departments },
+      user: "Admin / Personnel Officer",
+      timestamp: new Date().toISOString(),
+      agent: "APO Registry Central Link"
+    }).catch(console.error);
+
     toast.success("APO details updated successfully");
     setEditingId(null);
   };
 
   const handleDelete = (id: string) => {
+    const target = apoWorkAllotments.find(a => a.id === id);
     if (window.confirm("Are you sure you want to delete this APO work allotment entry?")) {
       deleteApoAllotment(id);
+      addDoc(collection(db, "audit_logs"), {
+        type: "APO_ALLOTMENT",
+        action: `Removed APO entry from registry: ${target ? target.name : id}`,
+        details: { id, name: target?.name, designation: target?.designation },
+        user: "Admin / Personnel Officer",
+        timestamp: new Date().toISOString(),
+        agent: "APO Registry Central Link"
+      }).catch(console.error);
       toast.success("Entry removed successfully");
     }
   };

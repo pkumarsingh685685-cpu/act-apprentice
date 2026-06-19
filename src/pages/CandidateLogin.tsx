@@ -188,15 +188,6 @@ export default function CandidateLogin() {
 
   return (
     <div className="w-full flex-col flex items-center justify-center py-10 px-4 relative min-h-screen bg-slate-50">
-      {/* Small Back Button */}
-      <button
-        onClick={() => navigate("/")}
-        className="absolute top-6 left-6 px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer z-50 select-none flex items-center gap-1"
-        title="Go back / पीछे जाएं"
-      >
-        <span>←</span> <span>Back</span>
-      </button>
-      
       {showWelcomeAnimation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-blue-900/80 backdrop-blur-md overflow-hidden">
           <div className="animate-launch flex flex-col items-center">
@@ -210,7 +201,7 @@ export default function CandidateLogin() {
 
       {!candidateData ? (
         <div className="bg-white shadow-md rounded-lg overflow-hidden max-w-md w-full border border-gray-200">
-          <div className="bg-[#1c3f60] p-6 text-white text-center">
+          <div className="bg-[#294f7c] p-6 text-white text-center">
             <h2 className="text-2xl font-bold tracking-tight">Candidate Login</h2>
             <p className="opacity-90 mt-2 text-sm text-blue-100">
               Access your personalized updates and data.
@@ -237,7 +228,7 @@ export default function CandidateLogin() {
                     required
                     value={employeeNum}
                     onChange={(e) => setEmployeeNum(e.target.value)}
-                    className="pl-10 w-full p-2.5 border border-gray-300 rounded focus:ring-2 focus:ring-[#1c3f60] focus:border-transparent"
+                    className="pl-10 w-full p-2.5 border border-gray-300 rounded focus:ring-2 focus:ring-[#294f7c] focus:border-transparent"
                     placeholder="Enter Employee No."
                   />
                 </div>
@@ -255,7 +246,7 @@ export default function CandidateLogin() {
                     required
                     value={dob}
                     onChange={(e) => setDob(e.target.value)}
-                    className="pl-10 w-full p-2.5 border border-gray-300 rounded focus:ring-2 focus:ring-[#1c3f60] focus:border-transparent"
+                    className="pl-10 w-full p-2.5 border border-gray-300 rounded focus:ring-2 focus:ring-[#294f7c] focus:border-transparent"
                   />
                   {/* Note for fallback if date formats vary */}
                   <div className="text-xs text-gray-500 mt-1 pl-1">Format: YYYY-MM-DD (or as provided by Admin)</div>
@@ -304,7 +295,7 @@ export default function CandidateLogin() {
       ) : (
         <div className="bg-white shadow-md rounded-lg overflow-hidden max-w-4xl w-full border border-gray-200">
           {/* Header section */}
-          <div className="bg-[#1c3f60] p-6 text-white flex justify-between items-center">
+          <div className="bg-[#294f7c] p-6 text-white flex justify-between items-center">
             <div>
               <h2 className="text-2xl font-bold tracking-tight">Candidate Dashboard</h2>
               <p className="opacity-90 mt-1 text-sm text-blue-100">
@@ -447,7 +438,7 @@ export default function CandidateLogin() {
                       required
                       value={queryData.department}
                       onChange={e => setQueryData({...queryData, department: e.target.value})}
-                      className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#1c3f60] focus:border-transparent bg-white"
+                      className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#294f7c] focus:border-transparent bg-white"
                     >
                       <option value="">-- Choose Department --</option>
                       <option value="Mechanical">Mechanical</option>
@@ -475,7 +466,7 @@ export default function CandidateLogin() {
                           required
                           value={queryData.mobile}
                           onChange={e => setQueryData({...queryData, mobile: e.target.value})}
-                          className="pl-9 w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#1c3f60] focus:border-transparent" 
+                          className="pl-9 w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#294f7c] focus:border-transparent" 
                           placeholder="Enter 10-digit number"
                         />
                       </div>
@@ -490,7 +481,7 @@ export default function CandidateLogin() {
                           type="email" 
                           value={queryData.email}
                           onChange={e => setQueryData({...queryData, email: e.target.value})}
-                          className="pl-9 w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#1c3f60] focus:border-transparent"
+                          className="pl-9 w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#294f7c] focus:border-transparent"
                           placeholder="Your email address"
                         />
                       </div>
@@ -503,7 +494,7 @@ export default function CandidateLogin() {
                       required
                       value={queryData.queryType}
                       onChange={e => setQueryData({...queryData, queryType: e.target.value})}
-                      className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#1c3f60] focus:border-transparent bg-white"
+                      className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#294f7c] focus:border-transparent bg-white"
                     >
                       <option value="">-- Choose Category --</option>
                       <option value="Payment Regarding">Payment Regarding</option>
@@ -521,7 +512,7 @@ export default function CandidateLogin() {
                       value={queryData.remarks}
                       onChange={e => setQueryData({...queryData, remarks: e.target.value})}
                       rows={4}
-                      className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#1c3f60] focus:border-transparent resize-y"
+                      className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#294f7c] focus:border-transparent resize-y"
                       placeholder="Please clearly describe your issue or query here..."
                     ></textarea>
                   </div>
@@ -529,7 +520,7 @@ export default function CandidateLogin() {
                   <button
                     type="submit"
                     disabled={submittingQuery}
-                    className="w-full bg-[#1c3f60] hover:bg-blue-900 text-white font-bold py-3.5 px-4 rounded-md transition-colors flex items-center justify-center gap-2 shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="w-full bg-[#294f7c] hover:bg-blue-900 text-white font-bold py-3.5 px-4 rounded-md transition-colors flex items-center justify-center gap-2 shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     {submittingQuery ? "Submitting..." : "Submit Query"} <Send className="w-5 h-5" />
                   </button>
@@ -580,7 +571,7 @@ export default function CandidateLogin() {
                   </div>
                   <button 
                     onClick={() => setActiveTab('form')}
-                    className="bg-[#1c3f60] hover:bg-blue-900 text-white font-medium py-2 px-4 rounded transition-colors flex items-center gap-2"
+                    className="bg-[#294f7c] hover:bg-blue-900 text-white font-medium py-2 px-4 rounded transition-colors flex items-center gap-2"
                   >
                     Submit New Query <Send className="w-4 h-4" />
                   </button>
@@ -588,7 +579,7 @@ export default function CandidateLogin() {
                 
                 {loadingQueries ? (
                   <div className="py-20 flex justify-center">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1c3f60]"></div>
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#294f7c]"></div>
                   </div>
                 ) : myQueries.length === 0 ? (
                   <div className="py-16 text-center bg-gray-50 border border-gray-200 rounded-lg">

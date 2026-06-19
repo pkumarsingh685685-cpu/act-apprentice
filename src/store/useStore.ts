@@ -1,9 +1,66 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { AppState, DocumentCategory, DocumentItem, LinkItem } from "../types";
+import { AppState, DocumentCategory, DocumentItem, LinkItem, Part2Field } from "../types";
 import { db } from "../firebase";
 import { doc, setDoc, deleteDoc, addDoc, collection } from "firebase/firestore";
 import { toast } from "sonner";
+
+export const DEFAULT_PART2_TEMPLATE: Part2Field[] = [
+  { id: "p2_1", label: "1 Nature of Chargesheet given (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 1 },
+  { id: "p2_2", label: "2 Whether DAR case files is furnished in original (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 2 },
+  { id: "p2_3", label: "3 Whether the chargesheet was issued by the competent authority (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 3 },
+  { id: "p2_4_a", label: "4 (a)** Chargesheet alongwith all the annexures :", choice: "", value: "", isSubField: false, order: 4 },
+  { id: "p2_4_b", label: "(b) Whether any corrigendum to the chargesheet has been issued :", choice: "", value: "", isSubField: true, order: 5 },
+  { id: "p2_4_c", label: "(c )** If yes, corrigendum to the chargesheet :", choice: "", value: "", isSubField: true, order: 6 },
+  { id: "p2_5", label: "5** Records of delivery of the chargesheet to the CO :", choice: "", value: "", isSubField: false, order: 7 },
+  { id: "p2_6", label: "6 Whether CO has submitted reply to the Chargesheet (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 8 },
+  { id: "p2_7", label: "7** If yes, CO's reply :", choice: "", value: "", isSubField: false, order: 9 },
+  { id: "p2_8", label: "8** Nomination of Defence Helper, if any and consent letter of the defence helper :", choice: "", value: "", isSubField: false, order: 10 },
+  { id: "p2_9_a", label: "9 (a) Whether the CO was suspended in connection with the misconduct (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 11 },
+  { id: "p2_9_b", label: "(b)** If yes, order of suspension and revocation of suspension, if any :", choice: "", value: "", isSubField: true, order: 12 },
+  { id: "p2_10_a", label: "10 (a) Whether this is a vigilance case (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 13 },
+  { id: "p2_10_b", label: "(b)** If yes, vigilance investigation report (together with deposition recorded, if any) :", choice: "", value: "", isSubField: true, order: 14 },
+  { id: "p2_11_a", label: "11 (a) Whether this is a CBI case (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 15 },
+  { id: "p2_11_b", label: "(b)** If yes, CBI investigation report (together with deposition recorded, if any) :", choice: "", value: "", isSubField: true, order: 16 },
+  { id: "p2_12_a", label: "12 (a) Whether action initiated on basis of CVC's advice (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 17 },
+  { id: "p2_12_b", label: "(b)** If yes, CVC's 1st stage and 2nd stage advice :", choice: "", value: "", isSubField: true, order: 18 },
+  { id: "p2_13_a", label: "13 (a)** All orders of the DA appointing the inquiry officer(s) :", choice: "", value: "", isSubField: false, order: 19 },
+  { id: "p2_13_b", label: "(b) Name and designation of all the inquiry officers appointed in the case :", choice: "", value: "", isSubField: true, order: 20 },
+  { id: "p2_14", label: "14** All orders of the DA appointing the presenting officer(s) :", choice: "", value: "", isSubField: false, order: 21 },
+  { id: "p2_15_a", label: "15 (a)** All the notices of the IO to the CO and Prosecution Witness (es) intimating them the holding of the inquiry :", choice: "", value: "", isSubField: false, order: 22 },
+  { id: "p2_15_b", label: "(b) Whether the notices were delivered /deemed delivered to the CO/DH for all the days (Tick the correct option) :", choice: "", value: "", isSubField: true, order: 23 },
+  { id: "p2_16_a", label: "16 (a) Whether ex-parte proceeding has been held on any day (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 24 },
+  { id: "p2_16_b", label: "(b) If yes,whether the proper procedure as laid down in Board's letter No. E(D&A)90 RG 6-38 dated 18.04.1990 has been followed (Tick the correct option) :", choice: "", value: "", isSubField: true, order: 25 },
+  { id: "p2_17_a", label: "17 (a) Whether any representation has been received from the CO for additional documents and /or defence witnesses (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 26 },
+  { id: "p2_17_b", label: "(b)** If yes, the representation of the CO and letter/noting vide which they disposed of :", choice: "", value: "", isSubField: true, order: 27 },
+  { id: "p2_17_c", label: "(c) Whether additional/defence documents as demanded by the CO were allowed by the IO (Tick the correct option) :", choice: "", value: "", isSubField: true, order: 28 },
+  { id: "p2_17_d", label: "(d)** If yes, description of Defence/additional documents allowed. (Details of the same in respect of each document may be given with proper folio number and folder, if necessary, in a separate sheet) :", choice: "", value: "", isSubField: true, order: 29 },
+  { id: "p2_18", label: "18** Correspondence of the IO with the DA, if any :", choice: "", value: "", isSubField: false, order: 30 },
+  { id: "p2_19_a", label: "19 (a) Whether all the prosecution witness (es) listed in Annexure-IV of the chargesheet have been examined by the IO (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 31 },
+  { id: "p2_19_b", label: "(b) ** If no, the reasons therefor may be indicated :", choice: "", value: "", isSubField: true, order: 32 },
+  { id: "p2_19_c", label: "(c) ** Deposition/oral statements recorded from all the Prosecution witness (es), if any (Details may be given w.r.t. each witness with proper folio number and folder, if necessary, in a separate sheet) :", choice: "", value: "", isSubField: true, order: 33 },
+  { id: "p2_20_a", label: "20 (a) Whether all the Defence witness (es) have been examined by the IO (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 34 },
+  { id: "p2_20_b", label: "(b)** Deposition/oral statements recorded from all the Defence witness (es), if any (Details may be given w.r.t each witness (es) with proper folio number and folder, if necessary, in a separate sheet) :", choice: "", value: "", isSubField: true, order: 35 },
+  { id: "p2_21", label: "21** Statement of defence submitted by the CO during the inquiry proceedings under rule 9 (19) of RS (D&A) Rules :", choice: "", value: "", isSubField: false, order: 36 },
+  { id: "p2_22_a", label: "22 (a) Whether general examination of the CO is done (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 37 },
+  { id: "p2_22_b", label: "(b) ** If yes, folio at which general examination of CO is placed :", choice: "", value: "", isSubField: true, order: 38 },
+  { id: "p2_22_c", label: "(c) If no, the reasons therefore may be indicated :", choice: "", value: "", isSubField: true, order: 39 },
+  { id: "p2_23", label: "23 Description of all the Relied Upon Documents (RUD) mentioned in the Annexure-III of the chargesheet. (Details of the same in respect of each document may be given with proper folio number and folder, if necessary, in a separate sheet) :", choice: "", value: "", isSubField: false, order: 40 },
+  { id: "p2_24_a", label: "24 (a)** Written brief, if any, submitted by the presenting officer :", choice: "", value: "", isSubField: false, order: 41 },
+  { id: "p2_24_b", label: "(b)** Records of supply of PO's brief to the CO :", choice: "", value: "", isSubField: true, order: 42 },
+  { id: "p2_25", label: "25 Written brief, if any, submitted by the CO under rule 9 (22) of RS (D&A) Rules :", choice: "", value: "", isSubField: false, order: 43 },
+  { id: "p2_26_a", label: "26 (a) Whether CO has submitted any representation regarding biasness of the IO (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 44 },
+  { id: "p2_26_b", label: "(b) ** If yes, representation of the CO regarding biasness of the IO :", choice: "", value: "", isSubField: true, order: 45 },
+  { id: "p2_26_c", label: "(c) ** Competent Authority's letter/order vide which the CO's representation regarding biasness of the IO has been disposed of :", choice: "", value: "", isSubField: true, order: 46 },
+  { id: "p2_27_a", label: "27 (a)** Inquiry Report :", choice: "", value: "", isSubField: false, order: 47 },
+  { id: "p2_27_b", label: "(b)** Records of supply of the inquiry report to the CO :", choice: "", value: "", isSubField: true, order: 48 },
+  { id: "p2_28_a", label: "28 (a) Is there any disagreement of the DA with the inquiry report (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 49 },
+  { id: "p2_28_b", label: "(b)** If yes, reasons of disagreement of the DA with the findings of the IO :", choice: "", value: "", isSubField: true, order: 50 },
+  { id: "p2_28_c", label: "(c)** Records of communication of the reasons for disagreement to the CO along with the inquiry report :", choice: "", value: "", isSubField: true, order: 51 },
+  { id: "p2_29_a", label: "29 (a) Whether the CO has submitted representation against the inquiry report/disagreement memorandum (Tick the correct option) :", choice: "", value: "", isSubField: false, order: 52 },
+  { id: "p2_29_b", label: "(b)** If yes, the CO's representation against the inquiry report/disagreement memorandum :", choice: "", value: "", isSubField: true, order: 53 },
+  { id: "p2_30", label: "30 Self-contained note and Parawise comments of the DA & AA, on the CO's representation against the inquiry report/penalty imposed/disagreement memorandum :", choice: "", value: "", isSubField: false, order: 54 }
+];
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -70,6 +127,11 @@ export const useStore = create<AppState>()(
         srDpoDesignationHi: "वरिष्ठ मंडल कार्मिक अधिकारी / कटिहार (Sr. DPO / KIR)",
         importantMessageText: "ATTENTION CANDIDATES: All Act Apprentice notifications, selection schedules, and physical document verification lists are hosted ONLY on this official web portal. Please do not trust unauthorized agents demanding financial transactions or job guarantees under our DRM/Katihar division name.",
         importantMessageEnabled: "true",
+        ta_rate_l1_l5: "500",
+        ta_rate_l6_l8: "800",
+        ta_rate_l9_l11: "900",
+        ta_rate_l12_l13: "1000",
+        ta_rate_l14_l18: "1200",
       },
       updateConfig: (key, value) => set((state) => {
         const newConfig = { ...state.config, [key]: value };
@@ -605,6 +667,45 @@ export const useStore = create<AppState>()(
       deleteApoAllotment: (id) => set((state) => {
         deleteDoc(doc(db, "apoWorkAllotments", id)).catch(console.error);
         return { apoWorkAllotments: (state.apoWorkAllotments || []).filter((a) => a.id !== id) };
+      }),
+
+      part2Template: DEFAULT_PART2_TEMPLATE,
+
+      addPart2TemplateField: (field) => set((state) => {
+        const id = field.id || "p2_" + generateId();
+        const order = field.order || (state.part2Template.length ? Math.max(...state.part2Template.map(f => f.order || 0)) + 1 : 1);
+        const newField: Part2Field = {
+          ...field,
+          id,
+          choice: "",
+          value: "",
+          order,
+        };
+        setDoc(doc(db, "part2Template", id), newField).catch(console.error);
+        return { part2Template: [...state.part2Template, newField].sort((a, b) => (a.order || 0) - (b.order || 0)) };
+      }),
+
+      updatePart2TemplateField: (id, updates) => set((state) => {
+        const updatedFields = state.part2Template.map((f) => f.id === id ? { ...f, ...updates } : f);
+        const findField = updatedFields.find((f) => f.id === id);
+        if (findField) {
+          setDoc(doc(db, "part2Template", id), findField).catch(console.error);
+        }
+        return { part2Template: updatedFields.sort((a, b) => (a.order || 0) - (b.order || 0)) };
+      }),
+
+      deletePart2TemplateField: (id) => set((state) => {
+        deleteDoc(doc(db, "part2Template", id)).catch(console.error);
+        return { part2Template: state.part2Template.filter((f) => f.id !== id) };
+      }),
+
+      reorderPart2TemplateFields: (orderedFields) => set((state) => {
+        const updatedFields = orderedFields.map((f, index) => {
+          const updated = { ...f, order: index + 1 };
+          setDoc(doc(db, "part2Template", f.id), updated).catch(console.error);
+          return updated;
+        });
+        return { part2Template: updatedFields };
       }),
     }),
     {
