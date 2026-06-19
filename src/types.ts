@@ -61,6 +61,8 @@ export interface SiteConfig {
   ta_rate_l9_l11?: string;
   ta_rate_l12_l13?: string;
   ta_rate_l14_l18?: string;
+  enableContingentSection?: string;
+  enablePrintMetadata?: string;
 }
 
 export interface LogoItem {

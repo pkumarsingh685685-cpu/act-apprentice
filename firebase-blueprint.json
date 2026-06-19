@@ -117,9 +117,26 @@
         "createdAt": { "type": "string" }
       },
       "required": ["employeeName", "payLevel"]
+    },
+    "CustomStation": {
+      "title": "Custom Station",
+      "description": "Railway station code and name dynamically registered by the user stored in the cloud firestore database.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "hindiName": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" }
+      },
+      "required": ["code", "name"]
     }
   },
   "firestore": {
+    "/custom_stations/{stationId}": {
+      "schema": "CustomStation",
+      "description": "Custom station codes and names registered dynamically."
+    },
     "/nfrOrgNodes/{nodeId}": {
       "schema": "NfrOrgNode",
       "description": "Collections of NFR divisions and workshops displayed in the Interactive Organization Map."

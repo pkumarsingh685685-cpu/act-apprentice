@@ -59,6 +59,8 @@ export default function SFGeneratorPage() {
         : (savedSubTab || "TYPES_OF_SF")
   );
 
+  const [taShowSidebars, setTaShowSidebars] = useState<boolean>(false);
+
   const selectDarSubTab = (sub: "TYPES_OF_SF" | "DAR_POSITION" | "HQ_MATERIAL" | "INBOX") => {
     setDarSubTab(sub);
     localStorage.setItem("lastSelectedDARSubTab", sub);
@@ -337,7 +339,9 @@ export default function SFGeneratorPage() {
   return (
     <div className="w-full max-w-full mx-auto flex-1 flex flex-col lg:flex-row bg-gray-100 min-h-screen lg:h-[calc(100vh-4rem)] p-2 lg:p-4 gap-4 overflow-y-auto lg:overflow-hidden font-sans">
       {/* Premium left navigation vertical sidebar (Up to Down) layout */}
-      <div className="w-full lg:w-80 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl shadow-[0_12px_30px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.08)] shrink-0 p-4 gap-4 backdrop-blur-md relative overflow-hidden z-30">
+      <div className={`w-full lg:w-80 flex-col bg-slate-900 border border-slate-800 rounded-2xl shadow-[0_12px_30px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.08)] shrink-0 p-4 gap-4 backdrop-blur-md relative overflow-hidden z-30 ${
+        mainTab === "CLAIM_TA" && !taShowSidebars ? "hidden" : "flex"
+      }`}>
         {/* Decorative dynamic backdrop visuals */}
         <div className="absolute top-0 left-1/4 w-36 h-0.5 bg-gradient-to-r from-transparent via-violet-500 to-transparent blur-sm animate-pulse" />
         <div className="absolute bottom-0 right-1/4 w-44 h-[1px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-60" />
@@ -655,8 +659,8 @@ export default function SFGeneratorPage() {
       )}
 
       {mainTab === "CLAIM_TA" && (
-        <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col overflow-hidden relative z-10 w-full h-full min-w-0">
-          <ClaimTaManager />
+        <div className={`flex-1 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col relative z-20 w-full h-full min-w-0 ${taShowSidebars ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+          <ClaimTaManager showSidebars={taShowSidebars} onToggleSidebars={setTaShowSidebars} />
         </div>
       )}
 

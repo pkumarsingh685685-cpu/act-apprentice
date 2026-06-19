@@ -127,11 +127,13 @@ export const useStore = create<AppState>()(
         srDpoDesignationHi: "वरिष्ठ मंडल कार्मिक अधिकारी / कटिहार (Sr. DPO / KIR)",
         importantMessageText: "ATTENTION CANDIDATES: All Act Apprentice notifications, selection schedules, and physical document verification lists are hosted ONLY on this official web portal. Please do not trust unauthorized agents demanding financial transactions or job guarantees under our DRM/Katihar division name.",
         importantMessageEnabled: "true",
-        ta_rate_l1_l5: "500",
-        ta_rate_l6_l8: "800",
-        ta_rate_l9_l11: "900",
-        ta_rate_l12_l13: "1000",
-        ta_rate_l14_l18: "1200",
+        ta_rate_l1_l5: "625",
+        ta_rate_l6_l8: "1000",
+        ta_rate_l9_l11: "1125",
+        ta_rate_l12_l13: "1250",
+        ta_rate_l14_l18: "1500",
+        enableContingentSection: "true",
+        enablePrintMetadata: "true",
       },
       updateConfig: (key, value) => set((state) => {
         const newConfig = { ...state.config, [key]: value };

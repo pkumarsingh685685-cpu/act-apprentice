@@ -1806,9 +1806,9 @@ function SettingsForm() {
               <input
                 name="ta_rate_l1_l5"
                 type="number"
-                value={localConfig.ta_rate_l1_l5 || '500'}
+                value={localConfig.ta_rate_l1_l5 || '625'}
                 onChange={handleChange}
-                placeholder="500"
+                placeholder="625"
                 className="w-full p-2 border rounded text-sm font-mono font-bold bg-white focus:ring-1 focus:ring-violet-500"
               />
             </div>
@@ -1817,9 +1817,9 @@ function SettingsForm() {
               <input
                 name="ta_rate_l6_l8"
                 type="number"
-                value={localConfig.ta_rate_l6_l8 || '800'}
+                value={localConfig.ta_rate_l6_l8 || '1000'}
                 onChange={handleChange}
-                placeholder="800"
+                placeholder="1000"
                 className="w-full p-2 border rounded text-sm font-mono font-bold bg-white focus:ring-1 focus:ring-violet-500"
               />
             </div>
@@ -1828,9 +1828,9 @@ function SettingsForm() {
               <input
                 name="ta_rate_l9_l11"
                 type="number"
-                value={localConfig.ta_rate_l9_l11 || '900'}
+                value={localConfig.ta_rate_l9_l11 || '1125'}
                 onChange={handleChange}
-                placeholder="900"
+                placeholder="1125"
                 className="w-full p-2 border rounded text-sm font-mono font-bold bg-white focus:ring-1 focus:ring-violet-500"
               />
             </div>
@@ -1839,9 +1839,9 @@ function SettingsForm() {
               <input
                 name="ta_rate_l12_l13"
                 type="number"
-                value={localConfig.ta_rate_l12_l13 || '1000'}
+                value={localConfig.ta_rate_l12_l13 || '1250'}
                 onChange={handleChange}
-                placeholder="1000"
+                placeholder="1250"
                 className="w-full p-2 border rounded text-sm font-mono font-bold bg-white focus:ring-1 focus:ring-violet-500"
               />
             </div>
@@ -1850,11 +1850,58 @@ function SettingsForm() {
               <input
                 name="ta_rate_l14_l18"
                 type="number"
-                value={localConfig.ta_rate_l14_l18 || '1200'}
+                value={localConfig.ta_rate_l14_l18 || '1500'}
                 onChange={handleChange}
-                placeholder="1200"
+                placeholder="1500"
                 className="w-full p-2 border rounded text-sm font-mono font-bold bg-white focus:ring-1 focus:ring-violet-500"
               />
+            </div>
+          </div>
+        </div>
+
+        {/* CONTINGENT SECTION AND PRINT METADATA SETTINGS */}
+        <div className="md:col-span-2 mt-4 pt-4 border-t bg-amber-50/50 p-4 rounded-lg border border-amber-200">
+          <h4 className="text-md font-bold text-amber-805 mb-2 flex items-center gap-1.5">
+            ⚙️ TA PRINT & CONTINGENT SYSTEM CONTROLS (प्रिंट एवं फुटकर व्यय नियंत्रण)
+          </h4>
+          <p className="text-xs text-slate-600 mb-4">
+            Manage advanced features for the Traveling Allowance generator including custom petty cash (contingent lists) and print authenticity systems.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold mb-1 text-slate-700">
+                Contingent Amount Feature (फुटकर व्यय सुविधा की स्थिति)
+              </label>
+              <select
+                name="enableContingentSection"
+                value={localConfig.enableContingentSection !== "false" ? "true" : "false"}
+                onChange={(e) => setLocalConfig({ ...localConfig, enableContingentSection: e.target.value })}
+                className="w-full p-2 border rounded font-medium bg-white text-gray-900"
+              >
+                <option value="true">✅ Enabled - Allow custom contingent amounts & Remarks (सक्रिय)</option>
+                <option value="false">❌ Disabled - Hide custom contingent fields (निष्क्रिय)</option>
+              </select>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Controls whether users can input custom contingent items (with remarks on expenses) inside their TA Bill forms.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold mb-1 text-slate-700">
+                Auto-Generated Stamp & Timing (ऑटो-जनरेटेड प्रिंट समय / वॉटरमार्क)
+              </label>
+              <select
+                name="enablePrintMetadata"
+                value={localConfig.enablePrintMetadata !== "false" ? "true" : "false"}
+                onChange={(e) => setLocalConfig({ ...localConfig, enablePrintMetadata: e.target.value })}
+                className="w-full p-2 border rounded font-medium bg-white text-gray-900"
+              >
+                <option value="true">✅ Enabled - Print Verification Stamp, Date & Time (सक्रिय)</option>
+                <option value="false">❌ Disabled - Normal printing without footer system stamp (निष्क्रिय)</option>
+              </select>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Appends "Auto-generated via Official NFR Portals" along with the precise date & time of creation onto printed pages.
+              </p>
             </div>
           </div>
         </div>
@@ -1922,8 +1969,10 @@ function DocumentManager({
   const items = useStore((state) => state[type]);
   const addDocument = useStore((state) => state.addDocument);
   const deleteDocument = useStore((state) => state.deleteDocument);
+  const updateDocument = useStore((state) => state.updateDocument);
 
   const [isAdding, setIsAdding] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<DocumentItem | null>(null);
   const [newDoc, setNewDoc] = useState<Omit<DocumentItem, "id">>({
     title: "",
     date: new Date().toISOString().split("T")[0],
@@ -2095,6 +2144,140 @@ function DocumentManager({
         </form>
       )}
 
+      {editingDoc && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const promise = new Promise((resolve) => {
+              updateDocument(type, editingDoc.id, {
+                title: editingDoc.title,
+                date: editingDoc.date,
+                viewLink: editingDoc.viewLink,
+                downloadLink: editingDoc.downloadLink,
+                isNew: editingDoc.isNew,
+                order: editingDoc.order,
+              });
+              setTimeout(resolve, 300);
+            });
+            toast.promise(promise, {
+              loading: "Saving updates...",
+              success: "Document Updated Successfully",
+              error: "Update Failed",
+            });
+            setEditingDoc(null);
+          }}
+          className="bg-amber-50 p-4 rounded-md border border-amber-200 grid grid-cols-1 md:grid-cols-2 gap-4"
+        >
+          <div className="md:col-span-2 flex justify-between items-center border-b pb-2">
+            <span className="font-bold text-amber-800">Edit Document/Notice: {editingDoc.title}</span>
+            <button
+              type="button"
+              onClick={() => setEditingDoc(null)}
+              className="text-gray-500 hover:text-gray-700 text-sm font-semibold"
+            >
+              Close [X]
+            </button>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium mb-1 text-gray-700">Title</label>
+            <input
+              required
+              value={editingDoc.title}
+              onChange={(e) => setEditingDoc({ ...editingDoc, title: e.target.value })}
+              className="w-full p-2 border rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white text-gray-900"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Date</label>
+            <input
+              type="date"
+              required
+              value={editingDoc.date}
+              onChange={(e) => setEditingDoc({ ...editingDoc, date: e.target.value })}
+              className="w-full p-2 border rounded bg-white text-gray-900"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">
+              Order Index (Lower = First)
+            </label>
+            <input
+              type="number"
+              required
+              value={editingDoc.order}
+              onChange={(e) =>
+                setEditingDoc({ ...editingDoc, order: parseInt(e.target.value) || 0 })
+              }
+              className="w-full p-2 border rounded bg-white text-gray-900"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium mb-1 text-gray-700">
+              Replace Document (PDF/Image) in Cloudinary
+            </label>
+            <input
+              type="file"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const toastId = toast.loading("Uploading replacement file to Cloudinary...");
+                try {
+                  const url = await uploadToStorage(file, "documents");
+                  setEditingDoc({ ...editingDoc, viewLink: url, downloadLink: url });
+                  toast.success("New file uploaded successfully", { id: toastId });
+                } catch (err: any) {
+                  toast.error(err.message || "File upload failed", { id: toastId });
+                }
+              }}
+              className="w-full p-2 border rounded bg-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">File View Link</label>
+            <input
+              value={editingDoc.viewLink}
+              onChange={(e) => setEditingDoc({ ...editingDoc, viewLink: e.target.value })}
+              className="w-full p-2 border rounded bg-white text-gray-900"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">File Download Link</label>
+            <input
+              value={editingDoc.downloadLink}
+              onChange={(e) => setEditingDoc({ ...editingDoc, downloadLink: e.target.value })}
+              className="w-full p-2 border rounded bg-white text-gray-900"
+            />
+          </div>
+          <div className="md:col-span-2 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="editIsNew"
+              checked={editingDoc.isNew}
+              onChange={(e) => setEditingDoc({ ...editingDoc, isNew: e.target.checked })}
+              className="w-4 h-4 text-blue-600 rounded"
+            />
+            <label htmlFor="editIsNew" className="text-sm font-medium text-gray-750">
+              Show "NEW" Badge
+            </label>
+          </div>
+          <div className="md:col-span-2 flex gap-2">
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-bold"
+            >
+              Apply Changes
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditingDoc(null)}
+              className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 font-bold"
+            >
+              Cancel Edit
+            </button>
+          </div>
+        </form>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50 border-b">
@@ -2121,10 +2304,21 @@ function DocumentManager({
                       "-"
                     )}
                   </td>
-                  <td className="p-3 text-right">
+                  <td className="p-3 text-right flex items-center justify-end gap-2 h-full">
+                    <button
+                      onClick={() => {
+                        setEditingDoc(item);
+                        setIsAdding(false);
+                      }}
+                      className="text-indigo-600 hover:text-indigo-800 font-semibold p-1 hover:bg-indigo-50 rounded transition-colors flex items-center gap-0.5"
+                      title="Edit Item"
+                    >
+                      <Edit size={14} /> <span className="text-xs">Edit</span>
+                    </button>
                     <button
                       onClick={() => handleDelete(item.id)}
-                      className="text-red-500 hover:text-red-700 p-1"
+                      className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-colors"
+                      title="Delete Item"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -2309,8 +2503,10 @@ function LinksManager() {
   const items = useStore((state) => state.links);
   const addLink = useStore((state) => state.addLink);
   const deleteLink = useStore((state) => state.deleteLink);
+  const updateLink = useStore((state) => state.updateLink);
 
   const [isAdding, setIsAdding] = useState(false);
+  const [editingLink, setEditingLink] = useState<any | null>(null);
   const [newLink, setNewLink] = useState({
     name: "",
     url: "",
@@ -2351,7 +2547,10 @@ function LinksManager() {
           Railways Website Link Management
         </h3>
         <button
-          onClick={() => setIsAdding(!isAdding)}
+          onClick={() => {
+            setIsAdding(!isAdding);
+            setEditingLink(null);
+          }}
           className="bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm flex items-center gap-1 hover:bg-blue-700"
         >
           {isAdding ? (
@@ -2413,6 +2612,84 @@ function LinksManager() {
         </form>
       )}
 
+      {editingLink && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const promise = new Promise((resolve) => {
+              updateLink(editingLink.id, {
+                name: editingLink.name,
+                url: editingLink.url,
+                order: editingLink.order,
+              });
+              setTimeout(resolve, 300);
+            });
+            toast.promise(promise, {
+              loading: "Saving updates...",
+              success: "Link Updated Successfully",
+              error: "Update Failed",
+            });
+            setEditingLink(null);
+          }}
+          className="bg-amber-50 p-4 rounded-md border border-amber-200 grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn"
+        >
+          <div className="md:col-span-2 flex justify-between items-center border-b pb-2">
+            <span className="font-bold text-amber-800">Edit Link details: {editingLink.name}</span>
+            <button
+              type="button"
+              onClick={() => setEditingLink(null)}
+              className="text-gray-500 hover:text-gray-750 text-xs font-bold"
+            >
+              [X] Cancel
+            </button>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium mb-1 text-gray-700">Link Name</label>
+            <input
+              required
+              value={editingLink.name}
+              onChange={(e) => setEditingLink({ ...editingLink, name: e.target.value })}
+              className="w-full p-2 border rounded bg-white text-gray-900 focus:ring-1 focus:ring-amber-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">URL</label>
+            <input
+              required
+              type="url"
+              value={editingLink.url}
+              onChange={(e) => setEditingLink({ ...editingLink, url: e.target.value })}
+              className="w-full p-2 border rounded bg-white text-gray-900 focus:ring-1 focus:ring-amber-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Order</label>
+            <input
+              required
+              type="number"
+              value={editingLink.order}
+              onChange={(e) => setEditingLink({ ...editingLink, order: parseInt(e.target.value) || 0 })}
+              className="w-full p-2 border rounded bg-white text-gray-900 focus:ring-1 focus:ring-amber-500"
+            />
+          </div>
+          <div className="md:col-span-2 flex gap-2">
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-bold"
+            >
+              Update Link
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditingLink(null)}
+              className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 font-bold"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50 border-b">
@@ -2431,10 +2708,21 @@ function LinksManager() {
                   <td className="p-3">{item.order}</td>
                   <td className="p-3 font-medium">{item.name}</td>
                   <td className="p-3 text-blue-600">{item.url}</td>
-                  <td className="p-3 text-right">
+                  <td className="p-3 text-right flex items-center justify-end gap-2 h-full">
+                    <button
+                      onClick={() => {
+                        setEditingLink(item);
+                        setIsAdding(false);
+                      }}
+                      className="text-indigo-600 hover:text-indigo-800 font-semibold p-1 hover:bg-indigo-50 rounded transition-colors flex items-center gap-0.5"
+                      title="Edit Link"
+                    >
+                      <Edit size={14} /> <span className="text-xs">Edit</span>
+                    </button>
                     <button
                       onClick={() => handleDelete(item.id)}
-                      className="text-red-500 hover:text-red-700 p-1"
+                      className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-colors"
+                      title="Delete Link"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -2452,8 +2740,10 @@ function ExternalLinksManager() {
   const items = useStore((state) => state.externalLinks);
   const addLink = useStore((state) => state.addExternalLink);
   const deleteLink = useStore((state) => state.deleteExternalLink);
+  const updateExternalLink = useStore((state) => state.updateExternalLink);
 
   const [isAdding, setIsAdding] = useState(false);
+  const [editingLink, setEditingLink] = useState<any | null>(null);
   const [newLink, setNewLink] = useState({
     name: "",
     url: "",
@@ -2492,7 +2782,10 @@ function ExternalLinksManager() {
       <div className="flex justify-between items-center border-b pb-2">
         <h3 className="text-lg font-semibold">External Links Management</h3>
         <button
-          onClick={() => setIsAdding(!isAdding)}
+          onClick={() => {
+            setIsAdding(!isAdding);
+            setEditingLink(null);
+          }}
           className="bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm flex items-center gap-1 hover:bg-blue-700"
         >
           {isAdding ? (
@@ -2552,6 +2845,84 @@ function ExternalLinksManager() {
         </form>
       )}
 
+      {editingLink && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const promise = new Promise((resolve) => {
+              updateExternalLink(editingLink.id, {
+                name: editingLink.name,
+                url: editingLink.url,
+                order: editingLink.order,
+              });
+              setTimeout(resolve, 300);
+            });
+            toast.promise(promise, {
+              loading: "Saving updates...",
+              success: "Link Updated Successfully",
+              error: "Update Failed",
+            });
+            setEditingLink(null);
+          }}
+          className="bg-amber-50 p-4 rounded-md border border-amber-200 grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn"
+        >
+          <div className="md:col-span-2 flex justify-between items-center border-b pb-2">
+            <span className="font-bold text-amber-800">Edit External Link: {editingLink.name}</span>
+            <button
+              type="button"
+              onClick={() => setEditingLink(null)}
+              className="text-gray-500 hover:text-gray-750 text-xs font-bold"
+            >
+              [X] Cancel
+            </button>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium mb-1 text-gray-700">Link Name</label>
+            <input
+              required
+              value={editingLink.name}
+              onChange={(e) => setEditingLink({ ...editingLink, name: e.target.value })}
+              className="w-full p-2 border rounded bg-white text-gray-900 focus:ring-1 focus:ring-amber-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">URL</label>
+            <input
+              required
+              type="text"
+              value={editingLink.url}
+              onChange={(e) => setEditingLink({ ...editingLink, url: e.target.value })}
+              className="w-full p-2 border rounded bg-white text-gray-900 focus:ring-1 focus:ring-amber-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Order</label>
+            <input
+              required
+              type="number"
+              value={editingLink.order}
+              onChange={(e) => setEditingLink({ ...editingLink, order: parseInt(e.target.value) || 0 })}
+              className="w-full p-2 border rounded bg-white text-gray-900 focus:ring-1 focus:ring-amber-500"
+            />
+          </div>
+          <div className="md:col-span-2 flex gap-2">
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-bold"
+            >
+              Update External Link
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditingLink(null)}
+              className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 font-bold"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50 border-b">
@@ -2570,10 +2941,21 @@ function ExternalLinksManager() {
                   <td className="p-3">{item.order}</td>
                   <td className="p-3 font-medium">{item.name}</td>
                   <td className="p-3 text-blue-600">{item.url}</td>
-                  <td className="p-3 text-right">
+                  <td className="p-3 text-right flex items-center justify-end gap-2 h-full">
+                    <button
+                      onClick={() => {
+                        setEditingLink(item);
+                        setIsAdding(false);
+                      }}
+                      className="text-indigo-600 hover:text-indigo-800 font-semibold p-1 hover:bg-indigo-50 rounded transition-colors flex items-center gap-0.5"
+                      title="Edit Link"
+                    >
+                      <Edit size={14} /> <span className="text-xs">Edit</span>
+                    </button>
                     <button
                       onClick={() => handleDelete(item.id)}
-                      className="text-red-500 hover:text-red-700 p-1"
+                      className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-colors"
+                      title="Delete Link"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -2591,8 +2973,10 @@ function InternalLinksManager() {
   const items = useStore((state) => state.internalLinks);
   const addLink = useStore((state) => state.addInternalLink);
   const deleteLink = useStore((state) => state.deleteInternalLink);
+  const updateInternalLink = useStore((state) => state.updateInternalLink);
 
   const [isAdding, setIsAdding] = useState(false);
+  const [editingLink, setEditingLink] = useState<any | null>(null);
   const [newLink, setNewLink] = useState({
     name: "",
     url: "",
@@ -2631,7 +3015,10 @@ function InternalLinksManager() {
       <div className="flex justify-between items-center border-b pb-2">
         <h3 className="text-lg font-semibold">Internal Links Management</h3>
         <button
-          onClick={() => setIsAdding(!isAdding)}
+          onClick={() => {
+            setIsAdding(!isAdding);
+            setEditingLink(null);
+          }}
           className="bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm flex items-center gap-1 hover:bg-blue-700"
         >
           {isAdding ? (
@@ -2691,6 +3078,84 @@ function InternalLinksManager() {
         </form>
       )}
 
+      {editingLink && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const promise = new Promise((resolve) => {
+              updateInternalLink(editingLink.id, {
+                name: editingLink.name,
+                url: editingLink.url,
+                order: editingLink.order,
+              });
+              setTimeout(resolve, 300);
+            });
+            toast.promise(promise, {
+              loading: "Saving updates...",
+              success: "Link Updated Successfully",
+              error: "Update Failed",
+            });
+            setEditingLink(null);
+          }}
+          className="bg-amber-50 p-4 rounded-md border border-amber-200 grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn"
+        >
+          <div className="md:col-span-2 flex justify-between items-center border-b pb-2">
+            <span className="font-bold text-amber-800">Edit Internal Link: {editingLink.name}</span>
+            <button
+              type="button"
+              onClick={() => setEditingLink(null)}
+              className="text-gray-500 hover:text-gray-755 text-xs font-bold"
+            >
+              [X] Cancel
+            </button>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium mb-1 text-gray-700">Link Name</label>
+            <input
+              required
+              value={editingLink.name}
+              onChange={(e) => setEditingLink({ ...editingLink, name: e.target.value })}
+              className="w-full p-2 border rounded bg-white text-gray-900 focus:ring-1 focus:ring-amber-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">URL</label>
+            <input
+              required
+              type="text"
+              value={editingLink.url}
+              onChange={(e) => setEditingLink({ ...editingLink, url: e.target.value })}
+              className="w-full p-2 border rounded bg-white text-gray-900 focus:ring-1 focus:ring-amber-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Order</label>
+            <input
+              required
+              type="number"
+              value={editingLink.order}
+              onChange={(e) => setEditingLink({ ...editingLink, order: parseInt(e.target.value) || 0 })}
+              className="w-full p-2 border rounded bg-white text-gray-900 focus:ring-1 focus:ring-amber-500"
+            />
+          </div>
+          <div className="md:col-span-2 flex gap-2">
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-bold"
+            >
+              Update Internal Link
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditingLink(null)}
+              className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 font-bold"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50 border-b">
@@ -2709,10 +3174,21 @@ function InternalLinksManager() {
                   <td className="p-3">{item.order}</td>
                   <td className="p-3 font-medium">{item.name}</td>
                   <td className="p-3 text-blue-600">{item.url}</td>
-                  <td className="p-3 text-right">
+                  <td className="p-3 text-right flex items-center justify-end gap-2 h-full">
+                    <button
+                      onClick={() => {
+                        setEditingLink(item);
+                        setIsAdding(false);
+                      }}
+                      className="text-indigo-600 hover:text-indigo-800 font-semibold p-1 hover:bg-indigo-50 rounded transition-colors flex items-center gap-0.5"
+                      title="Edit Link"
+                    >
+                      <Edit size={14} /> <span className="text-xs">Edit</span>
+                    </button>
                     <button
                       onClick={() => handleDelete(item.id)}
-                      className="text-red-500 hover:text-red-700 p-1"
+                      className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-colors"
+                      title="Delete Link"
                     >
                       <Trash2 size={16} />
                     </button>

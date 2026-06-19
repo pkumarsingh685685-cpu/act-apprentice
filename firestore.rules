@@ -121,6 +121,9 @@ service cloud.firestore {
     match /ta_claims/{docId} {
       allow read, write: if true;
     }
+    match /custom_stations/{docId} {
+      allow read, write: if true;
+    }
     match /{document=**} {
       allow read, write: if false;
     }
