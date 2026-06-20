@@ -58,6 +58,12 @@ interface TACase {
   claimYear?: string;
   billUnit?: string;
   calculationMode?: 'calendar_day' | 'continuous';
+  globalPurpose?: string;
+  showSummaryTable?: boolean;
+  showClaimantSig?: boolean;
+  showCounterSig?: boolean;
+  showHeadOfficeSig?: boolean;
+  showControllingOfficerSig?: boolean;
 }
 
 const MONTHS_LIST = [
@@ -176,6 +182,72 @@ const PAY_LEVELS = [
   { level: "Level 18", rate: 1500 },
 ];
 
+const RAILWAY_DESIGNATIONS = [
+  "Senior Section Engineer (SSE)",
+  "Junior Engineer (JE)",
+  "Station Master (SM)",
+  "Assistant Station Master (ASM)",
+  "Pointsman",
+  "Loco Pilot (LP)",
+  "Assistant Loco Pilot (ALP)",
+  "Guard / Train Manager",
+  "Ticket Examiner (TE)",
+  "Senior Ticket Examiner (Sr. TE)",
+  "Chief Ticket Inspector (CTI)",
+  "Chief Booking Supervisor (CBS)",
+  "Booking Clerk",
+  "Chief Parcel Supervisor (CPS)",
+  "Office Superintendent (OS)",
+  "Senior Clerk",
+  "Junior Clerk",
+  "Track Maintainer Grade-I",
+  "Track Maintainer Grade-II",
+  "Track Maintainer Grade-III",
+  "Track Maintainer Grade-IV",
+  "Keyman",
+  "Mate",
+  "Gatekeeper",
+  "Technician Grade-I",
+  "Technician Grade-II",
+  "Technician Grade-III",
+  "Senior Technician",
+  "Helper / Khalasi",
+  "Assistant Personnel Officer (APO)",
+  "Divisional Personnel Officer (DPO)",
+  "Senior Divisional Personnel Officer (Sr. DPO)",
+  "Assistant Commercial Manager (ACM)",
+  "Divisional Commercial Manager (DCM)",
+  "Senior Divisional Commercial Manager (Sr. DCM)",
+  "Assistant Divisional Electrical Engineer (ADEE)",
+  "Divisional Electrical Engineer (DEE)",
+  "Senior Divisional Electrical Engineer (Sr. DEE)",
+  "Assistant Divisional Mechanical Engineer (ADME)",
+  "Divisional Mechanical Engineer (DME)",
+  "Senior Divisional Mechanical Engineer (Sr. DME)",
+  "Assistant Divisional Signal & Telecom Engineer (ADSTE)",
+  "Divisional Signal & Telecom Engineer (DSTE)",
+  "Senior Divisional Signal & Telecom Engineer (Sr. DSTE)",
+  "Assistant Divisional Engineer (ADEN)",
+  "Divisional Engineer (DEN)",
+  "Senior Divisional Engineer (Sr. DEN)",
+  "Assistant Security Commissioner (ASC)",
+  "Divisional Security Commissioner (DSC)",
+  "Senior Divisional Security Commissioner (Sr. DSC)",
+  "RPF Inspector",
+  "RPF Sub-Inspector",
+  "RPF Constable",
+  "Pharmacist",
+  "Nursing Superintendent",
+  "Assistant Divisional Finance Manager (ADFM)",
+  "Divisional Finance Manager (DFM)",
+  "Senior Divisional Finance Manager (Sr. DFM)",
+  "Assistant Divisional Operations Manager (AOM)",
+  "Divisional Operations Manager (DOM)",
+  "Senior Divisional Operations Manager (Sr. DOM)",
+  "Additional Divisional Railway Manager (ADRM)",
+  "Divisional Railway Manager (DRM)"
+];
+
 export interface ClaimTaManagerProps {
   showSidebars?: boolean;
   onToggleSidebars?: (show: boolean) => void;
@@ -186,17 +258,18 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
   const [employeeName, setEmployeeName] = useState("");
   const [designation, setDesignation] = useState("");
   const [empNo, setEmpNo] = useState("");
-  const [payLevel, setPayLevel] = useState("Level 6");
-  const [division, setDivision] = useState("KATIHAR");
-  const [department, setDepartment] = useState("PERSONNEL");
-  const [claimMonth, setClaimMonth] = useState(() => MONTHS_LIST[new Date().getMonth()]);
-  const [claimYear, setClaimYear] = useState(() => new Date().getFullYear().toString());
+  const [payLevel, setPayLevel] = useState("");
+  const [division, setDivision] = useState("");
+  const [department, setDepartment] = useState("");
+  const [claimMonth, setClaimMonth] = useState("");
+  const [claimYear, setClaimYear] = useState("");
   const [billUnit, setBillUnit] = useState("");
   const [calculationMode, setCalculationMode] = useState<'calendar_day' | 'continuous'>('calendar_day');
   const [isLandscape, setIsLandscape] = useState(true);
   const [hasDeclared, setHasDeclared] = useState(false);
+  const [globalPurpose, setGlobalPurpose] = useState("Official Duty");
   
-  // Initialize with departure and return leg structures
+  // Initialize with departure and return leg structures (empty and required, no mock values)
   const [journeyLegs, setJourneyLegs] = useState<JourneyLeg[]>([
     {
       id: "leg-1",
@@ -204,30 +277,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
       stationTo: "",
       mode: "Train",
       trainNoOrVehNo: "",
-      depDate: new Date().toISOString().split('T')[0],
-      depTime: "08:00",
-      arrDate: new Date().toISOString().split('T')[0],
-      arrTime: "14:00",
-      purpose: "Official Duty",
-      stoppedDurationHrs: 0,
-      isBreakdownDuty: false,
-      isFreeMessingTraining: false,
-      isTerritorialArmy: false,
-      roadDistanceKm: 0,
-      roadType: 'car_taxi',
-      beyond8Km: true
-    },
-    {
-      id: "leg-2",
-      stationFrom: "",
-      stationTo: "",
-      mode: "Train",
-      trainNoOrVehNo: "",
-      depDate: new Date().toISOString().split('T')[0],
-      depTime: "18:00",
-      arrDate: new Date().toISOString().split('T')[0],
-      arrTime: "23:00",
-      purpose: "Return to Headquarters",
+      depDate: "",
+      depTime: "",
+      arrDate: "",
+      arrTime: "",
+      purpose: "",
       stoppedDurationHrs: 0,
       isBreakdownDuty: false,
       isFreeMessingTraining: false,
@@ -247,6 +301,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
   const [showCounterSig, setShowCounterSig] = useState(true);
   const [showHeadOfficeSig, setShowHeadOfficeSig] = useState(true);
   const [showControllingOfficerSig, setShowControllingOfficerSig] = useState(true);
+  const [showSummaryTable, setShowSummaryTable] = useState(true);
 
   // Print settings
   const [printSettings, setPrintSettings] = useState<PrintSettings>({
@@ -559,6 +614,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
     const totalLegHrs = travelHrs + haltHrs;
     return {
       ...leg,
+      purpose: globalPurpose || leg.purpose || "Official Duty",
       travelHours: travelHrs,
       haltHours: haltHrs,
       hours: totalLegHrs
@@ -807,11 +863,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
       stationTo: "",
       mode: "Train",
       trainNoOrVehNo: "",
-      depDate: lastLeg?.arrDate || new Date().toISOString().split('T')[0],
-      depTime: "08:00",
-      arrDate: lastLeg?.arrDate || new Date().toISOString().split('T')[0],
-      arrTime: "12:00",
-      purpose: "Official Duty",
+      depDate: lastLeg?.arrDate || "",
+      depTime: "",
+      arrDate: lastLeg?.arrDate || "",
+      arrTime: "",
+      purpose: globalPurpose,
       stoppedDurationHrs: 0,
       isBreakdownDuty: false,
       isFreeMessingTraining: false,
@@ -909,6 +965,12 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
         claimYear,
         billUnit,
         calculationMode,
+        globalPurpose,
+        showSummaryTable,
+        showClaimantSig,
+        showCounterSig,
+        showHeadOfficeSig,
+        showControllingOfficerSig,
         createdAt: new Date().toISOString()
       };
 
@@ -965,6 +1027,12 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
     setJourneyLegs(claim.journeyLegs || []);
     setContingentItems(claim.contingentItems || []);
     setHasDeclared(claim.hasDeclared);
+    setGlobalPurpose(claim.globalPurpose || "Official Duty");
+    setShowSummaryTable(claim.showSummaryTable !== undefined ? claim.showSummaryTable : true);
+    setShowClaimantSig(claim.showClaimantSig !== undefined ? claim.showClaimantSig : true);
+    setShowCounterSig(claim.showCounterSig !== undefined ? claim.showCounterSig : true);
+    setShowHeadOfficeSig(claim.showHeadOfficeSig !== undefined ? claim.showHeadOfficeSig : true);
+    setShowControllingOfficerSig(claim.showControllingOfficerSig !== undefined ? claim.showControllingOfficerSig : true);
     toast.success(`Loaded details for "${claim.employeeName}" into the active editor!`);
   };
 
@@ -980,6 +1048,12 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
     setBillUnit("");
     setCalculationMode('calendar_day');
     setHasDeclared(false);
+    setGlobalPurpose("Official Duty");
+    setShowSummaryTable(true);
+    setShowClaimantSig(true);
+    setShowCounterSig(true);
+    setShowHeadOfficeSig(true);
+    setShowControllingOfficerSig(true);
     setContingentItems([]);
     setJourneyLegs([
       {
@@ -1642,73 +1716,75 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
           </tbody>
         </table>
 
-        <div className="mt-5 mb-5 font-serif">
-          <table className={`w-full border-collapse border border-black text-left ${fh('text-[9.5pt]', 'text-[8.2pt]')}`}>
-            <thead>
-              <tr className="bg-gray-100 text-center">
-                <th colSpan={3} className={`border border-black py-0.5 px-1.5 font-bold tracking-wider uppercase ${fh('text-[10.5pt]', 'text-[9.2pt]')}`}>
-                  SUMMARY (सारांश)
-                </th>
-              </tr>
-              <tr className={`bg-gray-50 text-center font-bold ${fh('text-[9pt]', 'text-[8.0pt]')}`}>
-                <th className="border border-black py-0.5 px-1 w-[25%] font-serif">Percentage (प्रतिशत)</th>
-                <th className="border border-black py-0.5 px-1 w-[30%] font-serif">No. of total days (कुल दिनों की संख्या)</th>
-                <th className="border border-black py-0.5 px-1.5 w-[45%] font-serif text-left pl-4">Rate of TA X Days = Amount (दर X दिन = कुल राशि)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="text-center">
-                <td className="border border-black py-0.5 px-1 font-bold bg-gray-50/20 font-serif">30%</td>
-                <td className="border border-black py-0.5 px-1 font-mono">{count30 > 0 ? count30 : "—"}</td>
-                <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4">
-                  {count30 > 0 ? (
-                    <span>Rs. {Math.round(totalDailyRate * 0.30)} × {count30} = Rs. {amt30}</span>
-                  ) : (
-                    <span className="text-gray-400 font-serif">Rs. {Math.round(totalDailyRate * 0.30)} × 0 = Rs. 0</span>
-                  )}
-                </td>
-              </tr>
-              <tr className="text-center">
-                <td className="border border-black py-0.5 px-1 font-bold bg-gray-50/20 font-serif">70%</td>
-                <td className="border border-black py-0.5 px-1 font-mono">{count70 > 0 ? count70 : "—"}</td>
-                <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4">
-                  {count70 > 0 ? (
-                    <span>Rs. {Math.round(totalDailyRate * 0.70)} × {count70} = Rs. {amt70}</span>
-                  ) : (
-                    <span className="text-gray-400 font-serif">Rs. {Math.round(totalDailyRate * 0.70)} × 0 = Rs. 0</span>
-                  )}
-                </td>
-              </tr>
-              <tr className="text-center">
-                <td className="border border-black py-0.5 px-1 font-bold bg-gray-50/20 font-serif">100%</td>
-                <td className="border border-black py-0.5 px-1 font-mono">{count100 > 0 ? count100.toFixed(1) : "—"}</td>
-                <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4">
-                  {count100 > 0 ? (
-                    <span>Rs. {Math.round(totalDailyRate * 1.00)} × {count100.toFixed(1)} = Rs. {amt100}</span>
-                  ) : (
-                    <span className="text-gray-400 font-serif">Rs. {Math.round(totalDailyRate * 1.00)} × 0 = Rs. 0</span>
-                  )}
-                </td>
-              </tr>
-              <tr>
-                <td colSpan={2} className={`border border-black py-0.5 px-2 font-bold text-right uppercase bg-gray-50/35 font-serif ${fh('text-[9pt]', 'text-[8.2pt]')}`}>
-                  Total Contingent Amount (कुल फुटकर व्यय)
-                </td>
-                <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4 font-bold text-emerald-800">
-                  Rs. {(totalMileage || 0) + totalContingentAmount}
-                </td>
-              </tr>
-              <tr className={`bg-gray-100 font-bold ${fh('text-[10pt]', 'text-[9pt]')}`}>
-                <td colSpan={2} className="border border-black py-0.5 px-2 text-right uppercase tracking-wider font-serif">
-                  Total Amount Rs. (कुल दावा राशि)
-                </td>
-                <td className={`border border-black py-0.5 px-1.5 text-left font-mono pl-4 text-indigo-900 font-extrabold ${fh('text-[10.5pt]', 'text-[9.5pt]')}`}>
-                  Rs. {totalAmount}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        {showSummaryTable && (
+          <div className="mt-5 mb-5 font-serif">
+            <table className={`w-full border-collapse border border-black text-left ${fh('text-[9.5pt]', 'text-[8.2pt]')}`}>
+              <thead>
+                <tr className="bg-gray-100 text-center">
+                  <th colSpan={3} className={`border border-black py-0.5 px-1.5 font-bold tracking-wider uppercase ${fh('text-[10.5pt]', 'text-[9.2pt]')}`}>
+                    SUMMARY (सारांश)
+                  </th>
+                </tr>
+                <tr className={`bg-gray-50 text-center font-bold ${fh('text-[9pt]', 'text-[8.0pt]')}`}>
+                  <th className="border border-black py-0.5 px-1 w-[25%] font-serif">Percentage (प्रतिशत)</th>
+                  <th className="border border-black py-0.5 px-1 w-[30%] font-serif">No. of total days (कुल दिनों की संख्या)</th>
+                  <th className="border border-black py-0.5 px-1.5 w-[45%] font-serif text-left pl-4">Rate of TA X Days = Amount (दर X दिन = कुल राशि)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="text-center">
+                  <td className="border border-black py-0.5 px-1 font-bold bg-gray-50/20 font-serif">30%</td>
+                  <td className="border border-black py-0.5 px-1 font-mono">{count30 > 0 ? count30 : "—"}</td>
+                  <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4">
+                    {count30 > 0 ? (
+                      <span>Rs. {Math.round(totalDailyRate * 0.30)} × {count30} = Rs. {amt30}</span>
+                    ) : (
+                      <span className="text-gray-400 font-serif">Rs. {Math.round(totalDailyRate * 0.30)} × 0 = Rs. 0</span>
+                    )}
+                  </td>
+                </tr>
+                <tr className="text-center">
+                  <td className="border border-black py-0.5 px-1 font-bold bg-gray-50/20 font-serif">70%</td>
+                  <td className="border border-black py-0.5 px-1 font-mono">{count70 > 0 ? count70 : "—"}</td>
+                  <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4">
+                    {count70 > 0 ? (
+                      <span>Rs. {Math.round(totalDailyRate * 0.70)} × {count70} = Rs. {amt70}</span>
+                    ) : (
+                      <span className="text-gray-400 font-serif">Rs. {Math.round(totalDailyRate * 0.70)} × 0 = Rs. 0</span>
+                    )}
+                  </td>
+                </tr>
+                <tr className="text-center">
+                  <td className="border border-black py-0.5 px-1 font-bold bg-gray-50/20 font-serif">100%</td>
+                  <td className="border border-black py-0.5 px-1 font-mono">{count100 > 0 ? count100.toFixed(1) : "—"}</td>
+                  <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4">
+                    {count100 > 0 ? (
+                      <span>Rs. {Math.round(totalDailyRate * 1.00)} × {count100.toFixed(1)} = Rs. {amt100}</span>
+                    ) : (
+                      <span className="text-gray-400 font-serif">Rs. {Math.round(totalDailyRate * 1.00)} × 0 = Rs. 0</span>
+                    )}
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={2} className={`border border-black py-0.5 px-2 font-bold text-right uppercase bg-gray-50/35 font-serif ${fh('text-[9pt]', 'text-[8.2pt]')}`}>
+                    Total Contingent Amount (कुल फुटकर व्यय)
+                  </td>
+                  <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4 font-bold text-emerald-800">
+                    Rs. {(totalMileage || 0) + totalContingentAmount}
+                  </td>
+                </tr>
+                <tr className={`bg-gray-100 font-bold ${fh('text-[10pt]', 'text-[9pt]')}`}>
+                  <td colSpan={2} className="border border-black py-0.5 px-2 text-right uppercase tracking-wider font-serif">
+                    Total Amount Rs. (कुल दावा राशि)
+                  </td>
+                  <td className={`border border-black py-0.5 px-1.5 text-left font-mono pl-4 text-indigo-900 font-extrabold ${fh('text-[10.5pt]', 'text-[9.5pt]')}`}>
+                    Rs. {totalAmount}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* CONTINGENT DYNAMIC BREAKDOWN TABLE */}
         {storeConfig.enableContingentSection !== "false" && contingentItems && contingentItems.length > 0 && (
@@ -1946,12 +2022,12 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
 
         {/* Real-time Signature Box Selectors */}
         {isSidebarsShown && (
-          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-4 font-sans text-slate-850 animate-fadeIn">
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-4 font-sans text-slate-850 animate-fadeIn animate-duration-200">
             <h5 className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 mb-3 flex items-center gap-1.5">
               <span className="w-1.5 h-3.5 bg-indigo-600 rounded"></span>
-              Signature Box Visibility Config / हस्ताक्षर बॉक्स चयन
+              Signature & Table Visibility Config / हस्ताक्षर एवं तालिका दृश्यता चयन
             </h5>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
               <label className="flex items-center gap-2 text-xs bg-slate-50 border border-gray-200 hover:border-indigo-500 rounded-lg p-2.5 cursor-pointer select-none transition-all">
                 <input
                   type="checkbox"
@@ -2003,6 +2079,19 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                   <span className="text-[9px] text-slate-500">नियंत्रण अधिकारी</span>
                 </div>
               </label>
+
+              <label className="flex items-center gap-2 text-xs bg-indigo-50/70 border border-indigo-200 hover:border-indigo-500 rounded-lg p-2.5 cursor-pointer select-none transition-all">
+                <input
+                  type="checkbox"
+                  checked={showSummaryTable}
+                  onChange={(e) => setShowSummaryTable(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 bg-white text-indigo-650 focus:ring-indigo-500 accent-indigo-650 cursor-pointer"
+                />
+                <div className="flex flex-col cursor-pointer">
+                  <span className="font-bold text-indigo-900">Show Summary (सारांश)</span>
+                  <span className="text-[9px] text-indigo-700">सारांश सारणी दिखाएं</span>
+                </div>
+              </label>
             </div>
           </div>
         )}
@@ -2010,151 +2099,184 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
         {viewMode === "editor" ? (
           <>
             <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm relative overflow-hidden shrink-0 space-y-4">
-          <div className="absolute top-0 right-0 p-8 pointer-events-none opacity-5">
-            <Coins className="w-40 h-40 text-indigo-200" />
-          </div>
+              <div className="absolute top-0 right-0 p-8 pointer-events-none opacity-5">
+                <Coins className="w-40 h-40 text-indigo-200" />
+              </div>
 
-          <div className="border-b border-gray-200 pb-3.5">
-            <h2 className="text-lg font-bold text-gray-950 uppercase tracking-wider flex items-center gap-2">
-              <span className="w-2.5 h-5 bg-indigo-650 rounded inline-block"></span>
-              Travelling Allowance (TA) Claim Terminal (7th CPC rules)
-            </h2>
-            <p className="text-xs text-slate-550 leading-normal mt-1">
-              Configure personnel parameters, journey logs, intermediate halt durations, and instantly compute exact Travelling Allowance rates with fully compliant enterprise formats.
-            </p>
-          </div>
+              <div className="border-b border-gray-200 pb-3.5">
+                <h2 className="text-lg font-bold text-gray-950 uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2.5 h-5 bg-indigo-650 rounded inline-block"></span>
+                  Travelling Allowance (TA) Claim Terminal (7th CPC rules)
+                </h2>
+                <p className="text-xs text-slate-550 leading-normal mt-1">
+                  Configure personnel parameters, journey logs, intermediate halt durations, and instantly compute exact Travelling Allowance rates with fully compliant enterprise formats.
+                </p>
+              </div>
 
-          <form onSubmit={handleSaveClaim} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Employee Name</label>
-              <input 
-                type="text" 
-                required
-                value={employeeName} 
-                onChange={(e) => setEmployeeName(e.target.value)}
-                placeholder="e.g. Anand Kumar" 
-                className="w-full text-xs bg-white border border-slate-305 border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500" 
-              />
+              <form onSubmit={handleSaveClaim} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5">
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Employee Name *</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={employeeName} 
+                    onChange={(e) => setEmployeeName(e.target.value)}
+                    placeholder="Type Employee Name..." 
+                    className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm" 
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Designation *</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={designation} 
+                    onChange={(e) => setDesignation(e.target.value)}
+                    list="railway-designations"
+                    placeholder="Type or select designation..." 
+                    className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm" 
+                  />
+                  <datalist id="railway-designations">
+                    {RAILWAY_DESIGNATIONS.map((d) => (
+                      <option key={d} value={d} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Employee PF No. *</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={empNo} 
+                    onChange={(e) => setEmpNo(e.target.value)}
+                    placeholder="Type Employee PF Number..." 
+                    className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm" 
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">7th CPC Pay Scale *</label>
+                  <select 
+                    required
+                    value={payLevel} 
+                    onChange={(e) => setPayLevel(e.target.value)}
+                    className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
+                  >
+                    <option value="">-- Choose Pay Level --</option>
+                    {PAY_LEVELS.map(pl => (
+                      <option key={pl.level} value={pl.level}>{pl.level} (Max ₹{pl.rate}/day)</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Division * / मंडल</label>
+                  <select 
+                    required
+                    value={division} 
+                    onChange={(e) => setDivision(e.target.value)}
+                    className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
+                  >
+                    <option value="">-- Choose Division --</option>
+                    {INDIAN_RAILWAY_DIVISIONS.map(div => (
+                      <option key={div} value={div}>{div}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Department * / विभाग</label>
+                  <select 
+                    required
+                    value={department} 
+                    onChange={(e) => setDepartment(e.target.value)}
+                    className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
+                  >
+                    <option value="">-- Choose Department --</option>
+                    {INDIAN_RAILWAY_DEPARTMENTS.map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Claim Month * / महीना</label>
+                  <select 
+                    required
+                    value={claimMonth} 
+                    onChange={(e) => setClaimMonth(e.target.value)}
+                    className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
+                  >
+                    <option value="">-- Choose Month --</option>
+                    {MONTHS_LIST.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Claim Year * / वर्ष</label>
+                  <select 
+                    required
+                    value={claimYear} 
+                    onChange={(e) => setClaimYear(e.target.value)}
+                    className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
+                  >
+                    <option value="">-- Choose Year --</option>
+                    {YEARS_LIST.map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Bill Unit * / बिल यूनिट</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={billUnit} 
+                    onChange={(e) => setBillUnit(e.target.value)}
+                    placeholder="Type Bill Unit code..." 
+                    className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm" 
+                  />
+                </div>
+
+                <div className="space-y-1 sm:col-span-2 md:col-span-3">
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Purpose of Journey * / यात्रा का उद्देश्य</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={globalPurpose} 
+                    onChange={(e) => {
+                      setGlobalPurpose(e.target.value);
+                      // Sync with legs to be absolutely safe
+                      setJourneyLegs(prev => prev.map(leg => ({ ...leg, purpose: e.target.value })));
+                    }}
+                    placeholder="e.g. Inspecting SSE Track registers / Attendance in Audit Meeting" 
+                    className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm" 
+                  />
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <label className="block text-[10px] font-bold text-amber-700 uppercase tracking-wider">TA Calculation Rule / टीए गणना नियम</label>
+                  <select 
+                    value={calculationMode} 
+                    onChange={(e) => setCalculationMode(e.target.value as 'calendar_day' | 'continuous')}
+                    className="w-full text-[13px] font-semibold bg-white border border-amber-500 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer shadow-sm font-bold"
+                  >
+                    <option value="calendar_day">🗓️ Calendar Day Basis (Midnight to Midnight) - Official Railway Rule</option>
+                    <option value="continuous">⏱️ Continuous Tour Duration basis (12-Hour Slots)</option>
+                  </select>
+                  <p className="text-[9.5px] text-amber-800 mt-1 leading-normal font-medium">
+                    {calculationMode === 'calendar_day' ? 
+                      "✓ Official Indian Railways Rule: Tour is split by date boundaries. Overlap hours under each date: < 6 hrs = 30%, 6 to 12 hrs = 70%, > 12 hrs = 100% Daily Allowance." : 
+                      "✓ Ongoing Continuous Tour: Total elapsed hours divided by 12-hour intervals."}
+                  </p>
+                </div>
+              </form>
             </div>
-
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Designation</label>
-              <input 
-                type="text" 
-                required
-                value={designation} 
-                onChange={(e) => setDesignation(e.target.value)}
-                placeholder="e.g. SSE Civil Engineering" 
-                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500" 
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Employee PF No.</label>
-              <input 
-                type="text" 
-                required
-                value={empNo} 
-                onChange={(e) => setEmpNo(e.target.value)}
-                placeholder="e.g. 50812953245" 
-                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500" 
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">7th CPC Pay Scale</label>
-              <select 
-                value={payLevel} 
-                onChange={(e) => setPayLevel(e.target.value)}
-                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
-              >
-                {PAY_LEVELS.map(pl => (
-                  <option key={pl.level} value={pl.level}>{pl.level} (Max ₹{pl.rate}/day)</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Division / मंडल</label>
-              <select 
-                value={division} 
-                onChange={(e) => setDivision(e.target.value)}
-                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
-              >
-                {INDIAN_RAILWAY_DIVISIONS.map(div => (
-                  <option key={div} value={div}>{div}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Department / विभाग</label>
-              <select 
-                value={department} 
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
-              >
-                {INDIAN_RAILWAY_DEPARTMENTS.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Claim Month / महीना</label>
-              <select 
-                value={claimMonth} 
-                onChange={(e) => setClaimMonth(e.target.value)}
-                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
-              >
-                {MONTHS_LIST.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Claim Year / वर्ष</label>
-              <select 
-                value={claimYear} 
-                onChange={(e) => setClaimYear(e.target.value)}
-                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
-              >
-                {YEARS_LIST.map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Bill Unit / बिल यूनिट</label>
-              <input 
-                type="text" 
-                value={billUnit} 
-                onChange={(e) => setBillUnit(e.target.value)}
-                placeholder="e.g. 0504892" 
-                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500" 
-              />
-            </div>
-
-            <div className="space-y-1 md:col-span-2">
-              <label className="block text-[11px] font-bold text-amber-700 uppercase tracking-wider">TA Calculation Rule / टीए गणना नियम</label>
-              <select 
-                value={calculationMode} 
-                onChange={(e) => setCalculationMode(e.target.value as 'calendar_day' | 'continuous')}
-                className="w-full text-xs bg-white border border-amber-500 rounded-lg px-3 py-2 text-slate-800 font-bold focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
-              >
-                <option value="calendar_day">🗓️ Calendar Day Basis (Midnight to Midnight) - Official Railway Rule</option>
-                <option value="continuous">⏱️ Continuous Tour Duration basis (12-Hour Slots)</option>
-              </select>
-              <p className="text-[10px] text-amber-800 mt-1 leading-normal font-medium">
-                {calculationMode === 'calendar_day' ? 
-                  "✓ Official Indian Railways Rule: Tour is split by date boundaries. Overlap hours under each date: < 6 hrs = 30%, 6 to 12 hrs = 70%, > 12 hrs = 100% Daily Allowance." : 
-                  "✓ Ongoing Continuous Tour: Total elapsed hours divided by 12-hour intervals."}
-              </p>
-            </div>
-          </form>
-        </div>
 
         {/* Journey Log Leg Table */}
         <div className={`bg-white border border-gray-200 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col gap-4 ${isSidebarsShown ? "flex-1" : "flex-initial h-auto"}`}>
@@ -2222,6 +2344,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                         </label>
                         <input 
                           type="text" 
+                          required
                           value={leg.stationFrom} 
                           onFocus={() => {
                             setActiveAutocomplete({ legId: leg.id, field: 'stationFrom' });
@@ -2237,8 +2360,8 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                               setActiveAutocomplete(null);
                             }, 220);
                           }}
-                          placeholder="e.g. BSP / Bilaspur" 
-                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 placeholder-slate-400 transition-colors" 
+                          placeholder="Type or search station..." 
+                          className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 placeholder-slate-400 transition-all shadow-sm" 
                         />
                         {activeAutocomplete?.legId === leg.id && activeAutocomplete?.field === 'stationFrom' && (
                           <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-300 rounded-xl shadow-2xl z-50 max-h-68 overflow-y-auto overflow-x-hidden py-1 text-xs select-none">
@@ -2293,6 +2416,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                         </label>
                         <input 
                           type="text" 
+                          required
                           value={leg.stationTo} 
                           onFocus={() => {
                             setActiveAutocomplete({ legId: leg.id, field: 'stationTo' });
@@ -2308,14 +2432,14 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                               setActiveAutocomplete(null);
                             }, 220);
                           }}
-                          placeholder="e.g. R / Raipur" 
-                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 placeholder-slate-400 transition-colors" 
+                          placeholder="Type or search station..." 
+                          className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 placeholder-slate-400 transition-all shadow-sm" 
                         />
                         {activeAutocomplete?.legId === leg.id && activeAutocomplete?.field === 'stationTo' && (
                           <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-300 rounded-xl shadow-2xl z-50 max-h-68 overflow-y-auto overflow-x-hidden py-1 text-xs select-none">
                             <div className="px-2.5 py-1 text-[9px] font-bold text-slate-500 bg-slate-50 border-b border-slate-200 sticky top-0 flex justify-between">
                               <span>{stationSearch.trim() === "" ? "⚡ SUGGESTED STATIONS" : "🔎 SEARCH RESULTS"}</span>
-                              <span className="text-emerald-705 font-mono text-emerald-700">STA CODES</span>
+                              <span className="text-emerald-755 font-mono text-emerald-700">STA CODES</span>
                             </div>
                             {filteredStations.map((station) => (
                               <div
@@ -2359,11 +2483,12 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                         )}
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[10px] font-bold text-slate-600 uppercase">Transport Mode</label>
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase">Transport Mode *</label>
                         <select 
+                          required
                           value={leg.mode} 
                           onChange={(e) => updateLegField(leg.id, 'mode', e.target.value)}
-                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-850 cursor-pointer focus:outline-none focus:border-indigo-500"
+                          className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-850 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm"
                         >
                           <option value="Train">Train (ट्रेन)</option>
                           <option value="Road">By Road (सड़क मार्ग)</option>
@@ -2391,6 +2516,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                         <div className="relative">
                           <input 
                             type="text" 
+                            required
                             value={leg.trainNoOrVehNo} 
                             placeholder="e.g. 12488 / UP-25" 
                             onChange={(e) => {
@@ -2400,7 +2526,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                                 handleLookupTrain(leg.id, val.trim());
                               }
                             }}
-                            className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 placeholder-slate-400 transition-colors" 
+                            className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 placeholder-slate-400 transition-all shadow-sm" 
                           />
                           {leg.mode === 'Train' && isSearchingTrain[leg.id] && (
                             <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
@@ -2425,6 +2551,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                         <input 
                           id={`depDate-${leg.id}`}
                           type="date" 
+                          required
                           value={leg.depDate} 
                           onChange={(e) => updateLegField(leg.id, 'depDate', e.target.value)}
                           onClick={(e) => {
@@ -2432,7 +2559,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                               (e.target as any).showPicker();
                             } catch (_) {}
                           }}
-                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 [color-scheme:light] cursor-pointer" 
+                          className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 [color-scheme:light] cursor-pointer shadow-sm" 
                         />
                       </div>
                       <div className="space-y-1">
@@ -2442,14 +2569,26 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                         <input 
                           id={`depTime-${leg.id}`}
                           type="time" 
+                          required
                           value={leg.depTime} 
-                          onChange={(e) => updateLegField(leg.id, 'depTime', e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateLegField(leg.id, 'depTime', val);
+                            if (val && val.length === 5) {
+                              const inputEl = e.target;
+                              setTimeout(() => {
+                                if (document.activeElement === inputEl) {
+                                  inputEl.blur();
+                                }
+                              }, 500);
+                            }
+                          }}
                           onClick={(e) => {
                             try {
                               (e.target as any).showPicker();
                             } catch (_) {}
                           }}
-                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 [color-scheme:light] cursor-pointer" 
+                          className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 [color-scheme:light] cursor-pointer shadow-sm" 
                         />
                       </div>
                       <div className="space-y-1">
@@ -2459,6 +2598,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                         <input 
                           id={`arrDate-${leg.id}`}
                           type="date" 
+                          required
                           value={leg.arrDate} 
                           onChange={(e) => updateLegField(leg.id, 'arrDate', e.target.value)}
                           onClick={(e) => {
@@ -2466,7 +2606,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                               (e.target as any).showPicker();
                             } catch (_) {}
                           }}
-                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 [color-scheme:light] cursor-pointer" 
+                          className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 [color-scheme:light] cursor-pointer shadow-sm" 
                         />
                       </div>
                       <div className="space-y-1">
@@ -2476,27 +2616,28 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                         <input 
                           id={`arrTime-${leg.id}`}
                           type="time" 
+                          required
                           value={leg.arrTime} 
-                          onChange={(e) => updateLegField(leg.id, 'arrTime', e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateLegField(leg.id, 'arrTime', val);
+                            if (val && val.length === 5) {
+                              const inputEl = e.target;
+                              setTimeout(() => {
+                                if (document.activeElement === inputEl) {
+                                  inputEl.blur();
+                                }
+                              }, 500);
+                            }
+                          }}
                           onClick={(e) => {
                             try {
                               (e.target as any).showPicker();
                             } catch (_) {}
                           }}
-                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 [color-scheme:light] cursor-pointer" 
+                          className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 [color-scheme:light] cursor-pointer shadow-sm" 
                         />
                       </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase">Purpose of Halt / Duty</label>
-                      <input 
-                        type="text" 
-                        value={leg.purpose} 
-                        placeholder="e.g. Inspecting SSE Track registers" 
-                        onChange={(e) => updateLegField(leg.id, 'purpose', e.target.value)}
-                        className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1 text-slate-800 focus:outline-none focus:border-indigo-500" 
-                      />
                     </div>
 
                     {/* BY ROAD SPECIFIC SUBSYSTEM PANEL */}

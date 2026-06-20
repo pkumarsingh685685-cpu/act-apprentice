@@ -100,7 +100,7 @@ export function SF14IIGenerator({ onBack }: { onBack?: () => void } = {}) {
             isFinalised: false,
             trackStatus: "untracked",
             memorandumNo: formData.fileNo || "",
-            nameOfDa: formData.signatureName || "Atul Kumar",
+            nameOfDa: formData.signatureName || "Shri Atul Kumar",
             designationOfDa: formData.authorityDesignation || "Sr.DPO",
             charges: formData.misconductStatementPart1 || "",
           });
@@ -311,11 +311,42 @@ export function SF14IIGenerator({ onBack }: { onBack?: () => void } = {}) {
                   required
                   type="text"
                   name="designation"
+                  list="sf14-emp-designations"
                   value={formData.designation}
                   onChange={handleChange}
                   className="w-full text-xs border-gray-300 rounded px-2 py-1 focus:ring-indigo-500 focus:border-indigo-500 border bg-white"
                   placeholder="e.g. Ex-Ch.OS"
                 />
+                <datalist id="sf14-emp-designations">
+                  <option value="SSE (P-Way)" />
+                  <option value="SSE (Works)" />
+                  <option value="SSE (Signal)" />
+                  <option value="SSE (Tele)" />
+                  <option value="SSE (C&W)" />
+                  <option value="SSE (Loco)" />
+                  <option value="JE (P-Way)" />
+                  <option value="JE (Works)" />
+                  <option value="JE (Signal)" />
+                  <option value="JE (Tele)" />
+                  <option value="JE (C&W)" />
+                  <option value="JE (Loco)" />
+                  <option value="Technician Gr.I" />
+                  <option value="Technician Gr.II" />
+                  <option value="Technician Gr.III" />
+                  <option value="Sr. Technician" />
+                  <option value="Track Maintainer Gr.I" />
+                  <option value="Track Maintainer Gr.II" />
+                  <option value="Track Maintainer Gr.III" />
+                  <option value="Track Maintainer Gr.IV" />
+                  <option value="Pointsman-A" />
+                  <option value="Pointsman-B" />
+                  <option value="Station Master" />
+                  <option value="Goods Train Manager" />
+                  <option value="Office Superintendent (OS)" />
+                  <option value="Senior Clerk" />
+                  <option value="Junior Clerk" />
+                  <option value="Ch.OS" />
+                </datalist>
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-gray-500 mb-0.5">
@@ -350,7 +381,7 @@ export function SF14IIGenerator({ onBack }: { onBack?: () => void } = {}) {
                   value={formData.signatureName}
                   onChange={handleChange}
                   className="w-full text-xs border-gray-300 rounded px-2 py-1 focus:ring-indigo-500 focus:border-indigo-500 border bg-white"
-                  placeholder="e.g. Atul Kumar"
+                  placeholder="e.g. Shri Atul Kumar"
                 />
               </div>
               <div>
@@ -361,11 +392,41 @@ export function SF14IIGenerator({ onBack }: { onBack?: () => void } = {}) {
                   required
                   type="text"
                   name="authorityDesignation"
+                  list="sf14-da-designations"
                   value={formData.authorityDesignation}
                   onChange={handleChange}
                   className="w-full text-xs border-gray-300 rounded px-2 py-1 focus:ring-indigo-500 focus:border-indigo-500 border bg-white"
                   placeholder="e.g. Sr. DPO"
                 />
+                <datalist id="sf14-da-designations">
+                  <option value="Sr.DPO/KIR" />
+                  <option value="Sr.DPO/NJP" />
+                  <option value="Sr. DPO" />
+                  <option value="DPO" />
+                  <option value="APO" />
+                  <option value="Sr.DEN/Co-ord" />
+                  <option value="Sr.DEN" />
+                  <option value="DEN" />
+                  <option value="ADEN" />
+                  <option value="Sr.DOM" />
+                  <option value="DOM" />
+                  <option value="AOM" />
+                  <option value="Sr.DME" />
+                  <option value="DME" />
+                  <option value="ADME" />
+                  <option value="Sr.DSTE" />
+                  <option value="DSTE" />
+                  <option value="ADSTE" />
+                  <option value="Sr.DEE" />
+                  <option value="DEE" />
+                  <option value="ADEE" />
+                  <option value="Sr.DCM" />
+                  <option value="DCM" />
+                  <option value="ACM" />
+                  <option value="ADRM/KIR" />
+                  <option value="ADRM" />
+                  <option value="DRM" />
+                </datalist>
               </div>
             </div>
           </div>

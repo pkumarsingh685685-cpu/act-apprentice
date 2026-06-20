@@ -70,12 +70,22 @@ const NATURE_OF_CHARGES = [
 ];
 
 const DA_NAMES = [
-  "A.K.Singh",
-  "Atul Kumar",
-  "Anjani Kumar",
-  "Lalit Kumar",
+  "Shri A.K.Singh",
+  "Shri Atul Kumar",
+  "Shri Anjani Kumar",
+  "Shri Lalit Kumar",
   "Others"
 ];
+
+const formatDaName = (name: string | undefined | null): string => {
+  if (!name) return "";
+  const trimmed = name.trim();
+  if (trimmed === "" || trimmed.toLowerCase() === "others") return trimmed;
+  if (/^shri\b/i.test(trimmed)) {
+    return "Shri " + trimmed.substring(4).trim();
+  }
+  return "Shri " + trimmed;
+};
 
 const DA_DESIGNATIONS = [
   "Sr.DPO",
@@ -135,10 +145,12 @@ export function DarPositionManager() {
       (snapshot) => {
         const fetchedRows: DarPositionRow[] = [];
         snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
           fetchedRows.push({
             id: docSnap.id,
-            ...docSnap.data()
-          } as DarPositionRow);
+            ...data,
+            nameOfDa: formatDaName(data.nameOfDa || "")
+          } as unknown as DarPositionRow);
         });
         // Sort by SN (Serial Number) numerically
         fetchedRows.sort((a, b) => (Number(a.sn) || 0) - (Number(b.sn) || 0));
@@ -166,7 +178,7 @@ export function DarPositionManager() {
         memorandumNo: "",
         natureOfCharge: "SF-5",
         issuedDate: "",
-        nameOfDa: "Atul Kumar",
+        nameOfDa: "Shri Atul Kumar",
         designationOfDa: "Sr.DPO",
         natureOfCase: "Non-Vig",
         presentStatus: "Pending",
@@ -375,7 +387,7 @@ export function DarPositionManager() {
               prop: "nameOfDa",
               aliases: ["nameofda", "daname", "disciplinaryauthority", "अनुशासनात्मकअधिकारी", "डीएकानाम", "name_of_da"],
               indexFallback: 6,
-              defaultVal: "Atul Kumar"
+              defaultVal: "Shri Atul Kumar"
             },
             {
               prop: "designationOfDa",
@@ -501,7 +513,7 @@ export function DarPositionManager() {
 
             const issuedDate = getRowVal(rowItem, "issuedDate", "");
             
-            const nameOfDa = getRowVal(rowItem, "nameOfDa", "Atul Kumar") || "Atul Kumar";
+            const nameOfDa = formatDaName(getRowVal(rowItem, "nameOfDa", "Shri Atul Kumar") || "Shri Atul Kumar");
             const desigOfDa = getRowVal(rowItem, "designationOfDa", "Sr.DPO") || "Sr.DPO";
             
             const caseNature = getRowVal(rowItem, "natureOfCase", "Non-Vig") || "Non-Vig";
@@ -1526,11 +1538,11 @@ export function DarPositionManager() {
                       ) : (
                         <div className="flex items-center justify-between gap-1">
                           <span className={`inline-block mx-auto px-2.5 py-0.5 rounded-md text-[11px] font-extrabold border ${
-                            row.nameOfDa === "Atul Kumar"
+                            row.nameOfDa === "Shri Atul Kumar" || row.nameOfDa === "Atul Kumar"
                               ? "bg-red-950 text-red-300 border-red-900"
-                              : row.nameOfDa === "A.K.Singh" || row.nameOfDa === "Anjani Kumar"
+                              : row.nameOfDa === "Shri A.K.Singh" || row.nameOfDa === "A.K.Singh" || row.nameOfDa === "Shri Anjani Kumar" || row.nameOfDa === "Anjani Kumar"
                               ? "bg-emerald-950 text-emerald-300 border-emerald-900"
-                              : row.nameOfDa === "Lalit Kumar"
+                              : row.nameOfDa === "Shri Lalit Kumar" || row.nameOfDa === "Lalit Kumar"
                               ? "bg-sky-950 text-sky-300 border-sky-900"
                               : "bg-slate-900 text-slate-200 border-slate-800"
                           }`}>

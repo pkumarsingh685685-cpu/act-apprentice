@@ -234,7 +234,37 @@ export function SF3Generator({ onBack }: { onBack?: () => void } = {}) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Designation / Post Held <span className="text-rose-500">*</span></label>
-                <input required type="text" name="designation" value={formData.designation} onChange={handleChange} className="w-full text-sm bg-slate-900/60 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none" placeholder="e.g. SSE (P-Way)" />
+                <input required type="text" name="designation" list="sf3-emp-designations" value={formData.designation} onChange={handleChange} className="w-full text-sm bg-slate-900/60 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none" placeholder="e.g. SSE (P-Way)" />
+                <datalist id="sf3-emp-designations">
+                  <option value="SSE (P-Way)" />
+                  <option value="SSE (Works)" />
+                  <option value="SSE (Signal)" />
+                  <option value="SSE (Tele)" />
+                  <option value="SSE (C&W)" />
+                  <option value="SSE (Loco)" />
+                  <option value="JE (P-Way)" />
+                  <option value="JE (Works)" />
+                  <option value="JE (Signal)" />
+                  <option value="JE (Tele)" />
+                  <option value="JE (C&W)" />
+                  <option value="JE (Loco)" />
+                  <option value="Technician Gr.I" />
+                  <option value="Technician Gr.II" />
+                  <option value="Technician Gr.III" />
+                  <option value="Sr. Technician" />
+                  <option value="Track Maintainer Gr.I" />
+                  <option value="Track Maintainer Gr.II" />
+                  <option value="Track Maintainer Gr.III" />
+                  <option value="Track Maintainer Gr.IV" />
+                  <option value="Pointsman-A" />
+                  <option value="Pointsman-B" />
+                  <option value="Station Master" />
+                  <option value="Goods Train Manager" />
+                  <option value="Office Superintendent (OS)" />
+                  <option value="Senior Clerk" />
+                  <option value="Junior Clerk" />
+                  <option value="Ch.OS" />
+                </datalist>
               </div>
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Employee No (EMP No.)</label>

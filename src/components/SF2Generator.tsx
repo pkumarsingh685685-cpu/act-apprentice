@@ -272,7 +272,37 @@ export function SF2Generator({ onBack }: { onBack?: () => void } = {}) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Designation <span className="text-rose-500">*</span></label>
-                <input required type="text" name="designation" value={formData.designation} onChange={handleChange} className="w-full text-sm bg-slate-900/60 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none" placeholder="e.g. SSE (P-Way)" />
+                <input required type="text" name="designation" list="sf2-emp-designations" value={formData.designation} onChange={handleChange} className="w-full text-sm bg-slate-900/60 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none" placeholder="e.g. SSE (P-Way)" />
+                <datalist id="sf2-emp-designations">
+                  <option value="SSE (P-Way)" />
+                  <option value="SSE (Works)" />
+                  <option value="SSE (Signal)" />
+                  <option value="SSE (Tele)" />
+                  <option value="SSE (C&W)" />
+                  <option value="SSE (Loco)" />
+                  <option value="JE (P-Way)" />
+                  <option value="JE (Works)" />
+                  <option value="JE (Signal)" />
+                  <option value="JE (Tele)" />
+                  <option value="JE (C&W)" />
+                  <option value="JE (Loco)" />
+                  <option value="Technician Gr.I" />
+                  <option value="Technician Gr.II" />
+                  <option value="Technician Gr.III" />
+                  <option value="Sr. Technician" />
+                  <option value="Track Maintainer Gr.I" />
+                  <option value="Track Maintainer Gr.II" />
+                  <option value="Track Maintainer Gr.III" />
+                  <option value="Track Maintainer Gr.IV" />
+                  <option value="Pointsman-A" />
+                  <option value="Pointsman-B" />
+                  <option value="Station Master" />
+                  <option value="Goods Train Manager" />
+                  <option value="Office Superintendent (OS)" />
+                  <option value="Senior Clerk" />
+                  <option value="Junior Clerk" />
+                  <option value="Ch.OS" />
+                </datalist>
               </div>
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Working Under <span className="text-rose-500">*</span></label>
@@ -294,7 +324,36 @@ export function SF2Generator({ onBack }: { onBack?: () => void } = {}) {
                </div>
                <div className="space-y-1">
                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Authority Designation <span className="text-rose-500">*</span></label>
-                 <input required type="text" name="authorityDesignation" value={formData.authorityDesignation} onChange={handleChange} className="w-full text-sm bg-slate-900/60 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none" placeholder="e.g. DRM (P) / Katihar" />
+                 <input required type="text" name="authorityDesignation" list="sf2-da-designations" value={formData.authorityDesignation} onChange={handleChange} className="w-full text-sm bg-slate-900/60 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none" placeholder="e.g. DRM (P) / Katihar" />
+                 <datalist id="sf2-da-designations">
+                   <option value="Sr.DPO/KIR" />
+                   <option value="Sr.DPO/NJP" />
+                   <option value="Sr. DPO" />
+                   <option value="DPO" />
+                   <option value="APO" />
+                   <option value="Sr.DEN/Co-ord" />
+                   <option value="Sr.DEN" />
+                   <option value="DEN" />
+                   <option value="ADEN" />
+                   <option value="Sr.DOM" />
+                   <option value="DOM" />
+                   <option value="AOM" />
+                   <option value="Sr.DME" />
+                   <option value="DME" />
+                   <option value="ADME" />
+                   <option value="Sr.DSTE" />
+                   <option value="DSTE" />
+                   <option value="ADSTE" />
+                   <option value="Sr.DEE" />
+                   <option value="DEE" />
+                   <option value="ADEE" />
+                   <option value="Sr.DCM" />
+                   <option value="DCM" />
+                   <option value="ACM" />
+                   <option value="ADRM/KIR" />
+                   <option value="ADRM" />
+                   <option value="DRM" />
+                 </datalist>
                </div>
             </div>
 

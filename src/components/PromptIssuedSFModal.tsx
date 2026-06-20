@@ -101,7 +101,7 @@ export function PromptIssuedSFModal() {
         memorandumNo: activePrompt.memorandumNo || "",
         natureOfCharge: activePrompt.sfType || "SF-5",
         issuedDate: customIssuedDate || new Date().toISOString().split("T")[0],
-        nameOfDa: activePrompt.nameOfDa || "Atul Kumar",
+        nameOfDa: activePrompt.nameOfDa || "Shri Atul Kumar",
         designationOfDa: activePrompt.designationOfDa || "Sr.DPO",
         natureOfCase: caseNature, 
         presentStatus: "Pending", // Default initial status
