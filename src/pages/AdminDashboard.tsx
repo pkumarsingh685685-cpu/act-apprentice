@@ -43,6 +43,7 @@ import { NfrOrgNodesManager } from "../components/NfrOrgNodesManager";
 import { ChecklistManager } from "../components/ChecklistManager";
 import { AuditLogManager } from "../components/AuditLogManager";
 import { OfficePdfStamper } from "../components/OfficePdfStamper";
+import { CustomStationsManager } from "../components/CustomStationsManager";
 
 export default function AdminDashboard() {
   const { t, i18n } = useTranslation();
@@ -372,6 +373,16 @@ export default function AdminDashboard() {
       categoryHi: "मानचित्र",
       desc: "Customize coordinators, DRMs, state tags, and golden HQs on the map.",
       descHi: "इंटरैक्टिव मानचित्र के पिनों, प्रशासनिक डिवीजनों और मुख्यालयों को बदलें।"
+    },
+    { 
+      id: "customStations", 
+      name: "TA Railway Stations Manager", 
+      nameHi: "रेलवे स्टेशन डेटाबेस प्रबंधक",
+      icon: Compass, 
+      category: "Spatial Info & Maps",
+      categoryHi: "मानचित्र",
+      desc: "Manage custom railway station names and codes dynamically for the TA claim form.",
+      descHi: "टीए क्लेम फॉर्म के लिए स्टेशन कोड और नाम डेटाबेस व्यवस्थित करें।"
     }
   ];
 
@@ -777,6 +788,7 @@ export default function AdminDashboard() {
           {activeTab === "dataSources" && <GoogleSheetManager />}
           {activeTab === "apoAllotment" && <ApoAllotmentManager />}
           {activeTab === "nfrOrgNodes" && <NfrOrgNodesManager />}
+          {activeTab === "customStations" && <CustomStationsManager />}
         </div>
       </div>
     </div>

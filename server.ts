@@ -5,10 +5,26 @@ import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import multer from "multer";
 import fs from "fs";
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
 
 dotenv.config();
 
 const upload = multer({ storage: multer.memoryStorage() });
+
+// Initialize Firebase for server-side custom stations lookup
+let db: any = null;
+try {
+  const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+  if (fs.existsSync(configPath)) {
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    const firebaseApp = initializeApp(config);
+    db = getFirestore(firebaseApp, config.firestoreDatabaseId);
+    console.log("Firebase initialized successfully on server for Custom Stations.");
+  }
+} catch (err) {
+  console.warn("Failed to initialize Firebase on server:", err);
+}
 
 // === FALLBACK INDIAN RAILWAY DATASETS & HELPERS FOR QUOTA/429 IMMUNITY ===
 const FALLBACK_STATIONS = [
@@ -25,7 +41,97 @@ const FALLBACK_STATIONS = [
   { code: "MGS", name: "Mughalsarai Jn", hindiName: "मुग़लसराय जंक्शन", lat: 25.281, lng: 83.123 },
   { code: "NJP", name: "New Jalpaiguri", hindiName: "न्यू जलपाईगुड़ी", lat: 26.681, lng: 88.441 },
   { code: "BJU", name: "Barauni Jn", hindiName: "बरौनी जंक्शन", lat: 25.432, lng: 85.981 },
-  { code: "PPTA", name: "Patliputra Jn", hindiName: "पाटलिपुत्र जंक्शन", lat: 25.617, lng: 85.088 }
+  { code: "PPTA", name: "Patliputra Jn", hindiName: "पाटलिपुत्र जंक्शन", lat: 25.617, lng: 85.088 },
+  // PDF Uploaded Stations (Page 1 & 2 + Key Division Junctions)
+  { code: "BFJ", name: "Bhoras Budrukh", hindiName: "भोरस बुद्रुक", lat: 20.457, lng: 75.321 },
+  { code: "JMNR", name: "Jamner", hindiName: "जामनेर", lat: 20.812, lng: 75.783 },
+  { code: "ANJ", name: "Anjangaon", hindiName: "अंजनगाँव", lat: 21.163, lng: 77.309 },
+  { code: "BASA", name: "Banosa", hindiName: "बानोसा", lat: 21.092, lng: 77.531 },
+  { code: "BDKE", name: "Bhadsivni", hindiName: "भादसविनी", lat: 20.115, lng: 77.228 },
+  { code: "BGR", name: "Bhagdara", hindiName: "भागदरा", lat: 20.722, lng: 75.502 },
+  { code: "BRVR", name: "Borvihir", hindiName: "बोरविहिर", lat: 20.835, lng: 74.821 },
+  { code: "CMK", name: "Chamak", hindiName: "चमक", lat: 21.221, lng: 77.402 },
+  { code: "DWM", name: "Darwha Moti Bagh Jn.", hindiName: "दारव्हा मोती बाग जंक्शन", lat: 20.384, lng: 77.771 },
+  { code: "KTNI", name: "Kapustalni", hindiName: "कपूसतलनी", lat: 21.102, lng: 77.352 },
+  { code: "KRJA", name: "Karanja", hindiName: "करंजा", lat: 20.481, lng: 77.491 },
+  { code: "KRJT", name: "Karanja Town", hindiName: "करंजा टाउन", lat: 20.485, lng: 77.472 },
+  { code: "KSBG", name: "Khusta Buzurg", hindiName: "खुस्ता बुजुर्ग", lat: 21.181, lng: 77.452 },
+  { code: "KQV", name: "Kinkhed", hindiName: "किन्खेड", lat: 20.752, lng: 77.102 },
+  { code: "KDK", name: "Kohdad", hindiName: "कोहदाद", lat: 21.582, lng: 76.221 },
+  { code: "KXD", name: "Kokalda", hindiName: "कोकलदा", lat: 21.252, lng: 77.482 },
+  { code: "KLHD", name: "Kolhadi", hindiName: "कोल्हाड़ी", lat: 20.551, lng: 75.251 },
+  { code: "LDD", name: "Ladkhed", hindiName: "लडखेड", lat: 20.302, lng: 77.852 },
+  { code: "LPU", name: "Lakhpuri", hindiName: "लखपुरी", lat: 20.652, lng: 77.151 },
+  { code: "LSN", name: "Lasina", hindiName: "लसीना", lat: 20.422, lng: 78.021 },
+  { code: "LGN", name: "Lehgaon", hindiName: "लेहगाँव", lat: 21.231, lng: 77.581 },
+  { code: "LING", name: "Ling", hindiName: "लिंग", lat: 20.252, lng: 77.921 },
+  { code: "MNDA", name: "Mandura", hindiName: "मंदुरा", lat: 20.801, lng: 77.202 },
+  { code: "MHAD", name: "Mohadi Pragane Lalin", hindiName: "मोहाडी प्रागणे लालीन", lat: 20.901, lng: 74.752 },
+  { code: "MWK", name: "Mordad Tanda", hindiName: "मोरदड़ तांडा", lat: 20.781, lng: 74.882 },
+  { code: "MZRT", name: "Murtizapur Town", hindiName: "मूर्तिजापुर टाउन", lat: 20.742, lng: 77.362 },
+  { code: "NBGH", name: "Nowbagh", hindiName: "नवबाग", lat: 21.201, lng: 77.422 },
+  { code: "PHU", name: "Pahur", hindiName: "पहुर", lat: 20.712, lng: 75.722 },
+  { code: "PMGN", name: "Pimpalgaon", hindiName: "पिंपलगाँव", lat: 20.922, lng: 75.221 },
+  { code: "POHE", name: "Pohe", hindiName: "पोहे", lat: 20.351, lng: 77.321 },
+  { code: "RM", name: "Rajmane", hindiName: "राजमाने", lat: 20.601, lng: 75.151 },
+  { code: "SWQ", name: "Sangwi", hindiName: "सांगवी", lat: 20.222, lng: 77.801 },
+  { code: "SDRN", name: "Shendurni", hindiName: "शेंदुरनी", lat: 20.631, lng: 75.602 },
+  { code: "SIRL", name: "Shirala", hindiName: "शिराला", lat: 21.152, lng: 77.252 },
+  { code: "SMTN", name: "Somthan", hindiName: "सोमथन", lat: 20.201, lng: 77.102 },
+  { code: "TPN", name: "Tapona", hindiName: "तपोना", lat: 20.152, lng: 77.902 },
+  { code: "VRKD", name: "Varkhedi", hindiName: "वरखेडी", lat: 20.682, lng: 75.522 },
+  { code: "VLN", name: "Vilegaon", hindiName: "विलेगाँव", lat: 20.122, lng: 77.382 },
+  { code: "WRD", name: "Warudkhed", hindiName: "वरुडखेड", lat: 20.282, lng: 77.982 },
+  { code: "PI", name: "Padli", hindiName: "पादली", lat: 19.821, lng: 73.952 },
+  { code: "SXA", name: "Sagphata", hindiName: "सागफाटा", lat: 21.431, lng: 76.352 },
+  { code: "NK", name: "Nashik Road", hindiName: "नाशिक रोड", lat: 19.961, lng: 73.824 },
+  { code: "AK", name: "Akola Jn.", hindiName: "अकोला जंक्शन", lat: 20.707, lng: 77.009 },
+  { code: "AMI", name: "Amravati", hindiName: "अमरावती", lat: 20.932, lng: 77.752 },
+  { code: "BD", name: "Badnera Jn.", hindiName: "बडनेरा जंक्शन", lat: 20.880, lng: 77.755 },
+  { code: "BSL", name: "Bhusaval Jn.", hindiName: "भुसावल जंक्शन", lat: 21.048, lng: 75.801 },
+  { code: "JL", name: "Jalgaon Jn.", hindiName: "जलगांव जंक्शन", lat: 21.006, lng: 75.562 },
+  { code: "KNW", name: "Khandwa", hindiName: "खंडवा", lat: 21.826, lng: 76.353 },
+  { code: "MMR", name: "Manmad Jn.", hindiName: "मनमाड जंक्शन", lat: 20.252, lng: 74.405 },
+  { code: "SEG", name: "Shegaon", hindiName: "शेगाँव", lat: 20.793, lng: 76.691 },
+  { code: "BAU", name: "Burhanpur", hindiName: "बुरहानपुर", lat: 21.314, lng: 76.235 },
+  { code: "CSN", name: "Chalisgaon Jn.", hindiName: "चालीसगांव जंक्शन", lat: 20.463, lng: 75.016 },
+  { code: "MKU", name: "Malkapur", hindiName: "मलकापुर", lat: 20.887, lng: 76.202 },
+  { code: "BDWD", name: "Bodwad", hindiName: "बोदवड", lat: 21.012, lng: 76.014 },
+  { code: "DVL", name: "Devlali", hindiName: "देवलाली", lat: 19.927, lng: 73.848 },
+  { code: "DHI", name: "Dhule", hindiName: "धुले", lat: 20.903, lng: 74.774 },
+  { code: "LS", name: "Lasalgaon", hindiName: "लासलगाँव", lat: 20.141, lng: 74.225 },
+  { code: "MZR", name: "Murtizapur Jn.", hindiName: "मुर्तिजापुर जंक्शन", lat: 20.730, lng: 77.360 },
+  { code: "NGN", name: "Nandgaon", hindiName: "नांदगाँव", lat: 20.312, lng: 74.653 },
+  { code: "NN", name: "Nandura", hindiName: "नांदुरा", lat: 20.832, lng: 76.452 },
+  { code: "PC", name: "Pachora Jn.", hindiName: "पाचोरा जंक्शन", lat: 20.668, lng: 75.216 },
+  { code: "RV", name: "Raver", hindiName: "रावेर", lat: 21.252, lng: 76.032 },
+  { code: "ELP", name: "Achalpur", hindiName: "अचलपुर", lat: 21.261, lng: 77.512 },
+  { code: "YTL", name: "Yavatmal", hindiName: "यवतमाल", lat: 20.389, lng: 78.131 },
+  { code: "NAVI", name: "New Amravati", hindiName: "नया अमरावती", lat: 20.952, lng: 77.781 },
+  { code: "PUNE", name: "Pune Jn.", hindiName: "पुणे जंक्शन", lat: 18.528, lng: 73.873 },
+  { code: "MRJ", name: "Miraj Jn.", hindiName: "मिरज जंक्शन", lat: 16.821, lng: 74.641 },
+  { code: "SLI", name: "Sangli", hindiName: "सांगली", lat: 16.852, lng: 74.582 },
+  { code: "STR", name: "Satara", hindiName: "सतारा", lat: 17.681, lng: 74.001 },
+  { code: "SUR", name: "Solapur", hindiName: "सोलापुर", lat: 17.652, lng: 75.901 },
+  { code: "ANG", name: "Ahmadnagar", hindiName: "अहमदनगर", lat: 19.091, lng: 74.741 },
+  { code: "DD", name: "Daund Jn.", hindiName: "दौंड जंक्शन", lat: 18.462, lng: 74.581 },
+  { code: "KWV", name: "Kurduwadi Jn.", hindiName: "कुर्डूवाडी जंक्शन", lat: 18.081, lng: 75.432 },
+  { code: "LUR", name: "Latur", hindiName: "लातूर", lat: 18.402, lng: 76.561 },
+  { code: "PVR", name: "Pandharpur", hindiName: "पंढरपुर", lat: 17.671, lng: 75.331 },
+  { code: "WADI", name: "Wadi", hindiName: "वाडी", lat: 17.051, lng: 76.991 },
+  { code: "BBS", name: "Bhubaneswar", hindiName: "भुवनेश्वर", lat: 20.266, lng: 85.843 },
+  { code: "PURI", name: "Puri", hindiName: "पुरी", lat: 19.811, lng: 85.821 },
+  { code: "CTC", name: "Cuttack", hindiName: "कटक", lat: 20.472, lng: 85.892 },
+  { code: "BSP", name: "Bilaspur Jn.", hindiName: "बिलासपुर जंक्शन", lat: 22.091, lng: 82.152 },
+  { code: "PRYJ", name: "Prayagraj Jn.", hindiName: "प्रयागराज जंक्शन", lat: 25.441, lng: 81.831 },
+  { code: "ALJN", name: "Aligarh Jn.", hindiName: "अलीगढ़ जंक्शन", lat: 27.892, lng: 78.072 },
+  { code: "ETW", name: "Etawah Jn.", hindiName: "इटावा जंक्शन", lat: 26.772, lng: 79.022 },
+  { code: "MZP", name: "Mirzapur", hindiName: "मिर्जापुर", lat: 25.142, lng: 82.562 },
+  { code: "SC", name: "Secunderabad Jn.", hindiName: "सिकंदराबाद जंक्शन", lat: 17.433, lng: 78.501 },
+  { code: "HYB", name: "Hyderabad Deccan", hindiName: "हैदराबाद डेक्कन", lat: 17.391, lng: 78.472 },
+  { code: "KZJ", name: "Kazipet Jn.", hindiName: "काजीपेट जंक्शन", lat: 17.972, lng: 79.521 },
+  { code: "KMT", name: "Khammam", hindiName: "खम्मम", lat: 17.251, lng: 80.141 },
+  { code: "WL", name: "Warangal", hindiName: "वारंगल", lat: 17.962, lng: 79.602 }
 ];
 
 const FALLBACK_TRAINS = [
@@ -81,7 +187,7 @@ function findLocalTrain(query: string, stationFrom?: string, stationTo?: string)
   const clean = query.trim().toUpperCase();
   let match = FALLBACK_TRAINS.find(t => t.trainNo === clean || t.trainName.toUpperCase().includes(clean));
   if (match) {
-    let result = { ...match };
+    let result = { ...match, exists: true };
     if (stationFrom && stationTo) {
       const fromSt = stationFrom.toUpperCase().trim();
       const toSt = stationTo.toUpperCase().trim();
@@ -94,31 +200,25 @@ function findLocalTrain(query: string, stationFrom?: string, stationTo?: string)
     return result;
   }
 
-  let hashVal = 0;
-  for (let i = 0; i < query.length; i++) {
-    hashVal += query.charCodeAt(i);
-  }
+  // Check if it looks like a valid 5 digit train number
   const digits = query.replace(/[^0-9]/g, '');
-  const trainNo = digits.length >= 4 ? digits : String(10000 + (hashVal % 90000));
-  let trainNameClean = query.replace(/[0-9]/g, '').trim();
-  if (!trainNameClean) {
-    trainNameClean = "Express Train";
-  }
-  const trainName = trainNameClean.charAt(0).toUpperCase() + trainNameClean.slice(1) + ` (${trainNo})`;
-  
-  let routeDistanceKm = 450;
-  if (stationFrom && stationTo) {
-    const sFrom = findLocalStation(stationFrom);
-    const sTo = findLocalStation(stationTo);
-    routeDistanceKm = getDistanceKm(sFrom.lat, sFrom.lng, sTo.lat, sTo.lng);
+  if (digits.length === 5) {
+    let routeDistanceKm = 450;
+    if (stationFrom && stationTo) {
+      const sFrom = findLocalStation(stationFrom);
+      const sTo = findLocalStation(stationTo);
+      routeDistanceKm = getDistanceKm(sFrom.lat, sFrom.lng, sTo.lat, sTo.lng);
+    }
+    return {
+      exists: true,
+      trainNo: digits,
+      trainName: `Train ${digits}`,
+      routeDistanceKm: routeDistanceKm || 450,
+      routeVia: stationFrom && stationTo ? `via routes connecting ${stationFrom} and ${stationTo}` : "via intermediate junctions"
+    };
   }
 
-  return {
-    trainNo,
-    trainName,
-    routeDistanceKm: routeDistanceKm || 450,
-    routeVia: stationFrom && stationTo ? `via routes connecting ${stationFrom} and ${stationTo}` : "via intermediate junctions"
-  };
+  return { exists: false, trainNo: "", trainName: "", routeDistanceKm: 0, routeVia: "" };
 }
 
 async function startServer() {
@@ -331,6 +431,39 @@ Return a JSON object matching this schema.`,
     }
 
     try {
+      const clean = query.trim().toUpperCase();
+
+      // Check Firestore custom stations first if initialized on the server
+      if (db) {
+        try {
+          const docRef = doc(db, "custom_stations", clean);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            return res.json({ success: true, station: docSnap.data(), fallback: false });
+          }
+        } catch (dbErr) {
+          console.warn("Error fetching custom station from Firestore in server search-station endpoint:", dbErr);
+        }
+      }
+
+      // Prioritize high-fidelity local station database matches (includes all uploaded stations from user PDF)
+      const exactLocalMatch = FALLBACK_STATIONS.find(s => 
+        s.code === clean || 
+        s.name.toUpperCase() === clean || 
+        s.hindiName === query.trim()
+      );
+      
+      if (exactLocalMatch) {
+        return res.json({ success: true, station: exactLocalMatch, fallback: false });
+      }
+
+      const fuzzyLocalMatch = FALLBACK_STATIONS.find(s => 
+        s.name.toUpperCase().includes(clean)
+      );
+      if (fuzzyLocalMatch) {
+        return res.json({ success: true, station: fuzzyLocalMatch, fallback: false });
+      }
+
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
         console.warn("Gemini API key is missing. Using high-fidelity custom local database for station search.");
@@ -388,6 +521,9 @@ Return a JSON object matching this schema.`,
       if (!apiKey) {
         console.warn("Gemini API key is missing. Using high-fidelity custom local database for train lookup.");
         const localTrain = findLocalTrain(query, stationFrom, stationTo);
+        if (!localTrain.exists) {
+          return res.status(404).json({ success: false, error: "Train not found / Invalid train number (ट्रेन उपलब्ध नहीं है)" });
+        }
         return res.json({ success: true, train: localTrain, fallback: true });
       }
 
@@ -400,9 +536,16 @@ Return a JSON object matching this schema.`,
         }
       });
 
-      const prompt = `Find details for the Indian Railways train with Number or Name: "${query}". 
-If a departing station "${stationFrom || ''}" and destination station "${stationTo || ''}" are provided, lookup the exact official train route distance (in Kilometers) between these two stations along the official timetable/itinerary of this train.
-Return the correct official Train Number, full official Train Name (e.g., "Seemanchal Express" or "Geetanjali Express"), the correct railway route distance, and a brief "via" description of key intermediate junctions.
+      const prompt = `You are an expert Indian Railways verification system. Validate if the train Number or Name: "${query}" exists on Indian Railways. 
+If the train is fake, invalid, or does not exist on Indian Railways, set the "exists" field in the JSON response to false.
+If a departing station "${stationFrom || ''}" and destination station "${stationTo || ''}" are provided, find the exact official train route distance (in Kilometers) between these two stations along the official timetable/itinerary of this train.
+If they are valid stations and this train runs between them, specify the real distance. Ensure the distance is highly accurate instead of just straight-line distance.
+Return JSON with fields:
+- exists: boolean (true if the train exists, false if it is invalid/fake/doesn't exist)
+- trainNo: string (The 5-digit train number, or empty if exists is false)
+- trainName: string (Official train name, or empty if exists is false)
+- routeDistanceKm: number (The actual railway route distance in Kilometers between the From and To stations, or 0 if not applicable)
+- routeVia: string (Key intermediate junctions, or empty if not applicable)
 Return as JSON.`;
 
       const response = await ai.models.generateContent({
@@ -413,22 +556,29 @@ Return as JSON.`;
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              trainNo: { type: Type.STRING, description: "The 5-digit train number, e.g. '12488' or '12301'" },
-              trainName: { type: Type.STRING, description: "Official train name, e.g. 'Seemanchal Express'" },
+              exists: { type: Type.BOOLEAN, description: "True if the train is a real Indian Railways train, false otherwise" },
+              trainNo: { type: Type.STRING, description: "The 5-digit train number" },
+              trainName: { type: Type.STRING, description: "Official train name" },
               routeDistanceKm: { type: Type.NUMBER, description: "The actual official railway distance in Kilometers between the From and To stations along this train's path" },
-              routeVia: { type: Type.STRING, description: "Descriptive phrase listing 1-3 key intermediate junctions, e.g. 'via Prayagraj, Patna Jn'" }
+              routeVia: { type: Type.STRING, description: "Descriptive phrase listing 1-3 key intermediate junctions" }
             },
-            required: ["trainNo", "trainName"]
+            required: ["exists", "trainNo", "trainName"]
           }
         }
       });
 
       const trainData = JSON.parse(response.text.trim());
+      if (trainData.exists === false) {
+        return res.status(404).json({ success: false, error: "Train not found / Invalid train number (ट्रेन उपलब्ध नहीं है)" });
+      }
       res.json({ success: true, train: trainData });
     } catch (error: any) {
       // Clean fallback logging to avoid triggering automated log warning flags
       console.log(`Train lookup for "${query}" handled successfully via integrated train database.`);
       const localTrain = findLocalTrain(query, stationFrom, stationTo);
+      if (!localTrain.exists) {
+        return res.status(404).json({ success: false, error: "Train not found / Invalid train number (ट्रेन उपलब्ध नहीं है)" });
+      }
       res.json({ success: true, train: localTrain, fallback: true });
     }
   });

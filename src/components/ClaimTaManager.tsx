@@ -242,6 +242,12 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
   const [contingentItems, setContingentItems] = useState<ContingentItem[]>([]);
   const componentRef = useRef<HTMLDivElement>(null);
 
+  // Signature selection visibility toggles
+  const [showClaimantSig, setShowClaimantSig] = useState(true);
+  const [showCounterSig, setShowCounterSig] = useState(true);
+  const [showHeadOfficeSig, setShowHeadOfficeSig] = useState(true);
+  const [showControllingOfficerSig, setShowControllingOfficerSig] = useState(true);
+
   // Print settings
   const [printSettings, setPrintSettings] = useState<PrintSettings>({
     watermark: "none",
@@ -1065,121 +1071,152 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
     // Mileage / Contingent Amount
     const totalMileage = processedLegs.reduce((sum, current) => sum + (current.mileageAmount || 0), 0);
 
-    // Build the day-by-day split table rows for printing
-    const tableRows: any[] = [];
-    processedLegs.forEach((leg, index) => {
-      const breakdown = leg.calendarBreakdown || [];
-      if (calculationMode === 'calendar_day' && breakdown.length > 0) {
-        breakdown.forEach((bItem, bIndex) => {
-          const isFirstDayOfLeg = bIndex === 0;
-          const isLastDayOfLeg = bIndex === breakdown.length - 1;
-          
-          tableRows.push({
-            id: `${leg.id}-${bItem.date}`,
-            originalLegId: leg.id,
-            date: bItem.date,
-            trainNoOrVehNo: leg.trainNoOrVehNo || leg.mode,
-            trainName: leg.trainName,
-            mode: leg.mode,
-            depTime: isFirstDayOfLeg ? leg.depTime : "00:00",
-            arrTime: isLastDayOfLeg ? leg.arrTime : "NA",
-            stationFrom: isFirstDayOfLeg ? (leg.stationFrom || "NA") : "NA",
-            stationTo: isLastDayOfLeg ? (leg.stationTo || "NA") : "NA",
-            beyond8Km: leg.beyond8Km,
-            roadDistanceKm: isFirstDayOfLeg ? leg.roadDistanceKm : 0,
-            roadType: leg.roadType,
-            hours: bItem.hours,
-            haltHours: isLastDayOfLeg ? leg.haltHours : 0,
-            haltSpentAt: leg.haltSpentAt,
-            haltManualText: leg.haltManualText,
-            purpose: leg.purpose,
-            daAmount: bItem.amount,
-            mileageAmount: isFirstDayOfLeg ? (leg.mileageAmount || 0) : 0,
-            totalAmount: bItem.amount + (isFirstDayOfLeg ? (leg.mileageAmount || 0) : 0),
-            dayPct: bItem.dayPct,
-            dayTotalHours: bItem.dayTotalHours,
-            isTerritorialArmy: leg.isTerritorialArmy,
-            isFreeMessingTraining: leg.isFreeMessingTraining,
-            isBreakdownDuty: leg.isBreakdownDuty,
-            originalLeg: leg
-          });
-        });
-      } else {
-        // Continuous mode fallback
-        tableRows.push({
-          id: leg.id,
-          originalLegId: leg.id,
-          date: leg.depDate,
-          trainNoOrVehNo: leg.trainNoOrVehNo || leg.mode,
-          trainName: leg.trainName,
+    // Format local time helper
+    const formatLocalTime = (ms: number) => {
+      const date = new Date(ms);
+      const h = String(date.getHours()).padStart(2, '0');
+      const m = String(date.getMinutes()).padStart(2, '0');
+      return `${h}:${m}`;
+    };
+
+    // Let's create a list of chronological legs sorted
+    const sortedLegsForPrint = [...processedLegs].sort((a, b) => {
+      const d1 = new Date(`${a.depDate}T${a.depTime}`).getTime();
+      const d2 = new Date(`${b.depDate}T${b.depTime}`).getTime();
+      return d1 - d2;
+    });
+
+    // Generate chronological journey and stay segments
+    const printSegments: any[] = [];
+    sortedLegsForPrint.forEach((leg, idx) => {
+      const start = new Date(`${leg.depDate}T${leg.depTime}`);
+      const end = new Date(`${leg.arrDate}T${leg.arrTime}`);
+      
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        printSegments.push({
+          id: `seg-j-${leg.id}`,
+          type: 'journey',
+          start,
+          end,
+          leg,
+          from: leg.stationFrom,
+          to: leg.stationTo,
+          trainNo: leg.trainNoOrVehNo || leg.mode,
           mode: leg.mode,
-          depTime: leg.depTime,
-          arrTime: leg.arrTime || "NA",
-          stationFrom: leg.stationFrom || "NA",
-          stationTo: leg.stationTo || "NA",
-          beyond8Km: leg.beyond8Km,
           roadDistanceKm: leg.roadDistanceKm,
           roadType: leg.roadType,
-          hours: leg.hours,
-          haltHours: leg.haltHours,
-          haltSpentAt: leg.haltSpentAt,
-          haltManualText: leg.haltManualText,
           purpose: leg.purpose,
-          daAmount: leg.daAmount,
-          mileageAmount: leg.mileageAmount || 0,
-          totalAmount: leg.amount,
-          dayPct: leg.percentage,
-          dayTotalHours: leg.hours,
-          isTerritorialArmy: leg.isTerritorialArmy,
-          isFreeMessingTraining: leg.isFreeMessingTraining,
+          beyond8Km: leg.beyond8Km,
           isBreakdownDuty: leg.isBreakdownDuty,
-          originalLeg: leg
+          isFreeMessingTraining: leg.isFreeMessingTraining,
+          isTerritorialArmy: leg.isTerritorialArmy,
+          mileageAmount: leg.mileageAmount || 0
         });
       }
-    });
 
-    // Precalculate rowSpan for "Date" and "Rate / Percentage" columns grouped by date
-    const dateRowSpans: { [key: number]: number } = {};
-    const dateSeen = new Set<string>();
-
-    tableRows.forEach((row, rowIndex) => {
-      if (!dateSeen.has(row.date)) {
-        dateSeen.add(row.date);
-        let count = 0;
-        for (let i = rowIndex; i < tableRows.length; i++) {
-          if (tableRows[i].date === row.date) {
-            count++;
-          } else {
-            break;
-          }
+      // If there is a next leg, add a stay segment between them
+      const nextLeg = sortedLegsForPrint[idx + 1];
+      if (nextLeg) {
+        const nextStart = new Date(`${nextLeg.depDate}T${nextLeg.depTime}`);
+        if (!isNaN(end.getTime()) && !isNaN(nextStart.getTime()) && nextStart > end) {
+          printSegments.push({
+            id: `seg-s-${leg.id}-${nextLeg.id}`,
+            type: 'stay',
+            start: end,
+            end: nextStart,
+            station: leg.stationTo || nextLeg.stationFrom || "Halt",
+            purpose: nextLeg.purpose || leg.purpose
+          });
         }
-        dateRowSpans[rowIndex] = count;
       }
     });
 
-    // Precalculate rowSpan for "originalLegId" for merging KMs column
-    const legRowSpans: { [key: number]: number } = {};
-    const legSeen = new Set<string>();
-
-    tableRows.forEach((row, rowIndex) => {
-      if (!legSeen.has(row.originalLegId)) {
-        legSeen.add(row.originalLegId);
-        let count = 0;
-        for (let i = rowIndex; i < tableRows.length; i++) {
-          if (tableRows[i].originalLegId === row.originalLegId) {
-            count++;
-          } else {
-            break;
-          }
-        }
-        legRowSpans[rowIndex] = count;
+    // Collect all calendar days spanning from the very start to the very end
+    const printDates: string[] = [];
+    if (printSegments.length > 0) {
+      const firstStart = printSegments[0].start;
+      const lastEnd = printSegments[printSegments.length - 1].end;
+      
+      let curr = new Date(firstStart.getFullYear(), firstStart.getMonth(), firstStart.getDate());
+      const finalDay = new Date(lastEnd.getFullYear(), lastEnd.getMonth(), lastEnd.getDate());
+      
+      let safety = 0;
+      while (curr <= finalDay && safety < 100) {
+        safety++;
+        const y = curr.getFullYear();
+        const m = String(curr.getMonth() + 1).padStart(2, '0');
+        const d = String(curr.getDate()).padStart(2, '0');
+        printDates.push(`${y}-${m}-${d}`);
+        curr.setDate(curr.getDate() + 1);
       }
-    });
+    }
+
+    // Now, let's assemble each day-wise row
+    const dayRows = printDates.map(dateStr => {
+      const [year, month, day] = dateStr.split('-');
+      const formattedDate = `${day}-${month}-${year}`; // DD-MM-YYYY format
+      
+      const dayStartMs = new Date(`${dateStr}T00:00:00`).getTime();
+      const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
+      
+      // Filter segments overlapping with this day
+      const overlappingSegs: any[] = [];
+      let totalMileageAmountOnDay = 0;
+      
+      printSegments.forEach(seg => {
+        const overlapStartMs = Math.max(seg.start.getTime(), dayStartMs);
+        const overlapEndMs = Math.min(seg.end.getTime(), dayEndMs);
+        
+        if (overlapEndMs > overlapStartMs) {
+          const hoursOnDay = (overlapEndMs - overlapStartMs) / (1000 * 60 * 60);
+          
+          // Mileage is credited on the departure date of that specific leg
+          let mileageVal = 0;
+          if (seg.type === 'journey' && seg.start.getTime() >= dayStartMs && seg.start.getTime() < dayEndMs) {
+            mileageVal = seg.mileageAmount;
+            totalMileageAmountOnDay += mileageVal;
+          }
+          
+          overlappingSegs.push({
+            ...seg,
+            overlapStartMs,
+            overlapEndMs,
+            hoursOnDay,
+            mileageOnDay: mileageVal
+          });
+        }
+      });
+      
+      // Calculate daily DA metrics from calendarDaysBreakdown
+      const dbRecord = calendarDaysBreakdown.find(d => d.date === dateStr);
+      const dayDaAmt = dbRecord ? dbRecord.amount : 0;
+      const dayPct = dbRecord ? dbRecord.pct : 0;
+      const dayHrs = dbRecord ? dbRecord.hours : 0;
+      
+      const dayTotalClaimed = dayDaAmt + totalMileageAmountOnDay;
+      
+      return {
+        dateStr,
+        formattedDate,
+        daySegments: overlappingSegs,
+        dayDaAmt,
+        dayPct,
+        dayHrs,
+        totalMileageAmountOnDay,
+        dayTotalClaimed,
+        purpose: overlappingSegs.map(s => s.purpose).filter((v, i, a) => v && a.indexOf(v) === i).join(', ') || 'Official Duty',
+        isBreakdownDuty: overlappingSegs.some(s => s.isBreakdownDuty),
+        isFreeMessingTraining: overlappingSegs.some(s => s.isFreeMessingTraining),
+        isTerritorialArmy: overlappingSegs.some(s => s.isTerritorialArmy),
+        beyond8Km: overlappingSegs.some(s => s.beyond8Km !== false)
+      };
+    }).filter(row => row.daySegments.length > 0); // Keep only days with active segments
+
+    const tableRows = dayRows; // Keep tableRows structure compatible with code placeholders if any
 
     // Precalculate rowSpan for "purpose" (Object of journey) column grouped by contiguous identical purpose values
     const purposeRowSpans: { [key: number]: number } = {};
     let currentPurposeIndex = 0;
-
     while (currentPurposeIndex < tableRows.length) {
       const currentPurpose = tableRows[currentPurposeIndex].purpose || "";
       let count = 1;
@@ -1192,101 +1229,154 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
       currentPurposeIndex = nextIndex;
     }
 
+    const fh = (sizeL: string, sizeP: string) => isLandscape ? sizeL : sizeP;
+
     return (
       <>
-        {/* Dynamic Landscape/Portrait Orientation Injection */}
+        {/* Dynamic Landscape/Portrait Orientation Injection & Sandbox-safe Print Overrides */}
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page {
               size: ${isLandscape ? 'landscape' : 'portrait'};
-              margin: 10mm 12mm !important;
+              margin: 4mm 6mm !important;
             }
-            #print-container {
+            body.printing-mode {
+              background-color: white !important;
+              color: black !important;
+            }
+            body.printing-mode #print-container {
               padding: 0 !important;
-              max-width: 100% !important;
+              margin: 0 !important;
               width: 100% !important;
+              max-width: 100% !important;
+              height: auto !important;
+              overflow: visible !important;
+              display: block !important;
+              box-sizing: border-box !important;
+            }
+            body.printing-mode #print-container > div {
+              padding: 0 !important;
+              margin: 0 !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              box-sizing: border-box !important;
+            }
+            /* Fast fix: prevent any background clipping in table headers */
+            th, td {
+              page-break-inside: avoid !important;
             }
           }
         `}} />
         <RenderPrintOverlayWatermark watermark={printSettings.watermark} />
         
-        <div className="text-center font-bold mb-6 space-y-1">
-          <h2 className="text-[16pt] tracking-wide uppercase">NORTHEAST FRONTIER RAILWAY</h2>
-          <h3 className="text-[14pt] uppercase text-gray-700">{division} DIVISION / {department} DEPARTMENT</h3>
-          <h4 className="border-b border-double border-black pb-2 text-[13pt] tracking-normal border-black">
-            JOURNAL AND CLAIM FOR TRAVELLING ALLOWANCE (TA) — Rule CPC-7
-          </h4>
+        {/* Authentic 3-Column Railway Header Layout from PNG */}
+        <div className={`grid grid-cols-3 items-end w-full border-b border-double border-black pb-1 mb-2 font-serif leading-tight text-black ${fh('text-[9.5pt]', 'text-[7pt]')}`}>
+          <div className="text-left font-bold">
+            <div className={fh('text-[10.5pt] font-extrabold', 'text-[7.5pt] font-extrabold')}>पूर्वोत्तर सीमांत रेलवे</div>
+            <div className={fh('text-[9.5pt] uppercase tracking-tight', 'text-[7pt] uppercase tracking-tight')}>NORTHEAST FRONTIER RAILWAY</div>
+            <div className={`${fh('text-[8.5pt]', 'text-[6.5pt]')} text-gray-700 italic font-semibold mt-0.5`}>{division} Div. / {department} Dept.</div>
+          </div>
+          
+          <div className="text-center font-bold self-center space-y-0.5">
+            <div className={fh('text-[13pt] font-extrabold uppercase tracking-wide', 'text-[9.5pt] font-extrabold uppercase tracking-widest')}>यात्रा भत्ता जर्नल</div>
+            <div className={fh('text-[12pt] font-extrabold uppercase tracking-wide', 'text-[8.7pt] font-extrabold uppercase tracking-wider')}>TRAVELLING ALLOWANCE JOURNAL</div>
+            <div className={`${fh('text-[8px]', 'text-[6pt]')} text-gray-600 block leading-none font-medium italic`}>
+              JOURNAL & CLAIM FOR TRAVELLING ALLOWANCE (TA) — Rule CPC-7
+            </div>
+          </div>
+          
+          <div className={`text-right font-mono font-bold leading-none text-gray-800 space-y-0.5 ${fh('text-[8pt]', 'text-[6pt]')}`}>
+            <div>जी. ए. 31 एस आर सी/जी 1677</div>
+            <div>G. A. 31 S.R.C. / G. 1677</div>
+            <div className="text-gray-550 italic font-sans text-[6.5pt]">NFR-PERS-CLERICAL-TA-V3</div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-y-2 text-[11.5pt] mb-6 border border-black p-4 rounded bg-slate-50/20 text-left">
-          <div><strong>Employee Name:</strong> <span className="underline">{employeeName || "____________________"}</span></div>
-          <div><strong>Designation:</strong> <span className="underline">{designation || "____________________"}</span></div>
-          <div><strong>Employee / PF No:</strong> <span className="underline">{empNo || "____________________"}</span></div>
-          <div><strong>7th CPC Pay Level:</strong> <span className="underline">{payLevel}</span></div>
-          <div><strong>Daily TA Rate (100%):</strong> <span className="underline">₹ {totalDailyRate}</span></div>
-          <div><strong>Division / Department:</strong> <span className="underline">{division} / {department}</span></div>
-          <div><strong>TA Claim Month/Year:</strong> <span className="underline font-bold text-indigo-900">{claimMonth} {claimYear}</span></div>
-          <div><strong>Bill Unit (बिल यूनिट):</strong> <span className="underline font-mono">{billUnit || "____________________"}</span></div>
+        {/* Compact 3-Column Employee Parameters Grid */}
+        <div className={`grid grid-cols-3 gap-x-3 gap-y-1 mb-2 border border-black p-1.5 rounded-sm bg-slate-50/10 text-left leading-tight text-black font-serif ${fh('text-[9.5pt]', 'text-[7.2pt]')}`}>
+          <div><strong>Employee Name:</strong> <span className="underline font-sans font-extrabold">{employeeName || "____________________"}</span></div>
+          <div><strong>Designation (पद):</strong> <span className="underline font-sans font-bold">{designation || "____________________"}</span></div>
+          <div><strong>Employee/PF No:</strong> <span className="underline font-mono font-bold">{empNo || "____________________"}</span></div>
+          
+          <div><strong>7th CPC Pay Level:</strong> <span className="underline font-mono font-bold">{payLevel}</span></div>
+          <div><strong>Daily TA Rate (100%):</strong> <span className="underline font-mono font-bold">₹ {totalDailyRate}</span></div>
+          <div><strong>Bill Unit (बी.यू.):</strong> <span className="underline font-mono font-bold">{billUnit || "____________________"}</span></div>
+          
+          <div className="col-span-2"><strong>Division / Department:</strong> <span className="underline font-sans">{division} / {department}</span></div>
+          <div><strong>Claim Month/Year:</strong> <span className="underline font-bold text-slate-900 font-mono">{claimMonth} {claimYear}</span></div>
         </div>
 
-        <table className="w-full text-left border-collapse border border-black text-[9.5pt] mb-6 font-serif">
+        <table className={`w-full text-left border-collapse border border-black mb-2 font-serif table-fixed ${fh('text-[8.5pt]', 'text-[7.2pt]')}`}>
+          <colgroup>
+            <col style={{ width: isLandscape ? '8%' : '8.5%' }} />
+            <col style={{ width: isLandscape ? '6%' : '6%' }} />
+            <col style={{ width: isLandscape ? '6.5%' : '7%' }} />
+            <col style={{ width: isLandscape ? '6.5%' : '7%' }} />
+            <col style={{ width: isLandscape ? '8.5%' : '9%' }} />
+            <col style={{ width: isLandscape ? '8.5%' : '9%' }} />
+            <col style={{ width: isLandscape ? '7.5%' : '7%' }} />
+            <col style={{ width: isLandscape ? '24%' : '20%' }} />
+            <col style={{ width: isLandscape ? '11.5%' : '10%' }} />
+            <col style={{ width: isLandscape ? '7.5%' : '9%' }} />
+            <col style={{ width: isLandscape ? '5.5%' : '7.5%' }} />
+          </colgroup>
           <thead>
             {/* Row 1 Headers (Matching PNG format) */}
             <tr className="bg-gray-150 text-center font-bold">
-              <th className="border border-black p-1 text-[8.5pt]" rowSpan={2}>
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
                 माह और तारीख
                 <br />
                 Month & Date
               </th>
-              <th className="border border-black p-1 text-[8.5pt]" rowSpan={2}>
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
                 गाड़ी का क्रमांक
                 <br />
                 Train No.
               </th>
-              <th className="border border-black p-1 text-[8.5pt]" rowSpan={2}>
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
                 प्रस्थान समय
                 <br />
                 Time left
               </th>
-              <th className="border border-black p-1 text-[8.5pt]" rowSpan={2}>
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
                 आगमन समय
                 <br />
                 Time arrived
               </th>
-              <th className="border border-black p-1 text-[8.5pt]" colSpan={2}>
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} colSpan={2}>
                 स्टेशन / Station
               </th>
-              <th className="border border-black p-1 text-[8.5pt]" rowSpan={2}>
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
                 कि. मी.
                 <br />
                 Kms.
               </th>
-              <th className="border border-black p-1 text-[8.5pt]" rowSpan={2}>
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
                 दिन/रात या घंटे
                 <br />
                 Day/Night/Hrs
               </th>
-              <th className="border border-black p-1 text-[8.5pt]" rowSpan={2}>
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
                 यात्रा का उद्देश्य
                 <br />
                 Object of journey
               </th>
-              <th className="border border-black p-1 text-[8.5pt]" rowSpan={2}>
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
                 दर / Rate
               </th>
-              <th className="border border-black p-1 text-[8.5pt] text-right font-extrabold" rowSpan={2}>
+              <th className={`border border-black p-0.5 py-1 text-right font-extrabold leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
                 दावा राशि
                 <br />
                 Claimed Amt
               </th>
             </tr>
             {/* Row 2: Subheaders for Station (From / To) */}
-            <tr className="bg-gray-150 text-center font-bold text-[8.5pt]">
-              <th className="border border-black p-1">से / From</th>
-              <th className="border border-black p-1">तक / To</th>
+            <tr className={`bg-gray-150 text-center font-bold leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`}>
+              <th className="border border-black p-0.5">से / From</th>
+              <th className="border border-black p-0.5">तक / To</th>
             </tr>
             {/* Row 3: Column Numbers 1 to 11 */}
-            <tr className="bg-gray-100 text-center text-[7.5pt] font-mono text-gray-650">
+            <tr className={`bg-gray-100 text-center font-mono text-gray-650 ${fh('text-[7.5pt]', 'text-[6.2pt]')}`}>
               <td className="border border-black p-0.5">1</td>
               <td className="border border-black p-0.5">2</td>
               <td className="border border-black p-0.5">3</td>
@@ -1302,29 +1392,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
           </thead>
           <tbody>
             {tableRows.map((row, i) => {
-              const hasDateSpan = dateRowSpans[i] !== undefined;
-              const daySpanVal = dateRowSpans[i];
-              
-              const hasLegSpan = legRowSpans[i] !== undefined;
-              const legSpanVal = legRowSpans[i];
-              
-              // Find the calendarDaysBreakdown details for this date
-              const dayRecord = calendarDaysBreakdown.find(d => d.date === row.date);
-              const dayTotalHrs = dayRecord ? dayRecord.hours : row.hours;
-              const dayPct = dayRecord ? dayRecord.pct : row.dayPct;
-              const dayDaAmt = dayRecord ? dayRecord.amount : row.daAmount;
-              
-              // Calculate the sum of totalAmount for this date group
-              let dateTotalAmountSum = 0;
-              if (hasDateSpan && daySpanVal) {
-                for (let k = i; k < i + daySpanVal; k++) {
-                  if (tableRows[k]) {
-                    dateTotalAmountSum += tableRows[k].totalAmount;
-                  }
-                }
-              }
-              
-              let pctDisplay = `${(dayPct * 100).toFixed(0)}%`;
+              let pctDisplay = `${(row.dayPct * 100).toFixed(0)}%`;
               if (row.isFreeMessingTraining) {
                 pctDisplay = "Training (20%)";
               } else if (row.isBreakdownDuty) {
@@ -1333,193 +1401,266 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                 pctDisplay = "Within 8km (0%)";
               }
 
+              const dayStartMs = new Date(`${row.dateStr}T00:00:00`).getTime();
+              const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
+
+              // Filter only journey segments for traveling details
+              const journeySegs = row.daySegments.filter((seg: any) => seg.type === 'journey');
+
+              // Dynamic text scaling helpers for cells
+              const c75 = fh('text-[9.5pt]', 'text-[7.2pt]');
+              const c80 = fh('text-[10.5pt]', 'text-[7.5pt]');
+              const c60 = fh('text-[8.0pt]', 'text-[6pt]');
+              const c65 = fh('text-[8.5pt]', 'text-[6.3pt]');
+
               return (
-                <tr key={row.id} className="text-[9pt] leading-tight text-center">
-                  {/* 1. Month & Date (Merged by Date if calculationMode is calendar_day) */}
-                  {calculationMode === 'calendar_day' ? (
-                    hasDateSpan ? (
-                      <td className="border border-black p-1 font-mono text-center font-bold bg-slate-50/10 align-middle" rowSpan={daySpanVal}>
-                        {row.date}
-                      </td>
-                    ) : null
-                  ) : (
-                    <td className="border border-black p-1 font-mono text-center">{row.date}</td>
-                  )}
+                <tr key={row.dateStr} className={`leading-snug text-center align-middle hover:bg-slate-50/10 ${c80}`}>
+                  {/* 1. Month & Date */}
+                  <td className={`border border-black p-0.5 py-1 font-mono text-center font-bold bg-slate-50/10 whitespace-nowrap ${c75}`}>
+                    {row.formattedDate}
+                  </td>
                   
                   {/* 2. Train/Vehicle No */}
-                  <td className="border border-black p-1 text-center font-bold">
-                    <div>{row.trainNoOrVehNo || row.mode}</div>
-                    {row.mode === 'Train' && row.trainName && (
-                      <div className="text-[7pt] text-gray-650 font-sans font-normal leading-tight mt-0.5">
-                        {row.trainName}
+                  <td className={`border border-black p-0.5 py-1 text-center font-sans font-bold break-words ${c75}`}>
+                    {journeySegs.length === 0 ? (
+                      <span className="text-gray-400 font-normal">-</span>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        {journeySegs.map((seg: any, idx: number) => (
+                          <div key={idx} className="min-h-[1.2rem] flex items-center justify-center">
+                            <div className="leading-none">
+                              <span className="text-gray-900 block font-bold">{seg.trainNo}</span>
+                              {seg.leg.trainName && (
+                                <span className={`text-gray-550 font-normal block leading-none mt-0.5 ${c60}`}>
+                                  {seg.leg.trainName}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </td>
                   
-                  {/* 3. Time left */}
-                  <td className="border border-black p-1 font-mono text-center font-bold">
-                    {row.depTime}
+                  {/* 3. Time left (Departure) */}
+                  <td className={`border border-black p-0.5 py-1 font-mono text-center font-bold ${c75}`}>
+                    {journeySegs.length === 0 ? (
+                      <span className="text-gray-400 font-normal">NA</span>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        {journeySegs.map((seg: any, idx: number) => {
+                          const deportsToday = seg.leg.depDate === row.dateStr;
+                          return (
+                            <div key={idx} className="min-h-[1.2rem] flex items-center justify-center">
+                              <span className={deportsToday ? "text-slate-900 font-extrabold" : "text-gray-400 font-normal"}>
+                                {deportsToday ? seg.leg.depTime : "NA"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </td>
                   
                   {/* 4. Time arrived */}
-                  <td className="border border-black p-1 font-mono text-center font-bold">
-                    {row.arrTime}
+                  <td className={`border border-black p-0.5 py-1 font-mono text-center font-bold ${c75}`}>
+                    {journeySegs.length === 0 ? (
+                      <span className="text-gray-400 font-normal">NA</span>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        {journeySegs.map((seg: any, idx: number) => {
+                          const arrivesToday = seg.leg.arrDate === row.dateStr;
+                          return (
+                            <div key={idx} className="min-h-[1.2rem] flex items-center justify-center">
+                              <span className={arrivesToday ? "text-slate-900 font-extrabold" : "text-gray-400 font-normal"}>
+                                {arrivesToday ? seg.leg.arrTime : "NA"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </td>
                   
                   {/* 5. From Station */}
-                  <td className="border border-black p-1 text-left">
-                    <div>{row.stationFrom || "NA"}</div>
-                    {row.stationFrom !== "NA" && row.beyond8Km === false && (
-                      <span className="text-[7.5pt] text-rose-800 font-bold block leading-none font-sans">
-                        (HQ 8km Excluded)
-                      </span>
+                  <td className={`border border-black p-0.5 py-1 text-left font-sans break-words ${c75}`}>
+                    {journeySegs.length === 0 ? (
+                      <div className="text-center">
+                        <span className="text-gray-400 font-normal">NA</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1 bg-slate-50/5">
+                        {journeySegs.map((seg: any, idx: number) => {
+                          const deportsToday = seg.leg.depDate === row.dateStr;
+                          return (
+                            <div key={idx} className="min-h-[1.2rem] flex items-center">
+                              {deportsToday ? (
+                                <div className="leading-none">
+                                  <span className="font-extrabold text-slate-900">{seg.from}</span>
+                                  {seg.from !== "NA" && seg.beyond8Km === false && (
+                                    <span className={`text-rose-800 font-bold block leading-none mt-0.5 ${c60}`}>
+                                      (HQ 8km)
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className={`text-gray-400 font-normal ${c75}`}>NA</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </td>
                   
                   {/* 6. To Station */}
-                  <td className="border border-black p-1 text-left">
-                    <div>{row.stationTo || "NA"}</div>
-                  </td>
-                  
-                  {/* 7. Kms */}
-                  {calculationMode === 'calendar_day' ? (
-                    hasLegSpan ? (
-                      <td className="border border-black p-1 font-mono text-center align-middle" rowSpan={legSpanVal}>
-                        {row.originalLeg.roadDistanceKm && row.originalLeg.roadDistanceKm > 0 ? (
-                          <div>
-                            {row.originalLeg.roadDistanceKm} KM
-                            {row.originalLeg.mode === 'Road' ? (
-                              <span className="block text-[7.5pt] font-sans text-amber-800">
-                                @ Rs {row.originalLeg.roadType === 'auto_scooter' ? '12' : '24'}/KM
-                              </span>
-                            ) : row.originalLeg.mode === 'Train' ? (
-                              <span className="block text-[7.5pt] font-sans text-emerald-800 leading-none mt-0.5">
-                                (Rail Track)
-                              </span>
-                            ) : (
-                              <span className="block text-[7.5pt] font-sans text-slate-700 leading-none mt-0.5">
-                                (Air Travel)
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          "NA"
-                        )}
-                      </td>
-                    ) : null
-                  ) : (
-                    <td className="border border-black p-1 font-mono text-center">
-                      {row.roadDistanceKm && row.roadDistanceKm > 0 ? (
-                        <div>
-                          {row.roadDistanceKm} KM
-                          {row.mode === 'Road' ? (
-                            <span className="block text-[7.5pt] font-sans text-amber-800">
-                              @ Rs {row.roadType === 'auto_scooter' ? '12' : '24'}/KM
-                            </span>
-                          ) : row.mode === 'Train' ? (
-                            <span className="block text-[7.5pt] font-sans text-emerald-800 leading-none mt-0.5">
-                              (Rail Track)
-                            </span>
-                          ) : (
-                            <span className="block text-[7.5pt] font-sans text-slate-700 leading-none mt-0.5">
-                              (Air Travel)
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        "NA"
-                      )}
-                    </td>
-                  )}
-                  
-                  {/* 8. Day/Night or Hours */}
-                  <td className="border border-black p-1 font-mono text-center font-bold">
-                    <span>{row.hours.toFixed(1)} hrs</span>
-                    {row.haltHours > 0 && (
-                      <div className="text-[7.5pt] text-violet-900 bg-gray-55 p-0.5 rounded font-sans leading-none mt-0.5 text-left font-normal border border-purple-100">
-                        Stay: {row.haltHours.toFixed(1)}h {row.haltSpentAt === 'manual' ? (row.haltManualText || 'duty waiting') : `at ${row.stationTo}`}
+                  <td className={`border border-black p-0.5 py-1 text-left font-sans break-words ${c75}`}>
+                    {journeySegs.length === 0 ? (
+                      <div className="text-center">
+                        <span className="text-gray-400 font-normal">NA</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1 bg-slate-50/5">
+                        {journeySegs.map((seg: any, idx: number) => {
+                          const arrivesToday = seg.leg.arrDate === row.dateStr;
+                          return (
+                            <div key={idx} className="min-h-[1.2rem] flex items-center">
+                              {arrivesToday ? (
+                                <span className="font-extrabold text-slate-900 leading-none">{seg.to}</span>
+                              ) : (
+                                <span className={`text-gray-400 font-normal ${c75}`}>NA</span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </td>
                   
-                  {/* 9. Object of journey */}
-                  {purposeRowSpans[i] !== undefined ? (
-                    <td className="border border-black p-1 text-left font-sans text-[8.5pt] align-middle" rowSpan={purposeRowSpans[i]}>
-                      {row.purpose || "NA"}
-                    </td>
-                  ) : null}
-                  
-                  {/* 10. Rate / Percentage (Merged by Date if calculationMode is calendar_day) */}
-                  {calculationMode === 'calendar_day' ? (
-                    hasDateSpan ? (
-                      <td className="border border-black p-1 text-center align-middle font-serif bg-slate-50/5" rowSpan={daySpanVal}>
-                        <div className="font-bold text-[10pt] text-indigo-950">{pctDisplay}</div>
-                        <div className="text-[8pt] font-extrabold text-emerald-800 leading-tight">₹{dayDaAmt}</div>
-                        <div className="text-[7pt] text-gray-500 leading-none mt-0.5">
-                          ({dayTotalHrs.toFixed(1)}h total)
-                        </div>
-                        {row.isTerritorialArmy && (
-                          <div className="text-[6.5pt] text-amber-800 font-bold block leading-none mt-0.5">
-                            TA Doubled
+                  {/* 7. Kms */}
+                  <td className={`border border-black p-0.5 py-1 font-mono text-center align-middle ${c75}`}>
+                    {journeySegs.some((seg: any) => seg.roadDistanceKm && seg.roadDistanceKm > 0) ? (
+                      (() => {
+                        const withKms = journeySegs.filter((seg: any) => seg.roadDistanceKm && seg.roadDistanceKm > 0);
+                        const totalKms = withKms.reduce((sum: number, seg: any) => sum + (seg.roadDistanceKm || 0), 0);
+                        const firstRoadSeg = withKms[0];
+                        return (
+                          <div className="leading-tight">
+                            <span className={`font-extrabold block text-slate-900 ${c80}`}>{totalKms} KM</span>
+                            {firstRoadSeg.mode === 'Road' ? (
+                              <span className={`block font-sans text-amber-850 font-bold leading-none mt-0.5 text-amber-800 ${c60}`}>
+                                @ ₹{firstRoadSeg.roadType === 'auto_scooter' ? '12' : '24'}/KM
+                              </span>
+                            ) : firstRoadSeg.mode === 'Train' ? (
+                              <span className={`block font-sans text-emerald-850 leading-none mt-0.5 text-center font-semibold text-emerald-800 ${c60}`}>
+                                (Rail)
+                              </span>
+                            ) : (
+                              <span className={`block font-sans text-slate-705 leading-none mt-0.5 text-center font-semibold text-slate-700 ${c60}`}>
+                                (Air)
+                              </span>
+                            )}
                           </div>
-                        )}
-                      </td>
-                    ) : null
-                  ) : (
-                    <td className="border border-black p-1 text-right">
-                      <div className="font-bold">₹{row.daAmount}</div>
-                      <div className="text-[7.5pt] text-gray-500 leading-none">{(row.dayPct * 100).toFixed(0)}%</div>
+                        );
+                      })()
+                    ) : (
+                      <span className="text-gray-400 font-normal">-</span>
+                    )}
+                  </td>
+                  
+                  {/* 8. Day/Night or Hours */}
+                  <td className={`border border-black p-0.5 py-1 text-left font-medium bg-slate-50/5 leading-tight ${c75}`}>
+                    <div className="text-black block w-full px-1">
+                      {row.daySegments.map((seg: any, idx: number) => {
+                        const isJourney = seg.type === 'journey';
+                        const prefix = idx > 0 ? " ; " : "";
+                        if (isJourney) {
+                          return (
+                            <span key={idx} className={`inline text-black font-extrabold uppercase ${c65}`}>
+                              {prefix}• Jour: <span className="font-mono font-black">{seg.hoursOnDay.toFixed(1)}h</span>
+                            </span>
+                          );
+                        } else {
+                          const timeRange = seg.hoursOnDay === 24 
+                            ? "24 Hrs" 
+                            : `${formatLocalTime(seg.overlapStartMs)} - ${formatLocalTime(seg.overlapEndMs)} (${seg.hoursOnDay.toFixed(1)}h)`;
+                          return (
+                            <span key={idx} className={`inline text-slate-800 font-semibold ${c65}`}>
+                              {prefix}• Halt at {seg.station} ({timeRange})
+                            </span>
+                          );
+                        }
+                      })}
+                    </div>
+                  </td>
+                  
+                  {/* 9. Object of journey */}
+                  {purposeRowSpans[i] !== undefined && (
+                    <td className={`border border-black p-1 text-left font-sans align-middle break-words ${c75}`} rowSpan={purposeRowSpans[i]}>
+                      {row.purpose}
                     </td>
                   )}
+                  
+                  {/* 10. Rate */}
+                  <td className="border border-black p-0.5 py-1 text-center align-middle font-serif bg-slate-50/5">
+                    <div className={`font-extrabold text-indigo-950 leading-tight ${c75}`}>{pctDisplay}</div>
+                    <div className={`font-black text-emerald-800 leading-none mt-1 ${c80}`}>₹{row.dayDaAmt}</div>
+                    <div className={`text-gray-500 font-mono leading-none mt-1 ${c60}`}>
+                      ({row.dayHrs.toFixed(1)}h)
+                    </div>
+                    {row.isTerritorialArmy && (
+                      <div className={`text-amber-800 font-bold block leading-none mt-1 uppercase tracking-wide ${c60}`}>
+                        Doubled
+                      </div>
+                    )}
+                  </td>
                   
                   {/* 11. Claimed Amt */}
-                  {calculationMode === 'calendar_day' ? (
-                    hasDateSpan ? (
-                      <td className="border border-black p-1 text-right font-extrabold text-[10pt] font-mono bg-slate-50/15 align-middle" rowSpan={daySpanVal}>
-                        ₹{dateTotalAmountSum}
-                      </td>
-                    ) : null
-                  ) : (
-                    <td className="border border-black p-1 text-right font-bold text-[10pt] font-mono bg-slate-50/10">
-                      ₹{row.totalAmount}
-                    </td>
-                  )}
+                  <td className="border border-black p-0.5 py-1 text-right font-bold font-mono bg-slate-50/15 align-middle pr-1.5">
+                    <div className="leading-tight text-right w-full">
+                      <div className={`text-slate-950 font-black ${c80}`}>₹{row.dayTotalClaimed}</div>
+                      {row.totalMileageAmountOnDay > 0 && (
+                        <div className={`text-amber-800 font-sans font-bold leading-none mt-1 ${c60}`} title="Road Mileage Portion">
+                          (₹{row.totalMileageAmountOnDay} Mil)
+                        </div>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               );
             })}
             
-            {/* The single summary row for total claimed amt, removing intermediate calculations */}
-            <tr className="bg-gray-150 font-bold text-[10.5pt]">
-              <td colSpan={10} className="border border-black p-2 text-right uppercase">
+            {/* The single summary row for total claimed amt */}
+            <tr className="bg-gray-150 font-bold">
+              <td colSpan={10} className={`border border-black p-2 text-right uppercase ${fh('text-[10.5pt]', 'text-[8.5pt]')}`}>
                 TOTAL CLAIMED TA AMOUNT (दावा राशि कुल योग):
               </td>
-              <td className="border border-black p-2 text-right text-indigo-800 font-extrabold text-[12.5pt] font-mono">
+              <td className={`border border-black p-2 text-right text-indigo-800 font-extrabold font-mono ${fh('text-[12.5pt]', 'text-[9.5pt]')}`}>
                 ₹{totalAmount}
               </td>
             </tr>
           </tbody>
         </table>
 
-        {/* SUMMARY Table (matching PNG exactly) */}
-        <div className="mt-6 mb-6 font-serif">
-          <table className="w-full border-collapse border border-black text-[9.5pt] text-left">
+        <div className="mt-5 mb-5 font-serif">
+          <table className={`w-full border-collapse border border-black text-left ${fh('text-[9.5pt]', 'text-[8.2pt]')}`}>
             <thead>
               <tr className="bg-gray-100 text-center">
-                <th colSpan={3} className="border border-black p-1.5 font-bold tracking-wider text-[10.5pt] uppercase">
+                <th colSpan={3} className={`border border-black py-0.5 px-1.5 font-bold tracking-wider uppercase ${fh('text-[10.5pt]', 'text-[9.2pt]')}`}>
                   SUMMARY (सारांश)
                 </th>
               </tr>
-              <tr className="bg-gray-50 text-center font-bold text-[9pt]">
-                <th className="border border-black p-1.5 w-[25%] font-serif">Percentage (प्रतिशत)</th>
-                <th className="border border-black p-1.5 w-[30%] font-serif">No. of total days (कुल दिनों की संख्या)</th>
-                <th className="border border-black p-1.5 w-[45%] font-serif">Rate of TA X Days = Amount (दर X दिन = कुल राशि)</th>
+              <tr className={`bg-gray-50 text-center font-bold ${fh('text-[9pt]', 'text-[8.0pt]')}`}>
+                <th className="border border-black py-0.5 px-1 w-[25%] font-serif">Percentage (प्रतिशत)</th>
+                <th className="border border-black py-0.5 px-1 w-[30%] font-serif">No. of total days (कुल दिनों की संख्या)</th>
+                <th className="border border-black py-0.5 px-1.5 w-[45%] font-serif text-left pl-4">Rate of TA X Days = Amount (दर X दिन = कुल राशि)</th>
               </tr>
             </thead>
             <tbody>
               <tr className="text-center">
-                <td className="border border-black p-1.5 font-bold bg-gray-50/20 font-serif">30%</td>
-                <td className="border border-black p-1.5 font-mono">{count30 > 0 ? count30 : "—"}</td>
-                <td className="border border-black p-1.5 text-left font-mono pl-6">
+                <td className="border border-black py-0.5 px-1 font-bold bg-gray-50/20 font-serif">30%</td>
+                <td className="border border-black py-0.5 px-1 font-mono">{count30 > 0 ? count30 : "—"}</td>
+                <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4">
                   {count30 > 0 ? (
                     <span>Rs. {Math.round(totalDailyRate * 0.30)} × {count30} = Rs. {amt30}</span>
                   ) : (
@@ -1528,9 +1669,9 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                 </td>
               </tr>
               <tr className="text-center">
-                <td className="border border-black p-1.5 font-bold bg-gray-50/20 font-serif">70%</td>
-                <td className="border border-black p-1.5 font-mono">{count70 > 0 ? count70 : "—"}</td>
-                <td className="border border-black p-1.5 text-left font-mono pl-6">
+                <td className="border border-black py-0.5 px-1 font-bold bg-gray-50/20 font-serif">70%</td>
+                <td className="border border-black py-0.5 px-1 font-mono">{count70 > 0 ? count70 : "—"}</td>
+                <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4">
                   {count70 > 0 ? (
                     <span>Rs. {Math.round(totalDailyRate * 0.70)} × {count70} = Rs. {amt70}</span>
                   ) : (
@@ -1539,9 +1680,9 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                 </td>
               </tr>
               <tr className="text-center">
-                <td className="border border-black p-1.5 font-bold bg-gray-50/20 font-serif">100%</td>
-                <td className="border border-black p-1.5 font-mono">{count100 > 0 ? count100.toFixed(1) : "—"}</td>
-                <td className="border border-black p-1.5 text-left font-mono pl-6">
+                <td className="border border-black py-0.5 px-1 font-bold bg-gray-50/20 font-serif">100%</td>
+                <td className="border border-black py-0.5 px-1 font-mono">{count100 > 0 ? count100.toFixed(1) : "—"}</td>
+                <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4">
                   {count100 > 0 ? (
                     <span>Rs. {Math.round(totalDailyRate * 1.00)} × {count100.toFixed(1)} = Rs. {amt100}</span>
                   ) : (
@@ -1550,18 +1691,18 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                 </td>
               </tr>
               <tr>
-                <td colSpan={2} className="border border-black p-1.5 font-bold text-right uppercase bg-gray-50/35 text-[9pt] font-serif">
+                <td colSpan={2} className={`border border-black py-0.5 px-2 font-bold text-right uppercase bg-gray-50/35 font-serif ${fh('text-[9pt]', 'text-[8.2pt]')}`}>
                   Total Contingent Amount (कुल फुटकर व्यय)
                 </td>
-                <td className="border border-black p-1.5 text-left font-mono pl-6 font-bold text-emerald-800">
+                <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4 font-bold text-emerald-800">
                   Rs. {(totalMileage || 0) + totalContingentAmount}
                 </td>
               </tr>
-              <tr className="bg-gray-100 font-bold text-[10pt]">
-                <td colSpan={2} className="border border-black p-1.5 text-right uppercase tracking-wider font-serif">
+              <tr className={`bg-gray-100 font-bold ${fh('text-[10pt]', 'text-[9pt]')}`}>
+                <td colSpan={2} className="border border-black py-0.5 px-2 text-right uppercase tracking-wider font-serif">
                   Total Amount Rs. (कुल दावा राशि)
                 </td>
-                <td className="border border-black p-1.5 text-left font-mono pl-6 text-[10.5pt] text-indigo-900 font-extrabold">
+                <td className={`border border-black py-0.5 px-1.5 text-left font-mono pl-4 text-indigo-900 font-extrabold ${fh('text-[10.5pt]', 'text-[9.5pt]')}`}>
                   Rs. {totalAmount}
                 </td>
               </tr>
@@ -1572,32 +1713,32 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
         {/* CONTINGENT DYNAMIC BREAKDOWN TABLE */}
         {storeConfig.enableContingentSection !== "false" && contingentItems && contingentItems.length > 0 && (
           <div className="mt-4 mb-4 font-serif">
-            <table className="w-full border-collapse border border-black text-[9pt] text-left">
+            <table className={`w-full border-collapse border border-black text-left ${fh('text-[9pt]', 'text-[7.8pt]')}`}>
               <thead>
                 <tr className="bg-gray-105 bg-gray-100 text-center">
-                  <th colSpan={3} className="border border-black p-1.5 font-bold tracking-wider text-[9.5pt] uppercase font-serif">
+                  <th colSpan={3} className={`border border-black py-0.5 px-1.5 font-bold tracking-wider uppercase font-serif ${fh('text-[9.5pt]', 'text-[8.5pt]')}`}>
                     CONTINGENT EXPENSES DETAILED BREAKDOWN (फुटकर व्यय का पूर्ण विवरण)
                   </th>
                 </tr>
-                <tr className="bg-gray-50 text-center font-bold text-[8.5pt]">
-                  <th className="border border-black p-1 w-[10%] text-center font-serif">S.No.</th>
-                  <th className="border border-black p-1 w-[70%] font-serif pl-3">Particulars & Remarks / व्यय का विवरण</th>
-                  <th className="border border-black p-1 w-[20%] text-right pr-4 font-serif">Amount (राशि ₹)</th>
+                <tr className={`bg-gray-50 text-center font-bold ${fh('text-[8.5pt]', 'text-[7.8pt]')}`}>
+                  <th className="border border-black py-0.5 px-1 w-[10%] text-center font-serif">S.No.</th>
+                  <th className="border border-black py-0.5 px-1.5 w-[70%] font-serif pl-3">Particulars & Remarks / व्यय का विवरण</th>
+                  <th className="border border-black py-0.5 px-1 w-[20%] text-right pr-4 font-serif">Amount (राशि ₹)</th>
                 </tr>
               </thead>
               <tbody>
                 {contingentItems.map((item, idx) => (
                   <tr key={item.id || idx}>
-                    <td className="border border-black p-1 text-center font-mono">{idx + 1}</td>
-                    <td className="border border-black p-1 pl-3 font-sans text-[8.5pt] font-semibold text-gray-800">{item.remarks}</td>
-                    <td className="border border-black p-1 text-right pr-4 font-mono font-bold">Rs. {item.amount || 0}</td>
+                    <td className="border border-black py-0.5 px-1 text-center font-mono">{idx + 1}</td>
+                    <td className={`border border-black py-0.5 px-1.5 pl-3 font-sans font-semibold text-gray-800 ${fh('text-[8.5pt]', 'text-[7.8pt]')}`}>{item.remarks}</td>
+                    <td className="border border-black py-0.5 px-1 text-right pr-4 font-mono font-bold">Rs. {item.amount || 0}</td>
                   </tr>
                 ))}
-                <tr className="bg-gray-50/50 font-extrabold text-[9.5pt]">
-                  <td colSpan={2} className="border border-black p-1.5 text-right uppercase tracking-wider font-serif">
+                <tr className={`bg-gray-50/50 font-extrabold ${fh('text-[9.5pt]', 'text-[8.5pt]')}`}>
+                  <td colSpan={2} className="border border-black py-0.5 px-2 text-right uppercase tracking-wider font-serif">
                     Total Contingent Amount Added (कुल जोड़ा गया फुटकर व्यय):
                   </td>
-                  <td className="border border-black p-1.5 text-right pr-4 font-mono text-emerald-800 text-[10pt]">
+                  <td className={`border border-black py-0.5 px-2 text-right pr-4 font-mono text-emerald-800 ${fh('text-[10pt]', 'text-[9pt]')}`}>
                     Rs. {totalContingentAmount}
                   </td>
                 </tr>
@@ -1607,81 +1748,103 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
         )}
 
         {/* Declarations (Matching PNG exactly) */}
-        <div className="text-[9.5pt] text-justify space-y-1.5 font-serif mt-6">
-          <p className="font-bold border-b border-black pb-1 uppercase text-[9pt]">Claimant Declarations & Conveyance Certificates:</p>
-          <ol className="list-decimal pl-5 space-y-1 block leading-tight">
-            <li>The TA claimed by me has not been claimed before and will not be claimed hereafter (मेरे द्वारा जिस यात्रा भत्ता का दावा किया गया है, उसका इससे पहले कोई दावा नहीं किया गया है तथा भविष्य में भी नहीं किया जाएगा).</li>
-            <li>Conveyance charge claimed has actually been spent by me and according to local municipal rates (दावा किया गया वाहन भत्ता वास्तव में मेरे द्वारा खर्च किया गया है और वह स्थानीय नगर निगम दरों के अनुसार है).</li>
-            <li>Cheapest mode of conveyance was utilized (वाहन के सबसे सस्ते साधनों का उपयोग किया गया था).</li>
-            <li>The journey performed by road for which conveyance has been claimed was over 1.6 km (सड़क मार्ग द्वारा की गयी यात्रा जिसके लिए वाहन भत्ते का दावा किया गया है, उसकी दूरी 1.6 किमी से अधिक थी).</li>
+        <div className={`text-justify space-y-1 font-serif mt-4 ${fh('text-[9.5pt]', 'text-[8.2pt]')}`}>
+          <p className="font-bold border-b border-black pb-1 uppercase">Claimant Declarations & Conveyance Certificates:</p>
+          <ol className="list-decimal pl-5 space-y-0.5 block leading-tight">
+            <li>The TA claimed by me has not been claimed before and will not be claimed hereafter (मेरे द्वारा जिस यात्रा भत्ता का दावा किया गया है वह पहले नहीं किया गया है)।</li>
+            <li>No free railway pass or other free mode of transit was checked for this duration (इस अवधि के दौरान किसी भी निःशुल्क रेलवे पास आदि का उपयोग नहीं किया गया था)।</li>
+            <li>Cheapest mode of conveyance was utilized (यात्रा के लिए सबसे सस्ते साधन का उपयोग किया गया था)।</li>
+            <li>The journey performed by road for which conveyance has been claimed was over 1.6 km (सड़क मार्ग से की गई यात्रा जिसके लिए वाहन भत्ता का दावा किया गया है वह 1.6 किमी से अधिक थी)।</li>
           </ol>
         </div>
 
         {/* Signature of Officer Claiming TA (aligning right with drawing overlay and seal) */}
-        <div className="mt-6 flex justify-end">
-          <div className="text-center w-64 relative text-left py-4">
-            <div className="absolute -top-12 left-1/2 -translate-x-1/2 pointer-events-none select-none z-10 font-sans">
-              <RenderPrintOverlaySignature 
-                signature={printSettings.signature} 
-                sigCursiveText={printSettings.sigCursiveText} 
-                sigImageData={printSettings.sigImageData} 
-                defaultName={employeeName} 
-                scale={printSettings.sigScale}
-                xOffset={printSettings.sigXOffset}
-                yOffset={printSettings.sigYOffset}
-              />
+        {showClaimantSig && (
+          <div className="mt-2 flex justify-end">
+            <div className={`text-center relative text-left py-1.5 ${fh('w-64', 'w-48')}`}>
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 pointer-events-none select-none z-10 font-sans">
+                <RenderPrintOverlaySignature 
+                  signature={printSettings.signature} 
+                  sigCursiveText={printSettings.sigCursiveText} 
+                  sigImageData={printSettings.sigImageData} 
+                  defaultName={employeeName} 
+                  scale={printSettings.sigScale}
+                  xOffset={printSettings.sigXOffset}
+                  yOffset={printSettings.sigYOffset}
+                />
+              </div>
+              <div className="absolute -top-16 right-0 pointer-events-none select-none z-10 font-sans">
+                <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
+              </div>
+              <div className="border-b border-black mb-1 w-44 mx-auto h-6"></div>
+              <p className={`font-semibold text-gray-800 text-center font-serif ${fh('text-[9.5pt]', 'text-[8.2pt]')}`}>Signature of Officer Claiming TA</p>
+              <p className={`text-gray-500 text-center italic font-serif ${fh('text-[8pt]', 'text-[7.2pt]')}`}>(दावा करने वाले अधिकारी के हस्ताक्षर)</p>
             </div>
-            <div className="absolute -top-16 right-0 pointer-events-none select-none z-10 font-sans">
-              <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
-            </div>
-            <div className="border-b border-black mb-1 w-48 mx-auto h-8"></div>
-            <p className="font-semibold text-[10pt] text-gray-800 text-center font-serif">Signature of Officer Claiming TA</p>
-            <p className="text-[8.5pt] text-gray-500 text-center italic font-serif">(दावा करने वाले अधिकारी के हस्ताक्षर)</p>
           </div>
-        </div>
+        )}
 
         {/* Headquarter absence certification section (Spans full page width, matching PNG) */}
-        <div className="border-t border-b border-black py-3 mt-4 text-[10.5pt] font-serif leading-relaxed text-justify">
+        <div className={`border-t border-b border-black py-0.5 mt-0.5 text-justify font-serif leading-tight ${fh('text-[9.2pt]', 'text-[8.0pt]')}`}>
           <p>
             I hereby certify that Shri/Smt/Kumari <span className="font-bold underline px-1 text-indigo-950 uppercase">{employeeName || "______________________________"}</span> was absent on duty from his/her headquarters station during the period charged for in the bill on Railway business and that the officer performed the journey by Rail/Sea/Air/Road and was allowed/not allowed free Pass of locomotion at the expense of Government local fund of Indian State.
           </p>
-          <p className="italic text-[9.5pt] text-gray-650 mt-1 leading-tight">
+          <p className="italic text-gray-650 mt-0.5 block leading-tight text-[8.2pt]">
             (प्रमाणित किया जाता है कि श्री/श्रीमती/कुमारी रेल कार्यवश अपने मुख्यालय रेलवे स्टेशन से अनुपस्थित थे तथा उन्होंने यात्रा रेल/समुद्र/हवाई मार्ग/सड़क मार्ग से की है और उन्हें सरकारी स्थानीय निधि के व्यय पर यात्रा का निःशुल्क पास स्वीकृत किया गया/नहीं किया गया था।)
           </p>
         </div>
 
-        {/* Counter Signed, Dealing Clerk & Head of Office signatures layout (matching PNG layout beautifully) */}
-        <div className="mt-8 flex justify-between items-end text-[10.5pt] gap-4 font-serif">
-          <div className="text-left w-52 space-y-6">
-            <p className="font-bold uppercase tracking-wider text-[11px] text-gray-800 font-serif">Counter Signed</p>
-            <div className="border-b border-black mb-1 h-6"></div>
-            <p className="font-bold uppercase tracking-wider text-[10px] text-gray-600 font-serif">Controlling Officer</p>
-            <p className="text-[8pt] text-gray-500 italic leading-none font-serif">(नियंत्रण अधिकारी)</p>
-          </div>
-          
-          <div className="text-center w-52 space-y-6">
-            <div className="h-6"></div>
-            <div className="border-b border-black mb-1 h-6"></div>
-            <p className="font-bold uppercase tracking-wider text-[10px] text-gray-600 text-center font-serif">Dealing Clerk (Personnel)</p>
-            <p className="text-[8pt] text-gray-500 italic text-center leading-none font-serif">(संबद्ध लिपिक - कार्मिक)</p>
-          </div>
+        {/* Counter Signed & Controlling Officer signatures layout arranged exactly per PNG user request */}
+        {(showCounterSig || showHeadOfficeSig || showControllingOfficerSig) && (
+          <div className="mt-3 space-y-3 font-serif text-[10.5pt] tracking-normal leading-normal text-black printable-signatures-block">
+            {/* Row 1: Counter Signed on Left */}
+            {showCounterSig && (
+              <div className="flex justify-start text-black">
+                <div className="w-[200px] text-left">
+                  <div className="h-6"></div> {/* Space for actual physical sign */}
+                  <p className="font-bold whitespace-nowrap">Counter Signed</p>
+                </div>
+              </div>
+            )}
 
-          <div className="text-right w-56 space-y-6">
-            <div className="h-6"></div>
-            <div className="border-b border-black mb-1 h-6"></div>
-            <p className="font-bold uppercase tracking-wider text-[10px] text-gray-850 text-center font-serif">Signature of Head of the Office</p>
-            <p className="text-[8pt] text-gray-500 italic text-center leading-none font-serif">(कार्यालय प्रमुख के हस्ताक्षर)</p>
-          </div>
-        </div>
+            {/* Row 2: Head of Office in the middle (vertically), but aligned on the Right hand side */}
+            {showHeadOfficeSig && (
+              <div className="flex justify-end text-black">
+                <div className="w-[280px] text-right">
+                  <div className="h-6"></div> {/* Space for actual physical sign */}
+                  <p className="font-bold whitespace-nowrap">Signature of Head of the Office</p>
+                </div>
+              </div>
+            )}
 
-        {/* Dynamic System Timestamp & Auto-generated Authenticity Metadata */}
+            {/* Row 3: Controlling Officer on the Left */}
+            {showControllingOfficerSig && (
+              <div className="flex justify-start items-end text-black">
+                <div className="w-[200px] text-left">
+                  <div className="h-6"></div> {/* Space for actual physical sign */}
+                  <p className="font-bold whitespace-nowrap">
+                    <span className="border-b border-black pb-0.5 font-bold">Controlling Officer</span>
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Dynamic System Timestamp & System Generated Circular Stamp Metadata */}
         {storeConfig.enablePrintMetadata !== "false" && (
-          <div className="mt-8 pt-2.5 border-t border-dashed border-gray-400 flex flex-col md:flex-row justify-between items-center text-[7.5pt] font-mono text-gray-550 text-gray-500 bg-gray-50/75 px-3 py-2 rounded border border-gray-200">
-            <div className="flex items-center gap-1.5 font-bold text-slate-800">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-              <span>AUTO-GENERATED VIA NFR CLERICAL MASTER (वेबसाइट द्वारा स्वचालित रूप से तैयार किया गया)</span>
+          <div className="mt-4 pt-1 rounded border border-gray-100 border-t border-dashed border-gray-400 flex justify-between items-center text-[7pt] font-mono text-gray-500 bg-gray-50/20 px-3 py-1">
+            {/* Authentic Circular Rubber Stamp (Gol Muhar) for System Generated authenticity */}
+            <div className="flex items-center justify-center p-1 bg-white/40 rounded-full">
+              <div className="w-[74px] h-[74px] border-2 border-dashed border-indigo-600/70 rounded-full flex flex-col items-center justify-center text-center p-0.5 font-sans uppercase text-indigo-600 leading-none select-none pointer-events-none rotate-[-6deg]">
+                <div className="w-[64px] h-[64px] border-double border-[3px] border-indigo-600/80 rounded-full flex flex-col items-center justify-center gap-0.5 font-serif font-black bg-white/20">
+                  <span className="text-[5.0pt] font-extrabold tracking-widest text-indigo-600/95">SYSTEM</span>
+                  <span className="text-[7.0pt] font-black border-y border-indigo-600/80 py-0.5 px-0.5 font-sans my-0.5 bg-indigo-50/30 whitespace-nowrap text-indigo-700">GENERATED</span>
+                  <span className="text-[4.5pt] font-extrabold tracking-tight text-indigo-600/95">PLEASE VERIFY</span>
+                </div>
+              </div>
             </div>
-            <div className="text-right flex flex-col items-end leading-normal">
+
+            <div className="text-right flex flex-col items-end leading-snug">
               <span>Dynamic Auth Code: NFR-PERS-TA-{empNo || 'DRAFT'}-{Date.now().toString().slice(-6)}</span>
               <span>Printed At: <strong className="text-gray-900">{new Date().toLocaleDateString('en-IN', {
                 day: '2-digit',
@@ -1692,6 +1855,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                 second: '2-digit',
                 hour12: true
               })}</strong> (Local Standard Time)</span>
+              <span className="text-[6.0pt] text-gray-400 italic mt-0.5">Authentic Verification Secured</span>
             </div>
           </div>
         )}
@@ -1700,14 +1864,14 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
   };
 
   return (
-    <div className={`flex flex-col gap-6 p-4 text-slate-100 font-sans ${
+    <div className={`flex flex-col gap-6 p-4 text-slate-800 font-sans ${
       isSidebarsShown
-        ? "lg:flex-row h-full overflow-y-auto lg:overflow-hidden"
-        : "fixed inset-0 z-50 bg-[#0b1225] overflow-y-auto scrollbar-thin scrollbar-thumb-violet-600 scrollbar-track-slate-955 p-4 md:p-10 pb-28"
+        ? "lg:flex-row h-full overflow-y-auto lg:overflow-hidden bg-slate-50"
+        : "fixed inset-0 z-50 bg-slate-100 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-200 p-4 md:p-10 pb-28 text-slate-800"
     }`}>
       {/* Printable Sheet Panel (Hidden on web UI, triggered on print) */}
       <div style={{ display: 'none' }}>
-        <div ref={componentRef} className={`pl-[8mm] pr-[8mm] pt-[15mm] pb-[15mm] text-black bg-white font-serif leading-relaxed text-[13pt] ${isLandscape ? 'w-[297mm] min-h-[210mm]' : 'w-[210mm] min-h-[297mm]'}`}>
+        <div ref={componentRef} className={`pl-[4mm] pr-[4mm] pt-[4mm] pb-[4mm] text-black bg-white font-serif leading-tight text-[11pt] ${isLandscape ? 'w-[297mm]' : 'w-[210mm]'}`}>
           {renderPrintSheetContent()}
         </div>
       </div>
@@ -1716,15 +1880,15 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
       <div className={`flex-1 flex flex-col gap-4 pr-1 ${isSidebarsShown ? "overflow-y-auto h-full min-h-0" : "h-auto pb-24"}`}>
         
         {/* Toggle Mode Switcher with Prominent "Tir ka Nishan" Toggler */}
-        <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-3 shadow-md shrink-0">
+        <div className="bg-white border border-gray-250 rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-3 shadow-sm shrink-0">
           <div className="flex gap-1.5">
             <button
               type="button"
               onClick={() => setViewMode("editor")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === "editor"
-                  ? "bg-violet-600 text-white shadow-lg shadow-violet-600/25 scale-[1.02]"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800"
+                  ? "bg-indigo-600 text-white shadow-sm scale-[1.02]"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               }`}
             >
               <Edit3 className="w-3.5 h-3.5" /> 📝 Entry Form (दावा प्रविष्टि)
@@ -1732,10 +1896,10 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
             <button
               type="button"
               onClick={() => setViewMode("preview")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === "preview"
-                  ? "bg-violet-600 text-white shadow-lg shadow-violet-600/25 scale-[1.02]"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800"
+                  ? "bg-indigo-600 text-white shadow-sm scale-[1.02]"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               }`}
             >
               <Eye className="w-3.5 h-3.5" /> 👁️ Print Preview (प्रिंट प्रीव्यू)
@@ -1749,25 +1913,25 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
               onClick={toggleSidebars}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-300 border cursor-pointer ${
                 isSidebarsShown
-                  ? "bg-slate-800 hover:bg-slate-700 text-slate-350 border-slate-700 hover:text-white"
-                  : "bg-gradient-to-r from-emerald-500 via-indigo-600 to-violet-600 hover:brightness-110 text-white border-transparent shadow-lg shadow-indigo-600/20 active:translate-y-[1px] animate-pulse"
+                  ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-350 hover:text-slate-900"
+                  : "bg-gradient-to-r from-emerald-500 via-indigo-600 to-indigo-700 hover:brightness-110 text-white border-transparent shadow-lg shadow-indigo-600/20 active:translate-y-[1px] animate-pulse"
               }`}
               title={isSidebarsShown ? "Hide sidebars / पूर्ण स्क्रीन" : "Show side options / विकल्प सूची दिखाएं"}
             >
               {isSidebarsShown ? (
                 <>
-                  <ChevronsRightLeft className="w-4 h-4 text-slate-200" />
+                  <ChevronsRightLeft className="w-4 h-4 text-slate-700" />
                   <span>🖥️ Full Screen Form/Preview</span>
                 </>
               ) : (
                 <>
-                  <ChevronsLeftRight className="w-5 h-5 text-yellow-350 animate-bounce" />
-                  <span className="text-yellow-300 font-extrabold tracking-wide">↔️ Show Options / विकल्प दिखाएं</span>
+                  <ChevronsLeftRight className="w-5 h-5 text-yellow-100 animate-bounce" />
+                  <span className="text-white font-extrabold tracking-wide">↔️ Show Options / विकल्प दिखाएं</span>
                 </>
               )}
             </button>
 
-            <div className="hidden sm:flex items-center gap-2 pr-2 text-[11px] text-emerald-400 font-mono">
+            <div className="hidden sm:flex items-center gap-2 pr-2 text-[11px] text-emerald-600 font-mono">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-450 opacity-100"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -1780,66 +1944,129 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
         {/* Real-time Customizer Settings */}
         {isSidebarsShown && <PrintCustomizer settings={printSettings} onChange={setPrintSettings} />}
 
+        {/* Real-time Signature Box Selectors */}
+        {isSidebarsShown && (
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-4 font-sans text-slate-850 animate-fadeIn">
+            <h5 className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 mb-3 flex items-center gap-1.5">
+              <span className="w-1.5 h-3.5 bg-indigo-600 rounded"></span>
+              Signature Box Visibility Config / हस्ताक्षर बॉक्स चयन
+            </h5>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <label className="flex items-center gap-2 text-xs bg-slate-50 border border-gray-200 hover:border-indigo-500 rounded-lg p-2.5 cursor-pointer select-none transition-all">
+                <input
+                  type="checkbox"
+                  checked={showClaimantSig}
+                  onChange={(e) => setShowClaimantSig(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 bg-white text-indigo-650 focus:ring-indigo-500 accent-indigo-650 cursor-pointer"
+                />
+                <div className="flex flex-col cursor-pointer">
+                  <span className="font-bold text-slate-800">Claimant Signature</span>
+                  <span className="text-[9px] text-slate-500">दावेदार के हस्ताक्षर</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 text-xs bg-slate-50 border border-gray-200 hover:border-indigo-500 rounded-lg p-2.5 cursor-pointer select-none transition-all">
+                <input
+                  type="checkbox"
+                  checked={showCounterSig}
+                  onChange={(e) => setShowCounterSig(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 bg-white text-indigo-650 focus:ring-indigo-500 accent-indigo-650 cursor-pointer"
+                />
+                <div className="flex flex-col cursor-pointer">
+                  <span className="font-bold text-slate-800">Counter Signed</span>
+                  <span className="text-[9px] text-slate-500">प्रतिहस्ताक्षरित</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 text-xs bg-slate-50 border border-gray-200 hover:border-indigo-500 rounded-lg p-2.5 cursor-pointer select-none transition-all">
+                <input
+                  type="checkbox"
+                  checked={showHeadOfficeSig}
+                  onChange={(e) => setShowHeadOfficeSig(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 bg-white text-indigo-650 focus:ring-indigo-500 accent-indigo-650 cursor-pointer"
+                />
+                <div className="flex flex-col cursor-pointer">
+                  <span className="font-bold text-slate-800">Head of Office</span>
+                  <span className="text-[9px] text-slate-500">कार्यालय प्रमुख के हस्ताक्षर</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 text-xs bg-slate-50 border border-gray-200 hover:border-indigo-500 rounded-lg p-2.5 cursor-pointer select-none transition-all">
+                <input
+                  type="checkbox"
+                  checked={showControllingOfficerSig}
+                  onChange={(e) => setShowControllingOfficerSig(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 bg-white text-indigo-650 focus:ring-indigo-500 accent-indigo-650 cursor-pointer"
+                />
+                <div className="flex flex-col cursor-pointer">
+                  <span className="font-bold text-slate-800">Controlling Officer</span>
+                  <span className="text-[9px] text-slate-500">नियंत्रण अधिकारी</span>
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
+
         {viewMode === "editor" ? (
           <>
-            <div className="bg-[#121c32]/95 border border-[#1e2a47] rounded-2xl p-5 shadow-2xl relative overflow-hidden shrink-0 space-y-4">
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm relative overflow-hidden shrink-0 space-y-4">
           <div className="absolute top-0 right-0 p-8 pointer-events-none opacity-5">
-            <Coins className="w-40 h-40 text-violet-400" />
+            <Coins className="w-40 h-40 text-indigo-200" />
           </div>
 
-          <div className="border-b border-[#223354] pb-3.5">
-            <h2 className="text-lg font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
-              <span className="w-2.5 h-5 bg-violet-600 rounded inline-block animate-pulse"></span>
+          <div className="border-b border-gray-200 pb-3.5">
+            <h2 className="text-lg font-bold text-gray-950 uppercase tracking-wider flex items-center gap-2">
+              <span className="w-2.5 h-5 bg-indigo-650 rounded inline-block"></span>
               Travelling Allowance (TA) Claim Terminal (7th CPC rules)
             </h2>
-            <p className="text-xs text-slate-400 leading-normal mt-1">
+            <p className="text-xs text-slate-550 leading-normal mt-1">
               Configure personnel parameters, journey logs, intermediate halt durations, and instantly compute exact Travelling Allowance rates with fully compliant enterprise formats.
             </p>
           </div>
 
           <form onSubmit={handleSaveClaim} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Employee Name</label>
+              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Employee Name</label>
               <input 
                 type="text" 
                 required
                 value={employeeName} 
                 onChange={(e) => setEmployeeName(e.target.value)}
                 placeholder="e.g. Anand Kumar" 
-                className="w-full text-xs bg-slate-900/85 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-violet-500" 
+                className="w-full text-xs bg-white border border-slate-305 border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500" 
               />
             </div>
 
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Designation</label>
+              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Designation</label>
               <input 
                 type="text" 
                 required
                 value={designation} 
                 onChange={(e) => setDesignation(e.target.value)}
                 placeholder="e.g. SSE Civil Engineering" 
-                className="w-full text-xs bg-slate-900/85 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-violet-500" 
+                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500" 
               />
             </div>
 
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Employee PF No.</label>
+              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Employee PF No.</label>
               <input 
                 type="text" 
                 required
                 value={empNo} 
                 onChange={(e) => setEmpNo(e.target.value)}
                 placeholder="e.g. 50812953245" 
-                className="w-full text-xs bg-slate-900/85 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none" 
+                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500" 
               />
             </div>
 
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">7th CPC Pay Scale</label>
+              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">7th CPC Pay Scale</label>
               <select 
                 value={payLevel} 
                 onChange={(e) => setPayLevel(e.target.value)}
-                className="w-full text-xs bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
               >
                 {PAY_LEVELS.map(pl => (
                   <option key={pl.level} value={pl.level}>{pl.level} (Max ₹{pl.rate}/day)</option>
@@ -1848,11 +2075,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
             </div>
 
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Division / मंडल</label>
+              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Division / मंडल</label>
               <select 
                 value={division} 
                 onChange={(e) => setDivision(e.target.value)}
-                className="w-full text-xs bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
               >
                 {INDIAN_RAILWAY_DIVISIONS.map(div => (
                   <option key={div} value={div}>{div}</option>
@@ -1861,11 +2088,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
             </div>
 
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Department / विभाग</label>
+              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Department / विभाग</label>
               <select 
                 value={department} 
                 onChange={(e) => setDepartment(e.target.value)}
-                className="w-full text-xs bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
               >
                 {INDIAN_RAILWAY_DEPARTMENTS.map(dept => (
                   <option key={dept} value={dept}>{dept}</option>
@@ -1874,11 +2101,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
             </div>
 
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Claim Month / महीना</label>
+              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Claim Month / महीना</label>
               <select 
                 value={claimMonth} 
                 onChange={(e) => setClaimMonth(e.target.value)}
-                className="w-full text-xs bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
               >
                 {MONTHS_LIST.map(m => (
                   <option key={m} value={m}>{m}</option>
@@ -1887,11 +2114,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
             </div>
 
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Claim Year / वर्ष</label>
+              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Claim Year / वर्ष</label>
               <select 
                 value={claimYear} 
                 onChange={(e) => setClaimYear(e.target.value)}
-                className="w-full text-xs bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
               >
                 {YEARS_LIST.map(y => (
                   <option key={y} value={y}>{y}</option>
@@ -1900,27 +2127,27 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
             </div>
 
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Bill Unit / बिल यूनिट</label>
+              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Bill Unit / बिल यूनिट</label>
               <input 
                 type="text" 
                 value={billUnit} 
                 onChange={(e) => setBillUnit(e.target.value)}
                 placeholder="e.g. 0504892" 
-                className="w-full text-xs bg-slate-900/85 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-violet-500" 
+                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500" 
               />
             </div>
 
             <div className="space-y-1 md:col-span-2">
-              <label className="block text-[11px] font-bold text-amber-400 uppercase tracking-wider">TA Calculation Rule / टीए गणना नियम</label>
+              <label className="block text-[11px] font-bold text-amber-700 uppercase tracking-wider">TA Calculation Rule / टीए गणना नियम</label>
               <select 
                 value={calculationMode} 
                 onChange={(e) => setCalculationMode(e.target.value as 'calendar_day' | 'continuous')}
-                className="w-full text-xs bg-slate-900 border border-amber-500/50 rounded-lg px-3 py-2 text-white font-bold focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full text-xs bg-white border border-amber-500 rounded-lg px-3 py-2 text-slate-800 font-bold focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
               >
-                <option value="calendar_day">🗓️ Calendar Day Basis (Midnight to Midnight) - Official YouTube Rule</option>
+                <option value="calendar_day">🗓️ Calendar Day Basis (Midnight to Midnight) - Official Railway Rule</option>
                 <option value="continuous">⏱️ Continuous Tour Duration basis (12-Hour Slots)</option>
               </select>
-              <p className="text-[10px] text-amber-200 mt-1 leading-normal">
+              <p className="text-[10px] text-amber-800 mt-1 leading-normal font-medium">
                 {calculationMode === 'calendar_day' ? 
                   "✓ Official Indian Railways Rule: Tour is split by date boundaries. Overlap hours under each date: < 6 hrs = 30%, 6 to 12 hrs = 70%, > 12 hrs = 100% Daily Allowance." : 
                   "✓ Ongoing Continuous Tour: Total elapsed hours divided by 12-hour intervals."}
@@ -1930,19 +2157,19 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
         </div>
 
         {/* Journey Log Leg Table */}
-        <div className={`bg-[#121c32]/95 border border-[#1e2a47] rounded-2xl p-5 shadow-2xl relative overflow-hidden flex flex-col gap-4 ${isSidebarsShown ? "flex-1" : "flex-initial h-auto"}`}>
-          <div className="flex justify-between items-center border-b border-[#223354] pb-3 shrink-0">
+        <div className={`bg-white border border-gray-200 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col gap-4 ${isSidebarsShown ? "flex-1" : "flex-initial h-auto"}`}>
+          <div className="flex justify-between items-center border-b border-gray-200 pb-3 shrink-0">
             <div>
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-1.5 h-3 bg-violet-500 rounded-sm"></span>
+              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-1.5 h-3 bg-indigo-600 rounded-sm"></span>
                 Journey Logs & Stops / यात्रा विवरण
               </h3>
-              <p className="text-[10px] text-slate-400">Add segments for your departure and arrival legs to determine duty periods.</p>
+              <p className="text-[10px] text-slate-500 font-medium">Add segments for your departure and arrival legs to determine duty periods.</p>
             </div>
             <button
               type="button"
               onClick={addLeg}
-              className="flex items-center gap-1 bg-violet-600 hover:bg-violet-500 text-white font-extrabold text-[11px] px-3.5 py-1.5 rounded-lg mr-2 transition-all shadow-md active:scale-95"
+              className="flex items-center gap-1 bg-indigo-650 hover:bg-indigo-700 bg-indigo-600 text-white font-bold text-[11px] px-3.5 py-1.5 rounded-lg mr-2 transition-all shadow-sm active:scale-95 cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add Journey Leg
             </button>
@@ -1972,15 +2199,15 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                   }).slice(0, 8);
               return (
                 <React.Fragment key={leg.id}>
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3 relative transition-all duration-205">
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 relative transition-all duration-205">
                     <div className="absolute top-2 right-2 flex items-center gap-2">
-                      <span className="text-[11px] font-bold text-violet-400 px-2 py-0.5 bg-violet-950/50 border border-violet-900/60 rounded">
+                      <span className="text-[11px] font-bold text-indigo-700 px-2 py-0.5 bg-indigo-50 border border-indigo-200 rounded">
                         Leg #{index + 1}
                       </span>
                       <button
                         type="button"
                         onClick={() => removeLeg(leg.id)}
-                        className="text-red-400 hover:text-red-300 p-1 rounded hover:bg-red-950/45 transition-colors"
+                        className="text-red-600 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-colors cursor-pointer"
                         title="Remove core journey item"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1990,7 +2217,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                     {/* Input parameters */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                       <div className="space-y-1 relative text-left">
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1 select-none">
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase flex items-center gap-1 select-none">
                           🚉 Station From / से
                         </label>
                         <input 
@@ -2011,27 +2238,27 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                             }, 220);
                           }}
                           placeholder="e.g. BSP / Bilaspur" 
-                          className="w-full text-xs bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-white focus:outline-none focus:border-violet-500 placeholder-slate-700 transition-colors" 
+                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 placeholder-slate-400 transition-colors" 
                         />
                         {activeAutocomplete?.legId === leg.id && activeAutocomplete?.field === 'stationFrom' && (
-                          <div className="absolute left-0 right-0 top-full mt-1 bg-[#090d16] border border-[#1e2a47] rounded-xl shadow-2xl z-50 max-h-68 overflow-y-auto overflow-x-hidden py-1 text-xs select-none">
-                            <div className="px-2.5 py-1 text-[9px] font-bold text-slate-400 bg-slate-950 border-b border-slate-850 sticky top-0 flex justify-between">
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-300 rounded-xl shadow-2xl z-50 max-h-68 overflow-y-auto overflow-x-hidden py-1 text-xs select-none">
+                            <div className="px-2.5 py-1 text-[9px] font-bold text-slate-500 bg-slate-50 border-b border-slate-200 sticky top-0 flex justify-between">
                               <span>{stationSearch.trim() === "" ? "⚡ SUGGESTED STATIONS" : "🔎 SEARCH RESULTS"}</span>
-                              <span className="text-emerald-500 font-mono">STA CODES</span>
+                              <span className="text-emerald-700 font-mono">STA CODES</span>
                             </div>
                             {filteredStations.map((station) => (
                               <div
                                 key={station.code}
                                 onMouseDown={() => handleSelectStation(leg.id, 'stationFrom', station.code)}
-                                className="px-3 py-2 hover:bg-violet-950/70 hover:text-white border-b border-slate-900 last:border-b-0 cursor-pointer flex justify-between items-center transition-colors duration-100"
+                                className="px-3 py-2 hover:bg-indigo-50 hover:text-indigo-900 border-b border-slate-100 last:border-b-0 cursor-pointer flex justify-between items-center transition-colors duration-100"
                               >
                                 <div className="font-bold flex items-center gap-2">
-                                  <span className="text-amber-400 bg-amber-950/30 px-1.5 py-0.5 rounded font-mono text-[9px] border border-amber-900/40 min-w-[38px] text-center">
+                                  <span className="text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded font-mono text-[9px] border border-amber-200 min-w-[38px] text-center">
                                     {station.code}
                                   </span>
-                                  <span className="text-slate-200">{station.name}</span>
+                                  <span className="text-slate-800">{station.name}</span>
                                 </div>
-                                <div className="text-[10px] text-slate-400 font-bold">
+                                <div className="text-[10px] text-slate-500 font-bold">
                                   {station.hindiName}
                                 </div>
                               </div>
@@ -2044,24 +2271,24 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                             {stationSearch.trim() !== "" && (
                               <div
                                 onMouseDown={() => handleSearchStationOnline(leg.id, 'stationFrom', stationSearch)}
-                                className="px-3 py-2 bg-violet-950/40 text-violet-300 hover:bg-violet-900 hover:text-white border-t border-slate-800 cursor-pointer flex items-center justify-between transition-colors text-[10px] font-bold uppercase tracking-wider"
+                                className="px-3 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-t border-slate-200 cursor-pointer flex items-center justify-between transition-colors text-[10px] font-bold uppercase tracking-wider"
                               >
                                 <div className="flex items-center gap-2">
                                   {isSearchingStation[`${leg.id}-stationFrom`] ? (
-                                    <span className="w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"></span>
+                                    <span className="w-3 h-3 border-2 border-indigo-650 border-t-transparent rounded-full animate-spin"></span>
                                   ) : (
                                     <span>🌐</span>
                                   )}
                                   <span>Search Indian DB for "{stationSearch}"</span>
                                 </div>
-                                <span className="text-[8px] bg-violet-900 px-1 py-0.5 rounded text-white font-mono">ONLINE</span>
+                                <span className="text-[8px] bg-indigo-600 px-1 py-0.5 rounded text-white font-mono">ONLINE</span>
                               </div>
                             )}
                           </div>
                         )}
                       </div>
                       <div className="space-y-1 relative text-left">
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1 select-none">
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase flex items-center gap-1 select-none">
                           🚉 Station To / तक
                         </label>
                         <input 
@@ -2082,27 +2309,27 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                             }, 220);
                           }}
                           placeholder="e.g. R / Raipur" 
-                          className="w-full text-xs bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-white focus:outline-none focus:border-violet-500 placeholder-slate-700 transition-colors" 
+                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 placeholder-slate-400 transition-colors" 
                         />
                         {activeAutocomplete?.legId === leg.id && activeAutocomplete?.field === 'stationTo' && (
-                          <div className="absolute left-0 right-0 top-full mt-1 bg-[#090d16] border border-[#1e2a47] rounded-xl shadow-2xl z-50 max-h-68 overflow-y-auto overflow-x-hidden py-1 text-xs select-none">
-                            <div className="px-2.5 py-1 text-[9px] font-bold text-slate-400 bg-slate-950 border-b border-slate-850 sticky top-0 flex justify-between">
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-300 rounded-xl shadow-2xl z-50 max-h-68 overflow-y-auto overflow-x-hidden py-1 text-xs select-none">
+                            <div className="px-2.5 py-1 text-[9px] font-bold text-slate-500 bg-slate-50 border-b border-slate-200 sticky top-0 flex justify-between">
                               <span>{stationSearch.trim() === "" ? "⚡ SUGGESTED STATIONS" : "🔎 SEARCH RESULTS"}</span>
-                              <span className="text-emerald-500 font-mono">STA CODES</span>
+                              <span className="text-emerald-705 font-mono text-emerald-700">STA CODES</span>
                             </div>
                             {filteredStations.map((station) => (
                               <div
                                 key={station.code}
                                 onMouseDown={() => handleSelectStation(leg.id, 'stationTo', station.code)}
-                                className="px-3 py-2 hover:bg-violet-950/70 hover:text-white border-b border-slate-900 last:border-b-0 cursor-pointer flex justify-between items-center transition-colors duration-100"
+                                className="px-3 py-2 hover:bg-indigo-50 hover:text-indigo-900 border-b border-slate-100 last:border-b-0 cursor-pointer flex justify-between items-center transition-colors duration-100"
                               >
                                 <div className="font-bold flex items-center gap-2">
-                                  <span className="text-amber-400 bg-amber-950/30 px-1.5 py-0.5 rounded font-mono text-[9px] border border-amber-900/40 min-w-[38px] text-center">
+                                  <span className="text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded font-mono text-[9px] border border-amber-200 min-w-[38px] text-center">
                                     {station.code}
                                   </span>
-                                  <span className="text-slate-200">{station.name}</span>
+                                  <span className="text-slate-800">{station.name}</span>
                                 </div>
-                                <div className="text-[10px] text-slate-400 font-bold">
+                                <div className="text-[10px] text-slate-500 font-bold">
                                   {station.hindiName}
                                 </div>
                               </div>
@@ -2115,28 +2342,28 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                             {stationSearch.trim() !== "" && (
                               <div
                                 onMouseDown={() => handleSearchStationOnline(leg.id, 'stationTo', stationSearch)}
-                                className="px-3 py-2 bg-violet-950/40 text-violet-300 hover:bg-violet-900 hover:text-white border-t border-slate-800 cursor-pointer flex items-center justify-between transition-colors text-[10px] font-bold uppercase tracking-wider"
+                                className="px-3 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-t border-slate-200 cursor-pointer flex items-center justify-between transition-colors text-[10px] font-bold uppercase tracking-wider"
                               >
                                 <div className="flex items-center gap-2">
                                   {isSearchingStation[`${leg.id}-stationTo`] ? (
-                                    <span className="w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"></span>
+                                    <span className="w-3 h-3 border-2 border-indigo-650 border-t-transparent rounded-full animate-spin"></span>
                                   ) : (
                                     <span>🌐</span>
                                   )}
                                   <span>Search Indian DB for "{stationSearch}"</span>
                                 </div>
-                                <span className="text-[8px] bg-violet-900 px-1 py-0.5 rounded text-white font-mono">ONLINE</span>
+                                <span className="text-[8px] bg-indigo-600 px-1 py-0.5 rounded text-white font-mono">ONLINE</span>
                               </div>
                             )}
                           </div>
                         )}
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase">Transport Mode</label>
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase">Transport Mode</label>
                         <select 
                           value={leg.mode} 
                           onChange={(e) => updateLegField(leg.id, 'mode', e.target.value)}
-                          className="w-full text-xs bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-white"
+                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-850 cursor-pointer focus:outline-none focus:border-indigo-500"
                         >
                           <option value="Train">Train (ट्रेन)</option>
                           <option value="Road">By Road (सड़क मार्ग)</option>
@@ -2144,17 +2371,17 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase flex justify-between items-center">
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase flex justify-between items-center">
                           <span>Train No / Vehicle Code</span>
                           {leg.mode === 'Train' && leg.trainNoOrVehNo.trim() !== "" && (
                             <button
                               type="button"
                               onClick={() => handleLookupTrain(leg.id, leg.trainNoOrVehNo)}
-                              className="text-[9px] bg-[#1e1b4b] text-violet-300 hover:bg-violet-900 hover:text-white px-2 py-0.5 rounded font-mono font-bold flex items-center gap-1 cursor-pointer transition-all"
+                              className="text-[9px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-2 py-0.5 rounded font-mono font-bold flex items-center gap-1 cursor-pointer transition-all border border-indigo-200"
                               title="Search Train details online"
                             >
                               {isSearchingTrain[leg.id] ? (
-                                <span className="w-2.5 h-2.5 border border-violet-400 border-t-transparent rounded-full animate-spin"></span>
+                                <span className="w-2.5 h-2.5 border border-indigo-650 border-t-transparent rounded-full animate-spin"></span>
                               ) : (
                                 <span>🔍 VALIDATE</span>
                               )}
@@ -2173,16 +2400,16 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                                 handleLookupTrain(leg.id, val.trim());
                               }
                             }}
-                            className="w-full text-xs bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-white focus:outline-none focus:border-violet-500 placeholder-slate-700 transition-colors" 
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 placeholder-slate-400 transition-colors" 
                           />
                           {leg.mode === 'Train' && isSearchingTrain[leg.id] && (
                             <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                              <span className="block w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"></span>
+                              <span className="block w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
                             </div>
                           )}
                         </div>
                         {leg.mode === 'Train' && leg.trainName && (
-                          <div className="mt-1 text-[10px] text-emerald-400 flex items-center gap-1 bg-emerald-950/20 border border-emerald-900/30 px-2 py-0.5 rounded animate-fade-in font-medium">
+                          <div className="mt-1 text-[10px] text-emerald-700 flex items-center gap-1 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded animate-fade-in font-medium">
                             <span>🚆</span>
                             <span className="font-bold truncate">{leg.trainName}</span>
                           </div>
@@ -2192,7 +2419,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                       <div className="space-y-1">
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase select-none">
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase select-none">
                           Departure Date
                         </label>
                         <input 
@@ -2205,11 +2432,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                               (e.target as any).showPicker();
                             } catch (_) {}
                           }}
-                          className="w-full text-xs bg-slate-950 border border-slate-850 rounded px-2.5 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500 [color-scheme:dark] cursor-pointer" 
+                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 [color-scheme:light] cursor-pointer" 
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase select-none">
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase select-none">
                           Departure Time (Left)
                         </label>
                         <input 
@@ -2222,11 +2449,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                               (e.target as any).showPicker();
                             } catch (_) {}
                           }}
-                          className="w-full text-xs bg-slate-950 border border-slate-850 rounded px-2.5 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500 [color-scheme:dark] cursor-pointer" 
+                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 [color-scheme:light] cursor-pointer" 
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase select-none">
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase select-none">
                           Arrival Date
                         </label>
                         <input 
@@ -2239,11 +2466,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                               (e.target as any).showPicker();
                             } catch (_) {}
                           }}
-                          className="w-full text-xs bg-slate-950 border border-slate-850 rounded px-2.5 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500 [color-scheme:dark] cursor-pointer" 
+                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 [color-scheme:light] cursor-pointer" 
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase select-none">
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase select-none">
                           Arrival Time (Arrived)
                         </label>
                         <input 
@@ -2256,45 +2483,45 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                               (e.target as any).showPicker();
                             } catch (_) {}
                           }}
-                          className="w-full text-xs bg-slate-950 border border-slate-850 rounded px-2.5 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500 [color-scheme:dark] cursor-pointer" 
+                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 [color-scheme:light] cursor-pointer" 
                         />
                       </div>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase">Purpose of Halt / Duty</label>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase">Purpose of Halt / Duty</label>
                       <input 
                         type="text" 
                         value={leg.purpose} 
                         placeholder="e.g. Inspecting SSE Track registers" 
                         onChange={(e) => updateLegField(leg.id, 'purpose', e.target.value)}
-                        className="w-full text-xs bg-slate-950 border border-slate-850 rounded px-2.5 py-1 text-white" 
+                        className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1 text-slate-800 focus:outline-none focus:border-indigo-500" 
                       />
                     </div>
 
                     {/* BY ROAD SPECIFIC SUBSYSTEM PANEL */}
                     {leg.mode === 'Road' && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-violet-950/20 border border-violet-900/40 p-3 rounded-lg">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-indigo-50/50 border border-indigo-200 p-3 rounded-lg animate-fadeIn">
                         <div className="space-y-1">
-                          <label className="block text-[10px] font-extrabold text-violet-355 uppercase flex items-center gap-1">
-                            <Coins className="w-3.5 h-3.5 text-violet-400" /> Road Travel Distance (in KM)
+                          <label className="block text-[10px] font-bold text-indigo-850 uppercase flex items-center gap-1">
+                            <Coins className="w-3.5 h-3.5 text-indigo-600" /> Road Travel Distance (in KM)
                           </label>
                           <input
                             type="number"
                             value={leg.roadDistanceKm || 0}
                             onChange={(e) => updateLegField(leg.id, 'roadDistanceKm', parseFloat(e.target.value) || 0)}
                             placeholder="e.g. 12"
-                            className="w-full text-xs bg-slate-950 border border-violet-900/40 rounded px-2.5 py-1 text-white focus:outline-none focus:border-violet-500 font-mono"
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1 text-slate-800 focus:outline-none focus:border-indigo-500 font-mono"
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="block text-[10px] font-extrabold text-violet-355 uppercase">
+                          <label className="block text-[10px] font-bold text-slate-700 uppercase">
                             Vehicle Type / Allowance Rate
                           </label>
                           <select
                             value={leg.roadType || 'car_taxi'}
                             onChange={(e) => updateLegField(leg.id, 'roadType', e.target.value)}
-                            className="w-full text-xs bg-slate-950 border border-violet-900/40 rounded px-2.5 py-1 text-white"
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1 text-slate-850 cursor-pointer"
                           >
                             <option value="car_taxi">Own Car / Taxi (₹ 24 per KM)</option>
                             <option value="auto_scooter">Auto Rickshaw / Scooter / Own Bike (₹ 12 per KM)</option>
@@ -2305,47 +2532,47 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
 
                     {/* TRAIN / AIR DETAILED DISTANCE POPULATING BOX */}
                     {leg.mode !== 'Road' && (
-                      <div className="bg-slate-950/40 border border-slate-850 p-3 rounded-lg flex flex-col md:flex-row md:items-center justify-between text-xs gap-3">
+                      <div className="bg-slate-100 border border-slate-200 p-3 rounded-lg flex flex-col md:flex-row md:items-center justify-between text-xs gap-3">
                         <div className="space-y-0.5">
-                          <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-slate-300">
-                            <Coins className="w-3.5 h-3.5 text-violet-400 animate-pulse" />
+                          <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-slate-700">
+                            <Coins className="w-3.5 h-3.5 text-indigo-650" />
                             <span>Track Distance / यात्रा की दूरी (KM)</span>
                           </div>
                           {leg.mode === 'Train' && leg.trainRouteVia && (
-                            <div className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+                            <div className="text-[10px] text-emerald-705 text-emerald-800 font-medium flex items-center gap-1">
                               <span>🛤️ Route:</span>
                               <span className="font-semibold">{leg.trainRouteVia} (Via Train Path)</span>
                             </div>
                           )}
                           {leg.mode === 'Train' && !leg.trainRouteVia && (
-                            <div className="text-[10px] text-slate-400">
+                            <div className="text-[10px] text-slate-500 font-medium">
                               Distance calculated by default. Tap "Query Route Distance" to fetch actual railway mileage.
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap text-slate-800">
                           <input
                             type="number"
                             value={leg.roadDistanceKm || 0}
                             onChange={(e) => updateLegField(leg.id, 'roadDistanceKm', parseFloat(e.target.value) || 0)}
-                            className="w-24 text-center text-xs bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-white focus:outline-none focus:border-violet-500 font-mono"
+                            className="w-24 text-center text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 font-mono"
                           />
-                          <span className="text-slate-400 font-mono text-[10px] select-none">KM</span>
+                          <span className="text-slate-500 font-mono text-[10px] select-none">KM</span>
                           {leg.mode === 'Train' && leg.trainNoOrVehNo ? (
                             <button
                               type="button"
                               onClick={() => handleLookupTrain(leg.id, leg.trainNoOrVehNo)}
-                              className="text-[9px] bg-violet-900/60 hover:bg-violet-900 text-violet-200 hover:text-white px-2.5 py-1.5 rounded font-bold border border-violet-800 transition-colors cursor-pointer flex items-center gap-1"
+                              className="text-[9px] bg-slate-50 hover:bg-slate-100 text-indigo-700 hover:text-indigo-900 px-2.5 py-1.5 rounded font-bold border border-slate-300 transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
                               title="Fetch precise Indian Railways route mileage between these stations"
                             >
                               {isSearchingTrain[leg.id] ? (
-                                <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin"></span>
+                                <span className="w-2.5 h-2.5 border border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
                               ) : (
                                 <span>🛤️ Query Route Distance</span>
                               )}
                             </button>
                           ) : leg.stationFrom && leg.stationTo ? (
-                            <span className="text-[9px] text-slate-400 bg-violet-950/40 border border-violet-900/40 px-1.5 py-0.5 rounded select-none">
+                            <span className="text-[9px] text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded select-none font-bold">
                               ✔ Default Est.
                             </span>
                           ) : null}
@@ -2354,18 +2581,18 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                     )}
 
                     {/* CONTROLLER CHECKBOX MODIFIERS REGULATING CPC LAWS */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-950/60 p-2.5 rounded-lg border border-slate-850/80">
-                      <label className="flex items-center gap-1.5 text-[10px] cursor-pointer select-none text-slate-350 hover:text-white transition-colors">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-100 p-2.5 rounded-lg border border-slate-200">
+                      <label className="flex items-center gap-1.5 text-[10px] cursor-pointer select-none text-slate-700 hover:text-slate-900 transition-colors">
                         <input
                           type="checkbox"
                           checked={leg.beyond8Km !== false}
                           onChange={(e) => updateLegField(leg.id, 'beyond8Km', e.target.checked)}
-                          className="rounded border-slate-800 text-violet-600 focus:ring-violet-500 h-3.5 w-3.5 cursor-pointer"
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer accent-indigo-650"
                         />
                         <span>Beyond 8 km HQ</span>
                       </label>
 
-                      <label className="flex items-center gap-1.5 text-[10px] cursor-pointer select-none text-slate-350 hover:text-white transition-colors" title="Attending breakdown duties guarantees flat 100% daily allowance without the 8 KM distance clause">
+                      <label className="flex items-center gap-1.5 text-[10px] cursor-pointer select-none text-slate-700 hover:text-slate-900 transition-colors" title="Attending breakdown duties guarantees flat 100% daily allowance without the 8 KM distance clause">
                         <input
                           type="checkbox"
                           checked={!!leg.isBreakdownDuty}
@@ -2376,12 +2603,12 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                               updateLegField(leg.id, 'isFreeMessingTraining', false);
                             }
                           }}
-                          className="rounded border-slate-800 text-violet-600 focus:ring-violet-500 h-3.5 w-3.5 cursor-pointer"
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer accent-indigo-650"
                         />
-                        <span className="text-emerald-400 font-bold">Breakdown Duty</span>
+                        <span className="text-emerald-700 font-bold">Breakdown Duty</span>
                       </label>
 
-                      <label className="flex items-center gap-1.5 text-[10px] cursor-pointer select-none text-slate-350 hover:text-white transition-colors" title="Undergoing training at centers with free boarding/messing allows 20% flat daily allowance rate">
+                      <label className="flex items-center gap-1.5 text-[10px] cursor-pointer select-none text-slate-700 hover:text-slate-900 transition-colors" title="Undergoing training at centers with free boarding/messing allows 20% flat daily allowance rate">
                         <input
                           type="checkbox"
                           checked={!!leg.isFreeMessingTraining}
@@ -2392,43 +2619,43 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                               updateLegField(leg.id, 'isBreakdownDuty', false);
                             }
                           }}
-                          className="rounded border-slate-800 text-violet-600 focus:ring-violet-500 h-3.5 w-3.5 cursor-pointer"
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer accent-indigo-650"
                         />
-                        <span className="text-violet-400">Free Mess Training</span>
+                        <span className="text-indigo-600">Free Mess Training</span>
                       </label>
 
-                      <label className="flex items-center gap-1.5 text-[10px] cursor-pointer select-none text-slate-350 hover:text-white transition-colors" title="Personnel of the Territorial Army receive double the rate of standard TA while undergoing training embodiment text">
+                      <label className="flex items-center gap-1.5 text-[10px] cursor-pointer select-none text-slate-700 hover:text-slate-900 transition-colors" title="Personnel of the Territorial Army receive double the rate of TA while undergoing training embodiment">
                         <input
                           type="checkbox"
                           checked={!!leg.isTerritorialArmy}
                           onChange={(e) => updateLegField(leg.id, 'isTerritorialArmy', e.target.checked)}
-                          className="rounded border-slate-800 text-violet-600 focus:ring-violet-500 h-3.5 w-3.5 cursor-pointer"
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer accent-indigo-650"
                         />
-                        <span className="text-amber-400 font-bold">Territorial Army</span>
+                        <span className="text-amber-800 font-bold">Territorial Army</span>
                       </label>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-xs">
-                      <div className="text-slate-400 font-mono">
-                        Leg Duration: <strong className="text-slate-200">{hours.toFixed(1)} Hrs</strong>
+                    <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-xs">
+                      <div className="text-slate-600 font-mono">
+                        Leg Duration: <strong className="text-slate-900">{hours.toFixed(1)} Hrs</strong>
                         {leg.beyond8Km === false && !leg.isBreakdownDuty && (
-                          <span className="text-rose-400 ml-2 font-bold">(Ineligible: within 8 KM radius)</span>
+                          <span className="text-rose-600 ml-2 font-bold">(Ineligible: within 8 KM radius)</span>
                         )}
                         {(() => {
                           if (leg.isFreeMessingTraining) {
-                            return <span className="text-[10px] text-violet-400 bg-violet-950/40 px-1.5 py-0.5 rounded border border-violet-900/40 ml-2 inline-block">(Training Flat 20%)</span>;
+                            return <span className="text-[10px] text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 ml-2 inline-block font-bold">(Training Flat 20%)</span>;
                           }
                           if (leg.isBreakdownDuty) {
-                            return <span className="text-[10px] text-emerald-400 bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-900/40 ml-2 inline-block">(Breakdown Flat 100%)</span>;
+                            return <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 ml-2 inline-block font-bold">(Breakdown Flat 100%)</span>;
                           }
                           if (leg.beyond8Km === false) {
-                            return <span className="text-[10px] text-rose-400 bg-rose-950/40 px-1.5 py-0.5 rounded border border-rose-900/40 ml-2 inline-block">(Excluded HQ 8km)</span>;
+                            return <span className="text-[10px] text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-250 ml-2 inline-block font-bold">(Excluded HQ 8km)</span>;
                           }
                           if (totalAbsenceHrs > 0) {
                             const sharePct = ((leg.hours / totalAbsenceHrs) * 100).toFixed(0);
                             const totalPctStr = (continuousDaPct * 100).toFixed(0);
                             return (
-                              <span className="text-[10px] text-slate-400 bg-violet-950/40 px-1.5 py-0.5 rounded border border-violet-900/40 ml-2 inline-block">
+                              <span className="text-[10px] text-slate-600 bg-indigo-50/50 px-1.5 py-0.5 rounded border border-indigo-200 ml-2 inline-block">
                                 Share of continuous absence ({sharePct}% of {totalPctStr}%)
                               </span>
                             );
@@ -2436,43 +2663,43 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                           return null;
                         })()}
                       </div>
-                      <div className="text-slate-400 font-mono flex items-center gap-3">
-                        {leg.daAmount > 0 && <span>Shared DA: <strong className="text-slate-200">₹ {leg.daAmount}</strong></span>}
-                        {leg.mileageAmount > 0 && <span>Mileage: <strong className="text-slate-200">₹ {leg.mileageAmount}</strong></span>}
-                        <span>Subtotal: <strong className="text-emerald-400 font-bold">₹{leg.amount}</strong></span>
+                      <div className="text-slate-600 font-mono flex items-center gap-3">
+                        {leg.daAmount > 0 && <span>Shared DA: <strong className="text-slate-900">₹ {leg.daAmount}</strong></span>}
+                        {leg.mileageAmount > 0 && <span>Mileage: <strong className="text-slate-900">₹ {leg.mileageAmount}</strong></span>}
+                        <span>Subtotal: <strong className="text-emerald-700 font-bold">₹{leg.amount}</strong></span>
                       </div>
                     </div>
                   </div>
 
                   {/* AUTOMATED TRANSIT HALT OPTION PANELS */}
                   {leg.haltHours > 0 && (
-                    <div className="bg-[#15233c]/80 border border-dashed border-violet-800/40 rounded-xl p-4 space-y-3 relative">
+                    <div className="bg-indigo-50/75 border border-dashed border-indigo-300 rounded-xl p-4 space-y-3 relative animate-fadeIn">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-violet-400 font-bold text-xs">
-                          <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse"></span>
+                        <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs">
+                          <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse"></span>
                           ⌛ Intermediate Waiting/Halt at "{leg.stationTo || 'Destination'}" — {leg.haltHours.toFixed(1)} Hrs
                           {leg.haltDaContributed > 0 && (
-                            <span className="text-emerald-400 font-extrabold ml-1 font-mono">
+                            <span className="text-emerald-700 font-black ml-1 font-mono">
                               (₹ {leg.haltDaContributed})
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/85 px-2 py-0.5 rounded border border-emerald-900/40 font-mono font-bold">
+                        <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-250 font-mono">
                           Halt Allowance (विराम भत्ता): ₹{leg.haltDaContributed}
                         </span>
                       </div>
 
-                      <div className="text-[11px] text-slate-350 leading-normal">
+                      <div className="text-[11px] text-slate-600 leading-normal">
                         Where was this waiting time of <strong>{leg.haltHours.toFixed(1)} hours</strong> spent between Leg #{index + 1} and Leg #{index + 2}?
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="block text-[9.5px] font-bold text-slate-450 uppercase mb-1">Halt Location Option / स्थान चयन</label>
+                          <label className="block text-[9.5px] font-bold text-slate-600 uppercase mb-1">Halt Location Option / स्थान चयन</label>
                           <select
                             value={leg.haltSpentAt || 'destination'}
                             onChange={(e) => updateLegField(leg.id, 'haltSpentAt', e.target.value)}
-                            className="w-full text-xs bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer"
                           >
                             <option value="destination">Stay at "{leg.stationTo || 'Station'}" / रुकना (Official Duty के तहत)</option>
                             <option value="manual">Enter manually... / अन्य प्रविष्टि (विवरण मैन्युअल दर्ज करें)</option>
@@ -2481,14 +2708,14 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
 
                         {leg.haltSpentAt === 'manual' && (
                           <div className="space-y-1">
-                            <label className="block text-[9.5px] font-bold text-slate-450 uppercase mb-1">Custom Stoppage Description / विराम का कारण</label>
+                            <label className="block text-[9.5px] font-bold text-slate-600 uppercase mb-1">Custom Stoppage Description / विराम का कारण</label>
                             <input
                               type="text"
                               required
                               value={leg.haltManualText || ''}
                               onChange={(e) => updateLegField(leg.id, 'haltManualText', e.target.value)}
                               placeholder="e.g. Connected train waiting at DRM office / यार्ड निरीक्षण"
-                              className="w-full text-xs bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                              className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
                             />
                           </div>
                         )}
@@ -2502,13 +2729,13 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
 
           {/* DYNAMIC CONTINGENT EXPENSES SECTIONS */}
           {storeConfig.enableContingentSection !== "false" && (
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
-              <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4 shadow-sm">
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                 <div>
-                  <h3 className="text-xs font-bold text-violet-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <h3 className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
                     🪙 Custom Contingent Expenses (फुटकर व्यय का विवरण)
                   </h3>
-                  <p className="text-[10px] text-slate-400 leading-normal">Add dynamic contingency costs. Provide clear remarks stating what & where it was spent.</p>
+                  <p className="text-[10px] text-slate-600 leading-normal">Add dynamic contingency costs. Provide clear remarks stating what & where it was spent.</p>
                 </div>
                 <button
                   type="button"
@@ -2525,15 +2752,15 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
               </div>
 
               {contingentItems.length === 0 ? (
-                <div className="text-center py-4 bg-slate-950/40 rounded-lg text-[11px] text-slate-500 italic">
+                <div className="text-center py-4 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-500 italic">
                   No custom contingent costs added yet. Click "Add Contingent Cost" to add items like luggage carrying cost, coolie charges, bus/taxi fare details, auto parking, etc.
                 </div>
               ) : (
                 <div className="space-y-3">
                   {contingentItems.map((item, idx) => (
-                    <div key={item.id} className="flex gap-3 items-end bg-slate-950/50 p-2.5 rounded-lg border border-slate-850">
+                    <div key={item.id} className="flex gap-3 items-end bg-white p-2.5 rounded-lg border border-slate-205 shadow-sm">
                       <div className="flex-1 text-left space-y-1">
-                        <label className="block text-[9px] font-bold text-slate-400 uppercase">
+                        <label className="block text-[9px] font-bold text-slate-500 uppercase">
                           Item #{idx + 1} Particulars & Remarks (व्यय का विवरण / कहाँ और किस चीज़ में खर्च हुआ)
                         </label>
                         <input
@@ -2545,11 +2772,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                             setContingentItems(updated);
                           }}
                           placeholder="e.g. Spent Rs 50 on coolie charges at Katihar Station / Auto fare from HQ to DRM Office"
-                          className="w-full text-xs bg-slate-905 bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         />
                       </div>
                       <div className="w-32 text-left space-y-1">
-                        <label className="block text-[9px] font-bold text-slate-400 uppercase">
+                        <label className="block text-[9px] font-bold text-slate-500 uppercase">
                           Amount (राशि ₹)
                         </label>
                         <input
@@ -2563,7 +2790,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                             setContingentItems(updated);
                           }}
                           placeholder="Amount in Rs."
-                          className="w-full text-xs bg-slate-905 bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-white font-mono placeholder-slate-600 focus:outline-none"
+                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 font-mono placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         />
                       </div>
                       <button
@@ -2571,7 +2798,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                         onClick={() => {
                           setContingentItems(contingentItems.filter(c => c.id !== item.id));
                         }}
-                        className="text-red-400 hover:text-red-300 p-2 rounded hover:bg-red-950/40 transition-colors shrink-0 mb-0.5"
+                        className="text-rose-600 hover:text-rose-750 p-2 rounded hover:bg-rose-50 transition-colors shrink-0 mb-0.5"
                         title="Delete expense item"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -2579,8 +2806,8 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                     </div>
                   ))}
 
-                  <div className="flex justify-end pr-2 text-xs font-mono text-slate-400">
-                    Total Added Contingent: <strong className="text-emerald-400 ml-1">₹{totalContingentAmount}</strong>
+                  <div className="flex justify-end pr-2 text-xs font-mono text-slate-600">
+                    Total Added Contingent: <strong className="text-emerald-700 ml-1 font-bold">₹{totalContingentAmount}</strong>
                   </div>
                 </div>
               )}
@@ -2588,37 +2815,37 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
           )}
 
           {/* Declaration and Action buttons */}
-          <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-3 shrink-0">
+          <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl space-y-3 shrink-0 shadow-sm">
             <div className="flex items-start gap-2 text-xs">
               <input 
                 id="declaration-chk"
                 type="checkbox" 
                 checked={hasDeclared}
                 onChange={(e) => setHasDeclared(e.target.checked)}
-                className="mt-0.5 rounded border-slate-800 text-indigo-600 focus:ring-violet-500 cursor-pointer h-4 w-4"
+                className="mt-0.5 rounded border-slate-350 text-indigo-600 focus:ring-indigo-500 cursor-pointer h-4 w-4"
               />
-              <label htmlFor="declaration-chk" className="text-slate-350 select-none cursor-pointer leading-normal text-justify">
+              <label htmlFor="declaration-chk" className="text-slate-700 select-none cursor-pointer leading-normal text-justify font-bold uppercase tracking-wide text-[10px]">
                 I hereby declare that the particulars given above are true and complete, and that I did not draw any duplicate Travelling Allowance (TA) benefits for this period.
               </label>
             </div>
 
-            <div className="border-t border-slate-800 pt-3 flex flex-col sm:flex-row justify-between items-center gap-3">
-              <div className="text-left font-mono text-xs text-slate-400">
-                Total hours of absence: <span className="text-white font-extrabold">{totalAbsenceHrs.toFixed(1)} Hrs</span>, 
-                Aggregate Sum Rate: <span className="text-emerald-400 font-extrabold text-sm ml-1">₹{totalAmount.toFixed(2)}</span>
+            <div className="border-t border-slate-200 pt-3 flex flex-col sm:flex-row justify-between items-center gap-3">
+              <div className="text-left font-mono text-xs text-slate-600">
+                Total hours of absence: <span className="text-slate-900 font-extrabold">{totalAbsenceHrs.toFixed(1)} Hrs</span>, 
+                Aggregate Sum Rate: <span className="text-emerald-700 font-extrabold text-sm ml-1">₹{totalAmount.toFixed(2)}</span>
               </div>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg text-xs font-bold font-sans cursor-pointer transition-all border border-slate-700"
+                  className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold font-sans cursor-pointer transition-all border border-slate-300 shadow-sm"
                 >
                   <RotateCcw className="w-4 h-4" /> Clear
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveClaim}
-                  className="flex items-center gap-1 bg-violet-600 hover:bg-violet-750 text-white px-4 py-2 rounded-lg text-xs font-extrabold font-sans cursor-pointer transition-all shadow"
+                  className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-750 text-white px-4 py-2 rounded-lg text-xs font-extrabold font-sans cursor-pointer transition-all shadow"
                 >
                   <CheckSquare className="w-4 h-4" /> Save Record
                 </button>

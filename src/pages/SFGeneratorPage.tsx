@@ -326,10 +326,17 @@ export default function SFGeneratorPage() {
     );
   }
 
-  const listTabs = [
+  interface TabItem {
+    id: string;
+    label: string;
+    sub: string;
+    icon: any;
+    badge?: number;
+  }
+
+  const listTabs: TabItem[] = [
     { id: "DAR_SECTION", label: "DAR Section", sub: "Disciplinary", icon: ShieldCheck },
     { id: "PDF_STAMP", label: "PDF Stamp Studio", sub: "Authority Seal Maker", icon: Stamp },
-    { id: "INBOX", label: "Inbox", sub: "Messaging", icon: InboxIcon, badge: issuedSFs.length },
     { id: "OFFICE_LINKS", label: "Office Links", sub: "Portals", icon: LinkIcon },
     { id: "WORK_ALLOTMENT", label: t("nav_apo_allotment") || "Work Allotment", sub: "Personnel", icon: Briefcase },
     { id: "OFFICE_ORDERS", label: t("nav_circulars") || "Circulars", sub: "Office Orders", icon: FileText },
