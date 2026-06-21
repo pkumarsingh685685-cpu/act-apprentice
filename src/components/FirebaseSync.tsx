@@ -117,7 +117,11 @@ export function FirebaseSync() {
       const logosData: any = {};
       snapshot.forEach(d => {
         const data = d.data();
-        logosData[data.id] = { image: data.url, enabled: data.enabled !== false };
+        logosData[data.id] = { 
+          image: data.url, 
+          enabled: data.enabled !== false,
+          customHeight: typeof data.customHeight === 'number' ? data.customHeight : data.customHeight ? Number(data.customHeight) : undefined
+        };
       });
       if (Object.keys(logosData).length > 0) {
         useStore.setState((state: any) => ({ logos: { ...state.logos, ...logosData } }));

@@ -68,6 +68,7 @@ export interface SiteConfig {
 export interface LogoItem {
   image: string;
   enabled: boolean;
+  customHeight?: number;
 }
 
 export interface NoticeImage {
@@ -83,6 +84,7 @@ export interface SiteLogos {
   nationalEmblem: LogoItem;
   ministryLogo?: LogoItem;
   favicon?: LogoItem;
+  namePlate?: LogoItem;
 }
 
 export interface SliderImageItem {

@@ -81,16 +81,38 @@ export function Header({
           <div className="flex flex-wrap gap-2 sm:gap-4 items-center justify-center">
             {logos?.govLogo?.enabled && (
               logos.govLogo.image ? (
-                <img src={logos.govLogo.image} alt="Gov Logo" className="h-4 w-auto object-contain" />
+                <div className="h-6 flex items-center justify-center shrink-0">
+                  <img 
+                    src={logos.govLogo.image} 
+                    alt="Gov Logo" 
+                    className="w-auto object-contain" 
+                    style={{ 
+                      height: logos.govLogo.customHeight ? `${logos.govLogo.customHeight}px` : '1rem',
+                      maxHeight: '100%',
+                      maxWidth: '100%'
+                    }} 
+                  />
+                </div>
               ) : (
                 <PlaceholderImage text="Gov Logo" className="h-4 w-12 !bg-transparent text-gray-300 border-none" />
               )
             )}
-            <span className="leading-tight">अपरेंटिस प्रबंधन पोर्टल / Apprentice Management Portal</span>
+            <span className="leading-tight font-sans">अपरेंटिस प्रबंधन पोर्टल / Apprentice Management Portal</span>
             <span className="hidden sm:inline text-slate-400">|</span>
             {logos?.ministryLogo?.enabled && (
               logos.ministryLogo.image ? (
-                <img src={logos.ministryLogo.image} alt="Ministry Logo" className="h-4 w-auto object-contain hidden sm:inline-block" />
+                <div className="h-6 flex items-center justify-center shrink-0 hidden sm:flex">
+                  <img 
+                    src={logos.ministryLogo.image} 
+                    alt="Ministry Logo" 
+                    className="w-auto object-contain" 
+                    style={{ 
+                      height: logos.ministryLogo.customHeight ? `${logos.ministryLogo.customHeight}px` : '1rem',
+                      maxHeight: '100%',
+                      maxWidth: '100%'
+                    }} 
+                  />
+                </div>
               ) : (
                 <PlaceholderImage text="Min Logo" className="h-4 w-12 !bg-transparent text-gray-300 border-none hidden sm:inline-block" />
               )
@@ -133,11 +155,25 @@ export function Header({
           <div className="flex items-center gap-3 sm:gap-4 shrink-0 max-w-full overflow-hidden">
             {logos?.railwayLogo?.enabled && (
                logos.railwayLogo.image ? (
-                <img 
-                  src={logos.railwayLogo.image} 
-                  alt="Railway Logo" 
-                  className={`object-contain mix-blend-multiply transition-all duration-300 ${isHome ? 'w-20 h-20 sm:w-28 sm:h-28 md:w-[130px] md:h-[130px]' : 'w-12 h-12 sm:w-16 sm:h-16'}`}
-                />
+                <div 
+                  className={`flex items-center justify-center shrink-0 overflow-hidden ${
+                    isHome 
+                      ? 'w-20 h-20 sm:w-28 sm:h-28 md:w-[130px] md:h-[130px]' 
+                      : 'w-12 h-12 sm:w-16 sm:h-16'
+                  }`}
+                >
+                  <img 
+                    src={logos.railwayLogo.image} 
+                    alt="Railway Logo" 
+                    className="object-contain mix-blend-multiply"
+                    style={{ 
+                      height: logos.railwayLogo.customHeight ? `${logos.railwayLogo.customHeight}px` : '100%', 
+                      width: 'auto',
+                      maxHeight: '100%',
+                      maxWidth: '100%'
+                    }}
+                  />
+                </div>
               ) : (
                 <PlaceholderImage text="Logo" className={`shrink-0 transition-all duration-300 ${isHome ? 'w-20 h-20 sm:w-24 sm:h-24' : 'w-12 h-12 sm:w-16 sm:h-16'}`} />
               )
@@ -200,11 +236,19 @@ export function Header({
             <div className="hidden md:flex items-center shrink-0">
               {logos?.nationalEmblem?.enabled && (
                 logos.nationalEmblem.image ? (
-                  <img 
-                    src={logos.nationalEmblem.image} 
-                    alt="National Emblem" 
-                    className="w-16 h-20 sm:w-20 sm:h-28 md:w-24 md:h-[120px] object-contain mix-blend-multiply"
-                  />
+                  <div className="w-16 h-20 sm:w-20 sm:h-28 md:w-24 md:h-[120px] flex items-center justify-center shrink-0 overflow-hidden">
+                    <img 
+                      src={logos.nationalEmblem.image} 
+                      alt="National Emblem" 
+                      className="object-contain mix-blend-multiply"
+                      style={{ 
+                        height: logos.nationalEmblem.customHeight ? `${logos.nationalEmblem.customHeight}px` : '100%',
+                        width: 'auto',
+                        maxHeight: '100%',
+                        maxWidth: '100%'
+                      }}
+                    />
+                  </div>
                 ) : (
                    <PlaceholderImage text="Emblem" className="w-16 h-20 shrink-0" />
                 )

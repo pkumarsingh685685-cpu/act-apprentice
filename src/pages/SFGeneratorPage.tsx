@@ -124,11 +124,11 @@ export default function SFGeneratorPage() {
     } else {
       setMainTab("");
       setDarSubTab("TYPES_OF_SF");
-      setActiveTab("");
+      setActiveTab("SF-1");
     }
   }, [location.search]);
 
-  const [activeTab, setActiveTab] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("SF-1");
   const [infoModalSf, setInfoModalSf] = useState<string | null>(null);
   
   const sfDescriptions = useStore((state) => state.sfDescriptions);
@@ -311,14 +311,6 @@ export default function SFGeneratorPage() {
             </button>
           </form>
         </div>
-      </div>
-    );
-  }
-
-  if (activeTab) {
-    return (
-      <div className="w-full h-screen flex flex-col bg-gray-50 overflow-hidden font-sans">
-        {renderContent()}
       </div>
     );
   }
@@ -576,7 +568,7 @@ export default function SFGeneratorPage() {
             <div className="flex-1 flex flex-col gap-4 overflow-y-auto lg:overflow-hidden relative">
               {/* Premium Purple Gradient 3D Navigation Bar - 2-3 Row Spacious Grid View */}
               <div className="w-full bg-gradient-to-r from-[#4C1D95] via-[#7C3AED] to-[#4C1D95] border border-white/15 shadow-2xl shrink-0 rounded-2xl p-4 z-25">
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-8 gap-3 w-full">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-3.5 w-full">
                   {SF_TABS.map((sf) => {
                     const label = sf.replace('-', ' '); // "SF-1" -> "SF 1"
                     const isActive = activeTab === sf;
@@ -587,16 +579,16 @@ export default function SFGeneratorPage() {
                       <div
                         key={sf}
                         onClick={() => setActiveTab(sf)}
-                        className={`relative flex items-center justify-center h-14 px-4 rounded-xl cursor-pointer select-none transition-all duration-300 group ${
+                        className={`relative flex items-center justify-center h-16 md:h-20 px-4 rounded-xl cursor-pointer select-none transition-all duration-300 group ${
                           isActive
-                            ? "bg-white/20 border border-white/45 text-white font-black shadow-[0_0_18px_rgba(196,181,253,0.85),0_1.5px_0_rgba(0,0,0,0.25),inset_0_1px_1.5px_rgba(255,255,255,0.6)] translate-y-[1px]"
-                            : "bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/35 text-white font-bold shadow-[0_3.5px_0_rgba(0,0,0,0.35),inset_0_1.5px_0_rgba(255,255,255,0.25)] hover:shadow-[0_5px_15px_rgba(167,139,250,0.55),0_3.5px_0_rgba(0,0,0,0.35),inset_0_1.5px_0_rgba(255,255,255,0.3)] hover:-translate-y-[2px]"
+                            ? "bg-white/20 border-2 border-white/60 text-white font-black shadow-[0_0_24px_rgba(196,181,253,0.95),0_3px_0_rgba(0,0,0,0.3),inset_0_1.5px_2px_rgba(255,255,255,0.7)] translate-y-[2px]"
+                            : "bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/40 text-white font-extrabold shadow-[0_5px_0_rgba(0,0,0,0.4),inset_0_1.5px_0_rgba(255,255,255,0.3)] hover:shadow-[0_8px_20px_rgba(167,139,250,0.7),0_5px_0_rgba(0,0,0,0.4),inset_0_1.5px_0_rgba(255,255,255,0.4)] hover:-translate-y-[3px] active:translate-y-[2px] active:shadow-[0_2px_0_rgba(0,0,0,0.4)]"
                         }`}
                       >
-                        <span className="font-extrabold text-[13px] sm:text-[14px] tracking-wider uppercase flex items-center gap-1.5 whitespace-nowrap text-center justify-center">
+                        <span className="font-black text-sm sm:text-base md:text-[18px] tracking-wider uppercase flex items-center gap-2 whitespace-nowrap text-center justify-center">
                           {label}
                           {hasPending && (
-                            <span className={sf === "SF-4" ? "inline-flex items-center justify-center w-5.5 h-5.5 bg-red-600 rounded-full text-[11px] text-white font-extrabold animate-pulse ring-2 ring-white shadow-[0_0_8px_rgba(239,68,68,0.95)]" : "inline-flex items-center justify-center w-4.5 h-4.5 bg-red-500 rounded-full text-[10px] text-white font-black animate-pulse"}>
+                            <span className={sf === "SF-4" ? "inline-flex items-center justify-center w-6 h-6 bg-red-650 rounded-full text-[12px] text-white font-extrabold animate-pulse ring-2 ring-white shadow-[0_0_10px_rgba(239,68,68,0.95)]" : "inline-flex items-center justify-center w-5 h-5 bg-red-500 rounded-full text-[11px] text-white font-black animate-pulse"}>
                               {sf === "SF-4" ? pendingCount : "!"}
                             </span>
                           )}
@@ -608,14 +600,14 @@ export default function SFGeneratorPage() {
                             e.stopPropagation();
                             setInfoModalSf(sf);
                           }}
-                          className={`ml-2 p-1 rounded-full text-white transition-all duration-200 focus:outline-none z-30 ${
+                          className={`ml-2.5 p-1 rounded-full text-white transition-all duration-200 focus:outline-none z-30 ${
                             isActive 
                               ? "hover:bg-white/25" 
-                              : "opacity-45 group-hover:opacity-100 hover:bg-white/20"
+                              : "opacity-60 group-hover:opacity-100 hover:bg-white/20"
                           }`}
                           title={`Info about ${sf}`}
                         >
-                          <Info size={14} />
+                          <Info size={16} />
                         </button>
                       </div>
                     );

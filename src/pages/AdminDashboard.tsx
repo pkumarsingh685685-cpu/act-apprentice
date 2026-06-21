@@ -1042,6 +1042,7 @@ function LogoManager() {
     { key: "ministryLogo", label: "Ministry Logo" },
     { key: "nationalEmblem", label: "National Emblem" },
     { key: "favicon", label: "Website Favicon" },
+    { key: "namePlate", label: "Office Name Plate" },
   ];
 
   const handleFileChange = (
@@ -1059,7 +1060,7 @@ function LogoManager() {
           try {
             const canvas = document.createElement("canvas");
             let { width, height } = img;
-            const max = 400; // Compress
+            const max = key === "namePlate" ? 1200 : 400; // Allow high resolution for banner plate
             if (width > max || height > max) {
               const ratio = Math.min(max / width, max / height);
               width = width * ratio;
@@ -1180,6 +1181,41 @@ function LogoManager() {
                   </div>
                 )}
               </div>
+
+              {/* Interactive Height Size Adjuster Slider */}
+              {logoData.image && (
+                <div className="w-full mb-4 p-3 bg-white rounded-lg border border-gray-200">
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Logo Size (Height):</span>
+                    <span className="text-xs font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 font-mono">
+                      {logoData.customHeight || (item.key === "namePlate" ? 100 : item.key === "railwayLogo" ? 120 : item.key === "nationalEmblem" ? 110 : 16)}px
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min={10}
+                      max={item.key === "namePlate" ? 300 : item.key === "railwayLogo" ? 250 : item.key === "nationalEmblem" ? 250 : 100}
+                      value={logoData.customHeight || (item.key === "namePlate" ? 100 : item.key === "railwayLogo" ? 120 : item.key === "nationalEmblem" ? 110 : 16)}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        updateLogo(item.key as any, { customHeight: val });
+                      }}
+                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-rose-600"
+                    />
+                    <button
+                      onClick={() => {
+                        updateLogo(item.key as any, { customHeight: undefined });
+                      }}
+                      className="text-[10px] font-bold text-gray-500 hover:text-rose-600 border border-gray-200 px-1.5 py-0.5 rounded bg-gray-50 hover:bg-white transition-colors shrink-0"
+                      title="Reset to default"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="w-full flex gap-2">
                 <label className="flex-1 cursor-pointer bg-[#1c3f60] text-white py-2 px-3 rounded-md text-sm font-medium text-center hover:bg-blue-900 transition flex items-center justify-center gap-2">
                   <Upload size={16} /> {logoData.image ? "Replace" : "Upload"}

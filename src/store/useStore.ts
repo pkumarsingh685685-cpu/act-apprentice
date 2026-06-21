@@ -176,6 +176,7 @@ export const useStore = create<AppState>()(
         nationalEmblem: { image: "", enabled: true },
         ministryLogo: { image: "", enabled: true },
         favicon: { image: "", enabled: true },
+        namePlate: { image: "", enabled: true },
       },
       updateLogo: (key, data) => set((state) => {
         const newLogos = { ...state.logos, [key]: { ...state.logos[key], ...data } };
@@ -185,6 +186,7 @@ export const useStore = create<AppState>()(
           url: newLogos[key].image || "",
           type: "image",
           enabled: newLogos[key].enabled ?? true,
+          customHeight: newLogos[key].customHeight ?? null,
           createdAt: new Date().toISOString()
         }).catch((err) => console.error("Firebase update error:", err));
         return { logos: newLogos };

@@ -61,6 +61,7 @@ interface TACase {
   calculationMode?: 'calendar_day' | 'continuous';
   globalPurpose?: string;
   showSummaryTable?: boolean;
+  showNoFreePassDeclaration?: boolean;
   showClaimantSig?: boolean;
   showCounterSig?: boolean;
   showHeadOfficeSig?: boolean;
@@ -307,7 +308,8 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
   const [showCounterSig, setShowCounterSig] = useState(true);
   const [showHeadOfficeSig, setShowHeadOfficeSig] = useState(true);
   const [showControllingOfficerSig, setShowControllingOfficerSig] = useState(true);
-  const [showSummaryTable, setShowSummaryTable] = useState(true);
+  const [showSummaryTable, setShowSummaryTable] = useState(false);
+  const [showNoFreePassDeclaration, setShowNoFreePassDeclaration] = useState(false);
 
   // Print settings
   const [printSettings, setPrintSettings] = useState<PrintSettings>({
@@ -973,6 +975,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
         calculationMode,
         globalPurpose,
         showSummaryTable,
+        showNoFreePassDeclaration,
         showClaimantSig,
         showCounterSig,
         showHeadOfficeSig,
@@ -1034,7 +1037,8 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     setContingentItems(claim.contingentItems || []);
     setHasDeclared(claim.hasDeclared);
     setGlobalPurpose(claim.globalPurpose || "Official Duty");
-    setShowSummaryTable(claim.showSummaryTable !== undefined ? claim.showSummaryTable : true);
+    setShowSummaryTable(claim.showSummaryTable !== undefined ? claim.showSummaryTable : false);
+    setShowNoFreePassDeclaration(claim.showNoFreePassDeclaration !== undefined ? claim.showNoFreePassDeclaration : false);
     setShowClaimantSig(claim.showClaimantSig !== undefined ? claim.showClaimantSig : true);
     setShowCounterSig(claim.showCounterSig !== undefined ? claim.showCounterSig : true);
     setShowHeadOfficeSig(claim.showHeadOfficeSig !== undefined ? claim.showHeadOfficeSig : true);
@@ -1056,7 +1060,8 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     setCalculationMode('calendar_day');
     setHasDeclared(false);
     setGlobalPurpose("Official Duty");
-    setShowSummaryTable(true);
+    setShowSummaryTable(false);
+    setShowNoFreePassDeclaration(false);
     setShowClaimantSig(true);
     setShowCounterSig(true);
     setShowHeadOfficeSig(true);
@@ -1172,6 +1177,20 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
         return `${h} Hour${h > 1 ? 's' : ''}`;
       } else {
         return `${m} Minute${m > 1 ? 's' : ''}`;
+      }
+    };
+
+    // Format duration in a shorter form for compact display
+    const formatDurationLabelShort = (hours: number) => {
+      const totalMinutes = Math.round(hours * 60);
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      if (h > 0 && m > 0) {
+        return `${h}h ${m}m`;
+      } else if (h > 0) {
+        return `${h}h`;
+      } else {
+        return `${m}m`;
       }
     };
 
@@ -1300,7 +1319,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
         dayHrs,
         totalMileageAmountOnDay,
         dayTotalClaimed,
-        purpose: overlappingSegs.map(s => s.purpose).filter((v, i, a) => v && a.indexOf(v) === i).join(', ') || 'Official Duty',
+        purpose: overlappingSegs.map(s => s.purpose).find(p => !!p) || globalPurpose || 'Official Duty',
         isBreakdownDuty: overlappingSegs.some(s => s.isBreakdownDuty),
         isFreeMessingTraining: overlappingSegs.some(s => s.isFreeMessingTraining),
         isTerritorialArmy: overlappingSegs.some(s => s.isTerritorialArmy),
@@ -1334,7 +1353,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
           @media print {
             @page {
               size: ${isLandscape ? 'landscape' : 'portrait'};
-              margin: 4mm 6mm !important;
+              margin: ${isLandscape ? '4mm 6mm' : '6mm 12mm'} !important;
             }
             body.printing-mode {
               background-color: white !important;
@@ -1404,17 +1423,17 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
 
         <table className={`w-full text-left border-collapse border border-black mb-2 font-serif table-fixed ${fh('text-[8.5pt]', 'text-[7.2pt]')}`}>
           <colgroup>
-            <col style={{ width: isLandscape ? '8%' : '8.5%' }} />
-            <col style={{ width: isLandscape ? '6%' : '6%' }} />
             <col style={{ width: isLandscape ? '6.5%' : '7%' }} />
+            <col style={{ width: isLandscape ? '4.5%' : '5%' }} />
+            <col style={{ width: isLandscape ? '4.5%' : '5%' }} />
+            <col style={{ width: isLandscape ? '4.5%' : '5%' }} />
             <col style={{ width: isLandscape ? '6.5%' : '7%' }} />
+            <col style={{ width: isLandscape ? '6.5%' : '7.5%' }} />
+            <col style={{ width: isLandscape ? '7%' : '6.5%' }} />
+            <col style={{ width: isLandscape ? '30%' : '27%' }} />
+            <col style={{ width: isLandscape ? '14%' : '13%' }} />
+            <col style={{ width: isLandscape ? '7.5%' : '8%' }} />
             <col style={{ width: isLandscape ? '8.5%' : '9%' }} />
-            <col style={{ width: isLandscape ? '8.5%' : '9%' }} />
-            <col style={{ width: isLandscape ? '7.5%' : '7%' }} />
-            <col style={{ width: isLandscape ? '24%' : '20%' }} />
-            <col style={{ width: isLandscape ? '11.5%' : '10%' }} />
-            <col style={{ width: isLandscape ? '7.5%' : '9%' }} />
-            <col style={{ width: isLandscape ? '5.5%' : '7.5%' }} />
           </colgroup>
           <thead>
             {/* Row 1 Headers (Matching PNG format) */}
@@ -1637,9 +1656,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                                         @ ₹{firstRoadSeg.roadType === 'auto_scooter' ? '12' : '24'}/KM
                                       </span>
                                     ) : firstRoadSeg.mode === 'Train' ? (
-                                      <span className={`block font-sans text-emerald-850 leading-none mt-0.5 text-center font-semibold text-emerald-800 ${c60}`}>
-                                        (Rail)
-                                      </span>
+                                      null
                                     ) : (
                                       <span className={`block font-sans text-slate-705 leading-none mt-0.5 text-center font-semibold text-slate-700 ${c60}`}>
                                         (Air)
@@ -1658,26 +1675,26 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                         {isFirst && (
                           <td 
                             rowSpan={subRowCount} 
-                            className={`border border-black p-0 py-0.5 text-center align-middle font-medium bg-slate-50/5 leading-snug ${c75}`}
+                            className="border border-black p-0 py-0 text-center align-middle font-medium bg-slate-50/5 leading-none"
                           >
-                            <div className="flex flex-col gap-0.5 w-full items-center justify-center">
+                            <div className="flex flex-col gap-0 w-full items-center justify-center leading-tight">
                               {row.daySegments.map((s: any, idxSeg: number) => {
                                 const isJourney = s.type === 'journey';
                                 if (isJourney) {
                                   return (
-                                    <div key={idxSeg} className="w-full text-center py-0.5 text-black">
-                                      <span className={`text-black font-extrabold uppercase ${c65}`}>
-                                        • Journey: <span className="font-mono font-black">{formatDurationLabel(s.hoursOnDay)}</span>
+                                    <div key={idxSeg} className={`w-full text-center py-0.5 text-black border-b border-black/[0.04] last:border-b-0 ${fh('text-[8.5pt]', 'text-[6.5pt]')}`}>
+                                      <span className="text-black font-extrabold uppercase">
+                                        Jny: <span className="font-mono font-black">{formatDurationLabelShort(s.hoursOnDay)}</span>
                                       </span>
                                     </div>
                                   );
                                 } else {
-                                  const timeRange = s.hoursOnDay === 24 
-                                    ? "24 Hours" 
-                                    : `${formatLocalTime(s.overlapStartMs)} - ${formatLocalTime(s.overlapEndMs)} (${formatDurationLabel(s.hoursOnDay)})`;
+                                  const timeRangeShort = s.hoursOnDay === 24 
+                                    ? "24h" 
+                                    : `${formatLocalTime(s.overlapStartMs)}-${formatLocalTime(s.overlapEndMs)} (${formatDurationLabelShort(s.hoursOnDay)})`;
                                   return (
-                                    <div key={idxSeg} className="w-full text-center py-0.5 text-slate-800 font-semibold px-1">
-                                      • Stay at {s.station} ({timeRange})
+                                    <div key={idxSeg} className={`w-full text-center py-0.5 text-slate-800 font-semibold px-0.5 border-b border-black/[0.04] last:border-b-0 ${fh('text-[8.5pt]', 'text-[6.5pt]')}`}>
+                                      Stay: {s.station} ({timeRangeShort})
                                     </div>
                                   );
                                 }
@@ -1734,10 +1751,10 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
             
             {/* The single summary row for total claimed amt */}
             <tr className="bg-gray-150 font-bold">
-              <td colSpan={10} className={`border border-black p-2 text-right uppercase ${fh('text-[10.5pt]', 'text-[8.5pt]')}`}>
+              <td colSpan={10} className={`border border-black py-0.5 px-2 text-right uppercase ${fh('text-[10.5pt]', 'text-[8.5pt]')}`}>
                 TOTAL CLAIMED TA AMOUNT (दावा राशि कुल योग):
               </td>
-              <td className={`border border-black p-2 text-right text-indigo-800 font-extrabold font-mono ${fh('text-[12.5pt]', 'text-[9.5pt]')}`}>
+              <td className={`border border-black py-0.5 px-2 text-right text-indigo-800 font-extrabold font-mono ${fh('text-[12.5pt]', 'text-[9.5pt]')}`}>
                 ₹{totalAmount}
               </td>
             </tr>
@@ -1852,11 +1869,12 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
         )}
 
         {/* Declarations (Matching PNG exactly) */}
-        <div className={`text-justify space-y-1 font-serif mt-4 ${fh('text-[9.5pt]', 'text-[8.2pt]')}`}>
-          <p className="font-bold border-b border-black pb-1 uppercase">Claimant Declarations & Conveyance Certificates:</p>
+        <div className={`text-justify space-y-1 font-serif mt-1 ${fh('text-[9.5pt]', 'text-[8.2pt]')}`}>
           <ol className="list-decimal pl-5 space-y-0.5 block leading-tight">
             <li>The TA claimed by me has not been claimed before and will not be claimed hereafter (मेरे द्वारा जिस यात्रा भत्ता का दावा किया गया है वह पहले नहीं किया गया है)।</li>
-            <li>No free railway pass or other free mode of transit was checked for this duration (इस अवधि के दौरान किसी भी निःशुल्क रेलवे पास आदि का उपयोग नहीं किया गया था)।</li>
+            {showNoFreePassDeclaration && (
+              <li>No free railway pass or other free mode of transit was checked for this duration (इस अवधि के दौरान किसी भी निःशुल्क रेलवे पास आदि का उपयोग नहीं किया गया था)।</li>
+            )}
             <li>Cheapest mode of conveyance was utilized (यात्रा के लिए सबसे सस्ते साधन का उपयोग किया गया था)।</li>
             <li>The journey performed by road for which conveyance has been claimed was over 1.6 km (सड़क मार्ग से की गई यात्रा जिसके लिए वाहन भत्ता का दावा किया गया है वह 1.6 किमी से अधिक थी)।</li>
           </ol>
@@ -1880,9 +1898,9 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
               <div className="absolute -top-16 right-0 pointer-events-none select-none z-10 font-sans">
                 <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
               </div>
-              <div className="border-b border-black mb-1 w-44 mx-auto h-6"></div>
-              <p className={`font-semibold text-gray-800 text-center font-serif ${fh('text-[9.5pt]', 'text-[8.2pt]')}`}>Signature of Officer Claiming TA</p>
-              <p className={`text-gray-500 text-center italic font-serif ${fh('text-[8pt]', 'text-[7.2pt]')}`}>(दावा करने वाले अधिकारी के हस्ताक्षर)</p>
+              <div className="mb-1 w-44 mx-auto h-6"></div>
+              <p className={`font-semibold text-gray-800 text-center font-serif ${fh('text-[9.5pt]', 'text-[8.2pt]')}`}>Signature of Claiming TA</p>
+              <p className={`text-gray-500 text-center italic font-serif ${fh('text-[8pt]', 'text-[7.2pt]')}`}>(दावा करने वाले के हस्ताक्षर)</p>
             </div>
           </div>
         )}
@@ -1949,7 +1967,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                 <div className="w-[200px] text-left">
                   <div className="h-6"></div> {/* Space for actual physical sign */}
                   <p className="font-bold whitespace-nowrap leading-tight">
-                    <span className="border-b border-black pb-0.5 font-bold">Controlling Officer</span>
+                    <span className="font-bold">Controlling Officer</span>
                   </p>
                   <p className="text-[7.8pt] text-gray-600 font-semibold italic leading-none mt-1">(नियंत्रण अधिकारी के हस्ताक्षर)</p>
                 </div>
@@ -2241,7 +2259,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
               <span className="w-1.5 h-3.5 bg-indigo-600 rounded"></span>
               Signature & Table Visibility Config / हस्ताक्षर एवं तालिका दृश्यता चयन
             </h5>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <label className="flex items-center gap-2 text-xs bg-slate-50 border border-gray-200 hover:border-indigo-500 rounded-lg p-2.5 cursor-pointer select-none transition-all">
                 <input
                   type="checkbox"
@@ -2304,6 +2322,19 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                 <div className="flex flex-col cursor-pointer">
                   <span className="font-bold text-indigo-900">Show Summary (सारांश)</span>
                   <span className="text-[9px] text-indigo-700">सारांश सारणी दिखाएं</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 text-xs bg-[#fffbeb] border border-amber-300 hover:border-amber-500 rounded-lg p-2.5 cursor-pointer select-none transition-all">
+                <input
+                  type="checkbox"
+                  checked={showNoFreePassDeclaration}
+                  onChange={(e) => setShowNoFreePassDeclaration(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 bg-white text-amber-600 focus:ring-amber-500 accent-amber-600 cursor-pointer"
+                />
+                <div className="flex flex-col cursor-pointer">
+                  <span className="font-bold text-amber-900">Declaration 2 (No Free Pass)</span>
+                  <span className="text-[9px] text-amber-700">घोषणा 2 (पास का अप्रयोग)</span>
                 </div>
               </label>
             </div>

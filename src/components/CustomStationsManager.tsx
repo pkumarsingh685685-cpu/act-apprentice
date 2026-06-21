@@ -44,10 +44,6 @@ export function CustomStationsManager() {
   const [formName, setFormName] = useState("");
   const [formHindi, setFormHindi] = useState("");
 
-  // Bulk Excel Importer State
-  const [isExcelOpen, setIsExcelOpen] = useState(false);
-  const [bulkText, setBulkText] = useState("");
-
   const handleCSVFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -169,74 +165,6 @@ export function CustomStationsManager() {
     }
   };
 
-  const handleBulkImport = async () => {
-    if (!bulkText.trim()) {
-      toast.error("Please paste Excel table data first.");
-      return;
-    }
-
-    setSaving(true);
-    const lines = bulkText.split("\n");
-    let count = 0;
-    const batch = writeBatch(db);
-
-    try {
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        
-        // Split by tabs (from Excel copy-paste) or commas or semicolons
-        const parts = line.split(/[\t,\t;]/);
-        if (parts.length >= 2) {
-          const code = parts[0].trim().toUpperCase();
-          const name = parts[1].trim();
-          const hindi = parts[2] ? parts[2].trim() : name;
-          
-          if (code && name && code.length <= 10) {
-            const docRef = doc(db, "custom_stations", code);
-            batch.set(docRef, {
-              code,
-              name,
-              hindiName: hindi,
-              lat: 20,
-              lng: 78
-            });
-            count++;
-          }
-        } else {
-          // Fallback pattern: Space separated "CODE Station Name"
-          const match = line.trim().match(/^([A-Za-z0-9]{1,10})\s+(.+)$/);
-          if (match) {
-            const code = match[1].trim().toUpperCase();
-            const name = match[2].trim();
-            const docRef = doc(db, "custom_stations", code);
-            batch.set(docRef, {
-              code,
-              name,
-              hindiName: name,
-              lat: 20,
-              lng: 78
-            });
-            count++;
-          }
-        }
-      }
-
-      if (count > 0) {
-        await batch.commit();
-        toast.success(`Successfully imported ${count} custom stations from Excel content!`);
-        setBulkText("");
-        setIsExcelOpen(false);
-      } else {
-        toast.error("No valid lines matched. Ensure column 1 is station Code and column 2 is station Name.");
-      }
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || "Bulk import failed. Please verify format.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleDelete = async (code: string) => {
     if (!confirm(`Are you sure you want to delete station ${code}?`)) return;
     try {
@@ -265,147 +193,98 @@ export function CustomStationsManager() {
             Add or import new railway stations with their codes. These will instantly appear in the TA Claim Form autocompletes.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsExcelOpen(!isExcelOpen)}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 border transition-all ${
-              isExcelOpen 
-                ? "bg-slate-800 border-indigo-500 text-indigo-300"
-                : "bg-slate-850 border-slate-750 text-slate-200 hover:bg-slate-800"
-            }`}
-          >
-            <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
-            {isExcelOpen ? "Show Single Add" : "Excel Sheet Mass Import"}
-          </button>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Side: Single Station Add Form or Excel Importer */}
+        {/* Left Side: Single Station Add Form AND Direct CSV Importer */}
         <div className="lg:col-span-1 space-y-6">
-          {!isExcelOpen ? (
-            <form onSubmit={handleAddSingle} className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-5">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Plus className="h-4 w-4 text-indigo-400" />
-                Add Single Station (एकल स्टेशन जोड़ें)
-              </h3>
+          <form onSubmit={handleAddSingle} className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-5">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Plus className="h-4 w-4 text-indigo-400" />
+              Add Single Station (एकल स्टेशन जोड़ें)
+            </h3>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
-                    Station Code * (e.g. BSL, BSP)
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formCode}
-                    onChange={(e) => setFormCode(e.target.value.toUpperCase())}
-                    placeholder="E.g. NDLS"
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors uppercase"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
-                    Station Name * (English)
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    placeholder="E.g. New Delhi"
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
-                    Station Name (Hindi / Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={formHindi}
-                    onChange={(e) => setFormHindi(e.target.value)}
-                    placeholder="E.g. नई दिल्ली"
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-              >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Add Station Record
-              </button>
-            </form>
-          ) : (
-            <div className="space-y-6">
-              {/* Excel copy paste */}
-              <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
-                  Excel / Sheets Paste (एक्सेल कॉपी-पेस्ट)
-                </h3>
-                
-                <div className="bg-slate-900 border border-slate-850 rounded-lg p-3 text-xs text-slate-400 space-y-2">
-                  <p className="font-semibold text-slate-300">Format rules:</p>
-                  <p>1. Copy any two or three columns from your Excel table (Code, Name, and optional Hindi name).</p>
-                  <p>2. Paste them below directly. Rows must be separated by new-lines.</p>
-                  <p className="text-slate-500 mt-1 italic">Example:<br />BSP &nbsp; &nbsp; Bilaspur Jn &nbsp; &nbsp; बिलासपुर जंक्शन</p>
-                </div>
-
-                <textarea
-                  value={bulkText}
-                  onChange={(e) => setBulkText(e.target.value)}
-                  placeholder="Paste columns from Excel sheet here..."
-                  rows={6}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs text-slate-100 placeholder-slate-700 font-mono focus:outline-none focus:border-emerald-500 transition-colors"
-                />
-
-                <button
-                  onClick={handleBulkImport}
-                  disabled={saving}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  Execute Bulk Import ({bulkText.split('\n').filter(l => l.trim()).length} Rows)
-                </button>
-              </div>
-
-              {/* Direct CSV Importer */}
-              <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Upload className="h-4 w-4 text-indigo-400" />
-                  Direct CSV Import (सीएसवी फ़ाइल अपलोड)
-                </h3>
-
-                <div className="bg-slate-900 border border-slate-850 rounded-lg p-3 text-xs text-slate-400 space-y-1">
-                  <p className="font-semibold text-slate-300">CSV File Instructions:</p>
-                  <p>Select a `.csv` file. The format of columns must be:</p>
-                  <code className="block bg-slate-950 p-1.5 rounded text-[11px] font-mono text-emerald-300 mt-1">
-                    STATION_CODE,STATION_NAME[,HINDI_NAME]
-                  </code>
-                </div>
-
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 hover:border-indigo-500 rounded-xl p-6 cursor-pointer bg-slate-900/60 hover:bg-slate-900 transition-all text-center">
-                  <Upload className="h-8 w-8 text-indigo-400 mb-2 animate-bounce" />
-                  <span className="text-xs font-bold text-slate-200">Select `.csv` File</span>
-                  <span className="text-[10px] text-slate-500 mt-1">Accepts standard semicolon/comma delimited station formats</span>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    disabled={saving}
-                    onChange={handleCSVFileInput}
-                    className="hidden"
-                  />
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+                  Station Code * (e.g. BSL, BSP)
                 </label>
+                <input
+                  type="text"
+                  required
+                  value={formCode}
+                  onChange={(e) => setFormCode(e.target.value.toUpperCase())}
+                  placeholder="E.g. NDLS"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+                  Station Name * (English)
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="E.g. New Delhi"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+                  Station Name (Hindi / Optional)
+                </label>
+                <input
+                  type="text"
+                  value={formHindi}
+                  onChange={(e) => setFormHindi(e.target.value)}
+                  placeholder="E.g. नई दिल्ली"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                />
               </div>
             </div>
-          )}
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Add Station Record
+            </button>
+          </form>
+
+          {/* Direct CSV Importer */}
+          <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Upload className="h-4 w-4 text-indigo-400" />
+              Direct CSV Import (सीएसवी फ़ाइल अपलोड)
+            </h3>
+
+            <div className="bg-slate-900 border border-slate-850 rounded-lg p-3 text-xs text-slate-400 space-y-1">
+              <p className="font-semibold text-slate-300">CSV File Instructions:</p>
+              <p>Select a `.csv` file. The format of columns must be:</p>
+              <code className="block bg-slate-950 p-1.5 rounded text-[11px] font-mono text-emerald-300 mt-1">
+                STATION_CODE,STATION_NAME[,HINDI_NAME]
+              </code>
+            </div>
+
+            <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 hover:border-indigo-500 rounded-xl p-6 cursor-pointer bg-slate-900/60 hover:bg-slate-900 transition-all text-center">
+              <Upload className="h-8 w-8 text-indigo-400 mb-2" />
+              <span className="text-xs font-bold text-slate-200">Select `.csv` File</span>
+              <span className="text-[10px] text-slate-500 mt-1">Accepts standard semicolon/comma delimited station formats</span>
+              <input
+                type="file"
+                accept=".csv"
+                disabled={saving}
+                onChange={handleCSVFileInput}
+                className="hidden"
+              />
+            </label>
+          </div>
         </div>
 
         {/* Right Side: List of custom stations */}
