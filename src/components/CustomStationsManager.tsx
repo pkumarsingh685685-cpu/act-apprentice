@@ -48,6 +48,71 @@ export function CustomStationsManager() {
   const [isExcelOpen, setIsExcelOpen] = useState(false);
   const [bulkText, setBulkText] = useState("");
 
+  const handleCSVFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      if (!text) {
+        toast.error("Could not read file content");
+        return;
+      }
+      
+      setSaving(true);
+      const lines = text.split(/\r?\n/);
+      let count = 0;
+      const batch = writeBatch(db);
+
+      try {
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          
+          // Split by comma while respecting quotes (standard CSV behavior)
+          const parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+          
+          if (parts.length >= 2) {
+            const code = parts[0].replace(/^"|"$/g, '').trim().toUpperCase();
+            const name = parts[1].replace(/^"|"$/g, '').trim();
+            const hindi = parts[2] ? parts[2].replace(/^"|"$/g, '').trim() : name;
+            
+            if (code && name && code.length <= 10) {
+              // Ignore typical columns header row
+              const cleanCodeWord = code.replace(/[^A-Z]/g, "");
+              if (cleanCodeWord === "CODE" || cleanCodeWord === "STATIONCODE" || cleanCodeWord === "STATION") {
+                continue;
+              }
+              const docRef = doc(db, "custom_stations", code);
+              batch.set(docRef, {
+                code,
+                name,
+                hindiName: hindi || name,
+                lat: 20,
+                lng: 78
+              });
+              count++;
+            }
+          }
+        }
+
+        if (count > 0) {
+          await batch.commit();
+          toast.success(`Successfully imported ${count} custom stations from CSV file!`);
+          e.target.value = ""; // reset input elements
+        } else {
+          toast.error("No valid lines matched. Format must be: STATION_CODE,STATION_NAME[,HINDI_NAME]");
+        }
+      } catch (err: any) {
+        console.error(err);
+        toast.error(err.message || "CSV parsing or database write failed.");
+      } finally {
+        setSaving(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   // Load Custom Stations in Real-Time
   useEffect(() => {
     setLoading(true);
@@ -278,35 +343,67 @@ export function CustomStationsManager() {
               </button>
             </form>
           ) : (
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
-                Excel / Sheets Paste (एक्सेल कॉपी-पेस्ट)
-              </h3>
-              
-              <div className="bg-slate-900 border border-slate-850 rounded-lg p-3 text-xs text-slate-400 space-y-2">
-                <p className="font-semibold text-slate-300">Format rules:</p>
-                <p>1. Copy any two or three columns from your Excel table (Code, Name, and optional Hindi name).</p>
-                <p>2. Paste them below directly. Rows must be separated by new-lines.</p>
-                <p className="text-slate-500 mt-1 italic">Example:<br />BSP &nbsp; &nbsp; Bilaspur Jn &nbsp; &nbsp; बिलासपुर जंक्शन</p>
+            <div className="space-y-6">
+              {/* Excel copy paste */}
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
+                  Excel / Sheets Paste (एक्सेल कॉपी-पेस्ट)
+                </h3>
+                
+                <div className="bg-slate-900 border border-slate-850 rounded-lg p-3 text-xs text-slate-400 space-y-2">
+                  <p className="font-semibold text-slate-300">Format rules:</p>
+                  <p>1. Copy any two or three columns from your Excel table (Code, Name, and optional Hindi name).</p>
+                  <p>2. Paste them below directly. Rows must be separated by new-lines.</p>
+                  <p className="text-slate-500 mt-1 italic">Example:<br />BSP &nbsp; &nbsp; Bilaspur Jn &nbsp; &nbsp; बिलासपुर जंक्शन</p>
+                </div>
+
+                <textarea
+                  value={bulkText}
+                  onChange={(e) => setBulkText(e.target.value)}
+                  placeholder="Paste columns from Excel sheet here..."
+                  rows={6}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs text-slate-100 placeholder-slate-700 font-mono focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+
+                <button
+                  onClick={handleBulkImport}
+                  disabled={saving}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                >
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  Execute Bulk Import ({bulkText.split('\n').filter(l => l.trim()).length} Rows)
+                </button>
               </div>
 
-              <textarea
-                value={bulkText}
-                onChange={(e) => setBulkText(e.target.value)}
-                placeholder="Paste columns from Excel sheet here..."
-                rows={10}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs text-slate-100 placeholder-slate-700 font-mono focus:outline-none focus:border-emerald-500 transition-colors"
-              />
+              {/* Direct CSV Importer */}
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Upload className="h-4 w-4 text-indigo-400" />
+                  Direct CSV Import (सीएसवी फ़ाइल अपलोड)
+                </h3>
 
-              <button
-                onClick={handleBulkImport}
-                disabled={saving}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-              >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                Execute Bulk Import ({bulkText.split('\n').filter(l => l.trim()).length} Rows)
-              </button>
+                <div className="bg-slate-900 border border-slate-850 rounded-lg p-3 text-xs text-slate-400 space-y-1">
+                  <p className="font-semibold text-slate-300">CSV File Instructions:</p>
+                  <p>Select a `.csv` file. The format of columns must be:</p>
+                  <code className="block bg-slate-950 p-1.5 rounded text-[11px] font-mono text-emerald-300 mt-1">
+                    STATION_CODE,STATION_NAME[,HINDI_NAME]
+                  </code>
+                </div>
+
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 hover:border-indigo-500 rounded-xl p-6 cursor-pointer bg-slate-900/60 hover:bg-slate-900 transition-all text-center">
+                  <Upload className="h-8 w-8 text-indigo-400 mb-2 animate-bounce" />
+                  <span className="text-xs font-bold text-slate-200">Select `.csv` File</span>
+                  <span className="text-[10px] text-slate-500 mt-1">Accepts standard semicolon/comma delimited station formats</span>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    disabled={saving}
+                    onChange={handleCSVFileInput}
+                    className="hidden"
+                  />
+                </label>
+              </div>
             </div>
           )}
         </div>

@@ -346,6 +346,7 @@ export function SF14IIGenerator({ onBack }: { onBack?: () => void } = {}) {
                   <option value="Senior Clerk" />
                   <option value="Junior Clerk" />
                   <option value="Ch.OS" />
+                  <option value="General Assistant" />
                 </datalist>
               </div>
               <div>

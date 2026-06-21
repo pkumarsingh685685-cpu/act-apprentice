@@ -1,5 +1,6 @@
 import { useStore } from "../store/useStore";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { NewBadge } from "../components/NewBadge";
 
 export default function NoticeBoardPage() {
@@ -9,6 +10,7 @@ export default function NoticeBoardPage() {
   const darCirculars = useStore((state) => state.darCirculars);
   const actCirculars = useStore((state) => state.actCirculars);
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   // Combine all items
   const allItems = [
@@ -25,7 +27,17 @@ export default function NoticeBoardPage() {
   });
 
   return (
-    <div className="flex-1 w-full bg-white px-2 py-4 sm:px-4 sm:py-8">
+    <div className="flex-1 w-full bg-white px-2 py-4 sm:px-4 sm:py-8 max-w-7xl mx-auto">
+      {/* Simple Back button */}
+      <div className="mb-4 flex justify-start">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-black text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer"
+        >
+          ← Back
+        </button>
+      </div>
+
       <div className="border border-[#b5c5d5] rounded-sm shadow-sm overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[600px]">
           <thead>

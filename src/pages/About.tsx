@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { NfrOrgMap } from '../components/NfrOrgMap';
 import { Info, HelpCircle, Map, Landmark, Award, ShieldAlert } from 'lucide-react';
 import { SEO } from '../components/SEO';
@@ -8,10 +9,21 @@ export default function About() {
   const { t, i18n } = useTranslation();
   const currentLang = i18n.language || 'en';
   const [activeTab, setActiveTab] = useState<'info' | 'org_map'>('info');
+  const navigate = useNavigate();
 
   return (
     <div className="w-full px-4 py-8 max-w-7xl mx-auto">
       <SEO title="About Us | Personnel Branch KIR" />
+      
+      {/* Simple Back button */}
+      <div className="mb-4 flex justify-start">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-black text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer"
+        >
+          ← {currentLang === 'hi' ? 'वापस' : 'Back'}
+        </button>
+      </div>
       
       {/* Tab Navigation buttons */}
       <div className="flex border-b border-gray-200 mb-6 bg-gray-50 p-1.5 rounded-xl border">

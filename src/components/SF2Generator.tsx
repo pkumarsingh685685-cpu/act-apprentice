@@ -302,6 +302,7 @@ export function SF2Generator({ onBack }: { onBack?: () => void } = {}) {
                   <option value="Senior Clerk" />
                   <option value="Junior Clerk" />
                   <option value="Ch.OS" />
+                  <option value="General Assistant" />
                 </datalist>
               </div>
               <div className="space-y-1">

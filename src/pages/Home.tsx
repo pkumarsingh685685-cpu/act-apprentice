@@ -123,14 +123,19 @@ export default function Home() {
   const [isOfficePasswordModalOpen, setIsOfficePasswordModalOpen] = useState(false);
   const [officePassword, setOfficePassword] = useState("");
   const [officePasswordError, setOfficePasswordError] = useState("");
+  const [redirectTab, setRedirectTab] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    localStorage.removeItem("lastSelectedSFTab");
+    localStorage.removeItem("lastSelectedDARSubTab");
+  }, []);
 
   const handleOfficeUseClick = (e: React.MouseEvent) => {
     e.preventDefault();
+    setRedirectTab(null);
     if (isStillValid) {
-      const savedTab = localStorage.getItem("lastSelectedSFTab");
-      const targetQuery = savedTab ? `?tab=${savedTab}` : (hasPendingSFs ? "?tab=INBOX" : "");
-      navigate(`/sf-generator${targetQuery}`);
+      navigate("/sf-generator");
     } else {
       setIsOfficePasswordModalOpen(true);
       setOfficePassword("");
@@ -144,8 +149,7 @@ export default function Home() {
     if (officePassword === correctPassword) {
       sfLogin();
       setIsOfficePasswordModalOpen(false);
-      const savedTab = localStorage.getItem("lastSelectedSFTab");
-      const targetQuery = savedTab ? `?tab=${savedTab}` : (hasPendingSFs ? "?tab=INBOX" : "");
+      const targetQuery = redirectTab ? `?tab=${redirectTab}` : "";
       navigate(`/sf-generator${targetQuery}`);
     } else {
       setOfficePasswordError("Incorrect Password");
@@ -224,8 +228,8 @@ export default function Home() {
               <div className="mb-3 group-hover:scale-110 transition-transform">
                 <FileText className="w-8 h-8 md:w-8 md:h-8 w-7 h-7" />
               </div>
-              <h3 className="font-semibold text-center text-xs sm:text-sm md:text-base uppercase leading-tight">
-                OFFICE USE ONLY
+              <h3 className="font-semibold text-center text-xs sm:text-sm md:text-base leading-tight">
+                Office Dashboard
               </h3>
             </button>
             <QuickLinkCard
@@ -241,7 +245,7 @@ export default function Home() {
                   navigate(`/sf-generator?tab=OFFICE_ORDERS`);
                 } else {
                   setIsOfficePasswordModalOpen(true);
-                  localStorage.setItem("lastSelectedSFTab", "OFFICE_ORDERS");
+                  setRedirectTab("OFFICE_ORDERS");
                   setOfficePassword("");
                   setOfficePasswordError("");
                 }
@@ -377,7 +381,7 @@ export default function Home() {
               <X className="w-6 h-6" />
             </button>
             <h2 className="text-xl font-bold text-gray-800 mb-4 text-center border-b pb-2">
-              Office Use Only
+              Office Dashboard
             </h2>
             <form onSubmit={handleOfficePasswordSubmit} className="space-y-4">
               <div>

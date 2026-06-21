@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Shield, Lock, ExternalLink, Globe } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { useStore } from "../store/useStore";
 
 export default function InternalLinksPage() {
@@ -10,6 +11,7 @@ export default function InternalLinksPage() {
   const externalLinks = useStore((state) => state.externalLinks);
   const internalLinks = useStore((state) => state.internalLinks);
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +30,17 @@ export default function InternalLinksPage() {
   return (
     <div className="flex-1 w-full bg-slate-50 py-8 min-h-[500px] animate-fade-in">
       <div className="w-full max-w-7xl mx-auto px-4 md:px-8">
+        
+        {/* Simple Back button */}
+        <div className="mb-4 flex justify-start">
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-black text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer"
+          >
+            ← Back
+          </button>
+        </div>
+
         <h1 className="text-2xl md:text-3xl font-bold text-[#002B6B] mb-8 flex items-center gap-2 border-b-2 border-gray-200 pb-4">
           <Shield className="text-[#1E73BE] w-8 h-8 font-extrabold" />
           <span>{t('nav_important_links')}</span>

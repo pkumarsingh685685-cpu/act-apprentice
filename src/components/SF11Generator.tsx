@@ -324,6 +324,7 @@ export function SF11Generator({ onBack }: { onBack?: () => void } = {}) {
               <option value="Senior Clerk" />
               <option value="Junior Clerk" />
               <option value="Ch.OS" />
+              <option value="General Assistant" />
             </datalist>
           </div>
 

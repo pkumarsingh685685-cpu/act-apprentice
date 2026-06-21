@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useStore } from "../store/useStore";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { Shield, Sparkles, User, Mail, Phone, ChevronRight, Hash, Layers, HelpCircle, X } from "lucide-react";
 import { SEO } from "../components/SEO";
@@ -10,6 +11,7 @@ export default function ApoAllotmentPage({ isEmbedded = false }: { isEmbedded?: 
   const config = useStore((state) => state.config);
   const { t, i18n } = useTranslation();
   const currentLang = i18n.language || "en";
+  const navigate = useNavigate();
 
   const [selectedApoId, setSelectedApoId] = useState<string | null>(null);
 
@@ -62,6 +64,18 @@ export default function ApoAllotmentPage({ isEmbedded = false }: { isEmbedded?: 
       {/* Decorative Glow Elements */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 right-1/4 w-[30rem] h-[30rem] bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Standalone Back button */}
+      {!isEmbedded && (
+        <div className="max-w-7xl mx-auto mb-6 relative z-10 flex justify-start">
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-black text-slate-100 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer backdrop-blur"
+          >
+            ← Back
+          </button>
+        </div>
+      )}
 
       {/* Title Header Section */}
       {!isEmbedded && (

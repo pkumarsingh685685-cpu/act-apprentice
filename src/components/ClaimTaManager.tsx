@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { triggerPrint } from '../utils/printHelper';
 import { db, handleFirestoreError, OperationType } from '../firebase';
@@ -212,6 +213,7 @@ const RAILWAY_DESIGNATIONS = [
   "Technician Grade-III",
   "Senior Technician",
   "Helper / Khalasi",
+  "General Assistant",
   "Assistant Personnel Officer (APO)",
   "Divisional Personnel Officer (DPO)",
   "Senior Divisional Personnel Officer (Sr. DPO)",
@@ -251,9 +253,11 @@ const RAILWAY_DESIGNATIONS = [
 export interface ClaimTaManagerProps {
   showSidebars?: boolean;
   onToggleSidebars?: (show: boolean) => void;
+  onBackToDashboard?: () => void;
 }
 
-export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManagerProps) {
+export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboard }: ClaimTaManagerProps) {
+  const navigate = useNavigate();
   const storeConfig = useStore((state) => state.config);
   const [employeeName, setEmployeeName] = useState("");
   const [designation, setDesignation] = useState("");
@@ -294,6 +298,8 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
 
   const [savedClaims, setSavedClaims] = useState<TACase[]>([]);
   const [contingentItems, setContingentItems] = useState<ContingentItem[]>([]);
+  const [isEditingOrDrafting, setIsEditingOrDrafting] = useState<boolean>(false);
+  const [taSearchQuery, setTaSearchQuery] = useState("");
   const componentRef = useRef<HTMLDivElement>(null);
 
   // Signature selection visibility toggles
@@ -1033,6 +1039,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
     setShowCounterSig(claim.showCounterSig !== undefined ? claim.showCounterSig : true);
     setShowHeadOfficeSig(claim.showHeadOfficeSig !== undefined ? claim.showHeadOfficeSig : true);
     setShowControllingOfficerSig(claim.showControllingOfficerSig !== undefined ? claim.showControllingOfficerSig : true);
+    setIsEditingOrDrafting(true);
     toast.success(`Loaded details for "${claim.employeeName}" into the active editor!`);
   };
 
@@ -1076,6 +1083,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
         beyond8Km: true
       }
     ]);
+    setIsEditingOrDrafting(true);
   };
 
   const renderPrintSheetContent = () => {
@@ -1151,6 +1159,20 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
       const h = String(date.getHours()).padStart(2, '0');
       const m = String(date.getMinutes()).padStart(2, '0');
       return `${h}:${m}`;
+    };
+
+    // Format duration in hours and minutes helper
+    const formatDurationLabel = (hours: number) => {
+      const totalMinutes = Math.round(hours * 60);
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      if (h > 0 && m > 0) {
+        return `${h} Hour${h > 1 ? 's' : ''} ${m} Minute${m > 1 ? 's' : ''}`;
+      } else if (h > 0) {
+        return `${h} Hour${h > 1 ? 's' : ''}`;
+      } else {
+        return `${m} Minute${m > 1 ? 's' : ''}`;
+      }
     };
 
     // Let's create a list of chronological legs sorted
@@ -1426,9 +1448,9 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                 Kms.
               </th>
               <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
-                दिन/रात या घंटे
+                यात्री/ठहराव या घंटे
                 <br />
-                Day/Night/Hrs
+                Journey/Stay/Hrs
               </th>
               <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
                 यात्रा का उद्देश्य
@@ -1438,7 +1460,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
               <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
                 दर / Rate
               </th>
-              <th className={`border border-black p-0.5 py-1 text-right font-extrabold leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
+              <th className={`border border-black p-0.5 py-1 text-center font-extrabold leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
                 दावा राशि
                 <br />
                 Claimed Amt
@@ -1480,6 +1502,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
 
               // Filter only journey segments for traveling details
               const journeySegs = row.daySegments.filter((seg: any) => seg.type === 'journey');
+              const subRowCount = Math.max(1, journeySegs.length);
 
               // Dynamic text scaling helpers for cells
               const c75 = fh('text-[9.5pt]', 'text-[7.2pt]');
@@ -1488,89 +1511,84 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
               const c65 = fh('text-[8.5pt]', 'text-[6.3pt]');
 
               return (
-                <tr key={row.dateStr} className={`leading-snug text-center align-middle hover:bg-slate-50/10 ${c80}`}>
-                  {/* 1. Month & Date */}
-                  <td className={`border border-black p-0.5 py-1 font-mono text-center font-bold bg-slate-50/10 whitespace-nowrap ${c75}`}>
-                    {row.formattedDate}
-                  </td>
-                  
-                  {/* 2. Train/Vehicle No */}
-                  <td className={`border border-black p-0.5 py-1 text-center font-sans font-bold break-words ${c75}`}>
-                    {journeySegs.length === 0 ? (
-                      <span className="text-gray-400 font-normal">-</span>
-                    ) : (
-                      <div className="flex flex-col gap-1">
-                        {journeySegs.map((seg: any, idx: number) => (
-                          <div key={idx} className="min-h-[1.2rem] flex items-center justify-center">
-                            <div className="leading-none">
-                              <span className="text-gray-900 block font-bold">{seg.trainNo}</span>
+                <React.Fragment key={row.dateStr}>
+                  {Array.from({ length: subRowCount }).map((_, idx) => {
+                    const isFirst = idx === 0;
+                    const seg = journeySegs[idx]; // Might be undefined if journeySegs.length is 0
+
+                    return (
+                      <tr 
+                        key={`${row.dateStr}-${idx}`} 
+                        className={`leading-tight text-center align-middle hover:bg-slate-50/10 text-gray-900 border border-black ${c80}`}
+                      >
+                        {/* 1. Month & Date */}
+                        {isFirst && (
+                          <td 
+                            rowSpan={subRowCount} 
+                            className={`border border-black p-0 py-0.5 font-mono text-center font-bold bg-slate-50/5 whitespace-nowrap align-middle ${c75}`}
+                          >
+                            {row.formattedDate}
+                          </td>
+                        )}
+                        
+                        {/* 2. Train/Vehicle No */}
+                        <td className={`border border-black p-0 py-0.5 text-center align-middle font-sans font-bold break-words ${c75}`}>
+                          {!seg ? (
+                            <span className="text-gray-400 font-normal">-</span>
+                          ) : (
+                            <div className="leading-tight text-center">
+                              <span className="text-gray-950 block font-extrabold">{seg.trainNo}</span>
                               {seg.leg.trainName && (
-                                <span className={`text-gray-550 font-normal block leading-none mt-0.5 ${c60}`}>
+                                <span className={`text-gray-500 font-normal block leading-none mt-0.5 ${c60}`}>
                                   {seg.leg.trainName}
                                 </span>
                               )}
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                  
-                  {/* 3. Time left (Departure) */}
-                  <td className={`border border-black p-0.5 py-1 font-mono text-center font-bold ${c75}`}>
-                    {journeySegs.length === 0 ? (
-                      <span className="text-gray-400 font-normal">NA</span>
-                    ) : (
-                      <div className="flex flex-col gap-1">
-                        {journeySegs.map((seg: any, idx: number) => {
-                          const deportsToday = seg.leg.depDate === row.dateStr;
-                          return (
-                            <div key={idx} className="min-h-[1.2rem] flex items-center justify-center">
-                              <span className={deportsToday ? "text-slate-900 font-extrabold" : "text-gray-400 font-normal"}>
-                                {deportsToday ? seg.leg.depTime : "NA"}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </td>
-                  
-                  {/* 4. Time arrived */}
-                  <td className={`border border-black p-0.5 py-1 font-mono text-center font-bold ${c75}`}>
-                    {journeySegs.length === 0 ? (
-                      <span className="text-gray-400 font-normal">NA</span>
-                    ) : (
-                      <div className="flex flex-col gap-1">
-                        {journeySegs.map((seg: any, idx: number) => {
-                          const arrivesToday = seg.leg.arrDate === row.dateStr;
-                          return (
-                            <div key={idx} className="min-h-[1.2rem] flex items-center justify-center">
-                              <span className={arrivesToday ? "text-slate-900 font-extrabold" : "text-gray-400 font-normal"}>
-                                {arrivesToday ? seg.leg.arrTime : "NA"}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </td>
-                  
-                  {/* 5. From Station */}
-                  <td className={`border border-black p-0.5 py-1 text-left font-sans break-words ${c75}`}>
-                    {journeySegs.length === 0 ? (
-                      <div className="text-center">
-                        <span className="text-gray-400 font-normal">NA</span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-1 bg-slate-50/5">
-                        {journeySegs.map((seg: any, idx: number) => {
-                          const deportsToday = seg.leg.depDate === row.dateStr;
-                          return (
-                            <div key={idx} className="min-h-[1.2rem] flex items-center">
-                              {deportsToday ? (
-                                <div className="leading-none">
-                                  <span className="font-extrabold text-slate-900">{seg.from}</span>
+                          )}
+                        </td>
+                        
+                        {/* 3. Time left (Departure) */}
+                        <td className={`border border-black p-0 py-0.5 font-mono text-center align-middle font-bold ${c75}`}>
+                          {!seg ? (
+                            <span className="text-gray-400 font-normal">NA</span>
+                          ) : (
+                            (() => {
+                              const deportsToday = seg.leg.depDate === row.dateStr;
+                              return (
+                                <span className={deportsToday ? "text-slate-950 font-black" : "text-gray-400 font-normal"}>
+                                  {deportsToday ? seg.leg.depTime : "NA"}
+                                </span>
+                              );
+                            })()
+                          )}
+                        </td>
+                        
+                        {/* 4. Time arrived */}
+                        <td className={`border border-black p-0 py-0.5 font-mono text-center align-middle font-bold ${c75}`}>
+                          {!seg ? (
+                            <span className="text-gray-400 font-normal">NA</span>
+                          ) : (
+                            (() => {
+                              const arrivesToday = seg.leg.arrDate === row.dateStr;
+                              return (
+                                <span className={arrivesToday ? "text-slate-950 font-black" : "text-gray-400 font-normal"}>
+                                  {arrivesToday ? seg.leg.arrTime : "NA"}
+                                </span>
+                              );
+                            })()
+                          )}
+                        </td>
+                        
+                        {/* 5. From Station */}
+                        <td className={`border border-black p-0 py-0.5 text-center align-middle font-sans break-words ${c75}`}>
+                          {!seg ? (
+                            <span className="text-gray-400 font-normal">NA</span>
+                          ) : (
+                            (() => {
+                              const deportsToday = seg.leg.depDate === row.dateStr;
+                              return deportsToday ? (
+                                <div className="leading-none text-center">
+                                  <span className="font-extrabold text-slate-950">{seg.from}</span>
                                   {seg.from !== "NA" && seg.beyond8Km === false && (
                                     <span className={`text-rose-800 font-bold block leading-none mt-0.5 ${c60}`}>
                                       (HQ 8km)
@@ -1579,128 +1597,138 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                                 </div>
                               ) : (
                                 <span className={`text-gray-400 font-normal ${c75}`}>NA</span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </td>
-                  
-                  {/* 6. To Station */}
-                  <td className={`border border-black p-0.5 py-1 text-left font-sans break-words ${c75}`}>
-                    {journeySegs.length === 0 ? (
-                      <div className="text-center">
-                        <span className="text-gray-400 font-normal">NA</span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-1 bg-slate-50/5">
-                        {journeySegs.map((seg: any, idx: number) => {
-                          const arrivesToday = seg.leg.arrDate === row.dateStr;
-                          return (
-                            <div key={idx} className="min-h-[1.2rem] flex items-center">
-                              {arrivesToday ? (
-                                <span className="font-extrabold text-slate-900 leading-none">{seg.to}</span>
+                              );
+                            })()
+                          )}
+                        </td>
+                        
+                        {/* 6. To Station */}
+                        <td className={`border border-black p-0 py-0.5 text-center align-middle font-sans break-words ${c75}`}>
+                          {!seg ? (
+                            <span className="text-gray-400 font-normal">NA</span>
+                          ) : (
+                            (() => {
+                              const arrivesToday = seg.leg.arrDate === row.dateStr;
+                              return arrivesToday ? (
+                                <span className="font-extrabold text-slate-950 leading-none">{seg.to}</span>
                               ) : (
                                 <span className={`text-gray-400 font-normal ${c75}`}>NA</span>
+                              );
+                            })()
+                          )}
+                        </td>
+                        
+                        {/* 7. Kms */}
+                        {isFirst && (
+                          <td 
+                            rowSpan={subRowCount} 
+                            className={`border border-black p-0 py-0.5 font-mono text-center align-middle ${c75}`}
+                          >
+                            {journeySegs.some((s: any) => s.roadDistanceKm && s.roadDistanceKm > 0) ? (
+                              (() => {
+                                const withKms = journeySegs.filter((s: any) => s.roadDistanceKm && s.roadDistanceKm > 0);
+                                const totalKms = withKms.reduce((sum: number, s: any) => sum + (s.roadDistanceKm || 0), 0);
+                                const firstRoadSeg = withKms[0];
+                                return (
+                                  <div className="leading-tight text-center">
+                                    <span className={`font-black block text-slate-950 ${c80}`}>{totalKms} KM Aprx.</span>
+                                    {firstRoadSeg.mode === 'Road' ? (
+                                      <span className={`block font-sans text-amber-850 font-bold leading-none mt-0.5 text-amber-800 ${c60}`}>
+                                        @ ₹{firstRoadSeg.roadType === 'auto_scooter' ? '12' : '24'}/KM
+                                      </span>
+                                    ) : firstRoadSeg.mode === 'Train' ? (
+                                      <span className={`block font-sans text-emerald-850 leading-none mt-0.5 text-center font-semibold text-emerald-800 ${c60}`}>
+                                        (Rail)
+                                      </span>
+                                    ) : (
+                                      <span className={`block font-sans text-slate-705 leading-none mt-0.5 text-center font-semibold text-slate-700 ${c60}`}>
+                                        (Air)
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })()
+                            ) : (
+                              <span className="text-gray-400 font-normal">-</span>
+                            )}
+                          </td>
+                        )}
+                        
+                        {/* 8. Journey/Stay/Hrs */}
+                        {isFirst && (
+                          <td 
+                            rowSpan={subRowCount} 
+                            className={`border border-black p-0 py-0.5 text-center align-middle font-medium bg-slate-50/5 leading-snug ${c75}`}
+                          >
+                            <div className="flex flex-col gap-0.5 w-full items-center justify-center">
+                              {row.daySegments.map((s: any, idxSeg: number) => {
+                                const isJourney = s.type === 'journey';
+                                if (isJourney) {
+                                  return (
+                                    <div key={idxSeg} className="w-full text-center py-0.5 text-black">
+                                      <span className={`text-black font-extrabold uppercase ${c65}`}>
+                                        • Journey: <span className="font-mono font-black">{formatDurationLabel(s.hoursOnDay)}</span>
+                                      </span>
+                                    </div>
+                                  );
+                                } else {
+                                  const timeRange = s.hoursOnDay === 24 
+                                    ? "24 Hours" 
+                                    : `${formatLocalTime(s.overlapStartMs)} - ${formatLocalTime(s.overlapEndMs)} (${formatDurationLabel(s.hoursOnDay)})`;
+                                  return (
+                                    <div key={idxSeg} className="w-full text-center py-0.5 text-slate-800 font-semibold px-1">
+                                      • Stay at {s.station} ({timeRange})
+                                    </div>
+                                  );
+                                }
+                              })}
+                            </div>
+                          </td>
+                        )}
+                        
+                        {/* 9. Object of journey */}
+                        {isFirst && (
+                          <td 
+                            rowSpan={subRowCount} 
+                            className={`border border-black p-0 py-0.5 text-center font-sans align-middle break-words ${c75}`}
+                          >
+                            {row.purpose}
+                          </td>
+                        )}
+                        
+                        {/* 10. Rate */}
+                        {isFirst && (
+                          <td 
+                            rowSpan={subRowCount} 
+                            className="border border-black p-0 py-0.5 text-center align-middle font-serif bg-slate-50/5"
+                          >
+                            <div className={`font-extrabold text-indigo-950 leading-tight ${c75}`}>{pctDisplay}</div>
+                            <div className={`text-gray-600 font-mono leading-none mt-1 ${c60}`}>
+                              ({formatDurationLabel(row.dayHrs)})
+                            </div>
+                          </td>
+                        )}
+                        
+                        {/* 11. Claimed Amt */}
+                        {isFirst && (
+                          <td 
+                            rowSpan={subRowCount} 
+                            className="border border-black p-0 py-0.5 text-center font-bold font-mono bg-slate-50/15 align-middle"
+                          >
+                            <div className="leading-tight text-center w-full">
+                              <div className={`text-slate-950 font-black ${c80}`}>₹{row.dayTotalClaimed}</div>
+                              {row.totalMileageAmountOnDay > 0 && (
+                                <div className={`text-amber-800 font-sans font-bold leading-none mt-1 ${c60}`} title="Road Mileage Portion">
+                                  (₹{row.totalMileageAmountOnDay} Mil)
+                                </div>
                               )}
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </td>
-                  
-                  {/* 7. Kms */}
-                  <td className={`border border-black p-0.5 py-1 font-mono text-center align-middle ${c75}`}>
-                    {journeySegs.some((seg: any) => seg.roadDistanceKm && seg.roadDistanceKm > 0) ? (
-                      (() => {
-                        const withKms = journeySegs.filter((seg: any) => seg.roadDistanceKm && seg.roadDistanceKm > 0);
-                        const totalKms = withKms.reduce((sum: number, seg: any) => sum + (seg.roadDistanceKm || 0), 0);
-                        const firstRoadSeg = withKms[0];
-                        return (
-                          <div className="leading-tight">
-                            <span className={`font-extrabold block text-slate-900 ${c80}`}>{totalKms} KM</span>
-                            {firstRoadSeg.mode === 'Road' ? (
-                              <span className={`block font-sans text-amber-850 font-bold leading-none mt-0.5 text-amber-800 ${c60}`}>
-                                @ ₹{firstRoadSeg.roadType === 'auto_scooter' ? '12' : '24'}/KM
-                              </span>
-                            ) : firstRoadSeg.mode === 'Train' ? (
-                              <span className={`block font-sans text-emerald-850 leading-none mt-0.5 text-center font-semibold text-emerald-800 ${c60}`}>
-                                (Rail)
-                              </span>
-                            ) : (
-                              <span className={`block font-sans text-slate-705 leading-none mt-0.5 text-center font-semibold text-slate-700 ${c60}`}>
-                                (Air)
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })()
-                    ) : (
-                      <span className="text-gray-400 font-normal">-</span>
-                    )}
-                  </td>
-                  
-                  {/* 8. Day/Night or Hours */}
-                  <td className={`border border-black p-0.5 py-1 text-left font-medium bg-slate-50/5 leading-tight ${c75}`}>
-                    <div className="text-black block w-full px-1">
-                      {row.daySegments.map((seg: any, idx: number) => {
-                        const isJourney = seg.type === 'journey';
-                        const prefix = idx > 0 ? " ; " : "";
-                        if (isJourney) {
-                          return (
-                            <span key={idx} className={`inline text-black font-extrabold uppercase ${c65}`}>
-                              {prefix}• Jour: <span className="font-mono font-black">{seg.hoursOnDay.toFixed(1)}h</span>
-                            </span>
-                          );
-                        } else {
-                          const timeRange = seg.hoursOnDay === 24 
-                            ? "24 Hrs" 
-                            : `${formatLocalTime(seg.overlapStartMs)} - ${formatLocalTime(seg.overlapEndMs)} (${seg.hoursOnDay.toFixed(1)}h)`;
-                          return (
-                            <span key={idx} className={`inline text-slate-800 font-semibold ${c65}`}>
-                              {prefix}• Halt at {seg.station} ({timeRange})
-                            </span>
-                          );
-                        }
-                      })}
-                    </div>
-                  </td>
-                  
-                  {/* 9. Object of journey */}
-                  {purposeRowSpans[i] !== undefined && (
-                    <td className={`border border-black p-1 text-left font-sans align-middle break-words ${c75}`} rowSpan={purposeRowSpans[i]}>
-                      {row.purpose}
-                    </td>
-                  )}
-                  
-                  {/* 10. Rate */}
-                  <td className="border border-black p-0.5 py-1 text-center align-middle font-serif bg-slate-50/5">
-                    <div className={`font-extrabold text-indigo-950 leading-tight ${c75}`}>{pctDisplay}</div>
-                    <div className={`font-black text-emerald-800 leading-none mt-1 ${c80}`}>₹{row.dayDaAmt}</div>
-                    <div className={`text-gray-500 font-mono leading-none mt-1 ${c60}`}>
-                      ({row.dayHrs.toFixed(1)}h)
-                    </div>
-                    {row.isTerritorialArmy && (
-                      <div className={`text-amber-800 font-bold block leading-none mt-1 uppercase tracking-wide ${c60}`}>
-                        Doubled
-                      </div>
-                    )}
-                  </td>
-                  
-                  {/* 11. Claimed Amt */}
-                  <td className="border border-black p-0.5 py-1 text-right font-bold font-mono bg-slate-50/15 align-middle pr-1.5">
-                    <div className="leading-tight text-right w-full">
-                      <div className={`text-slate-950 font-black ${c80}`}>₹{row.dayTotalClaimed}</div>
-                      {row.totalMileageAmountOnDay > 0 && (
-                        <div className={`text-amber-800 font-sans font-bold leading-none mt-1 ${c60}`} title="Road Mileage Portion">
-                          (₹{row.totalMileageAmountOnDay} Mil)
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
               );
             })}
             
@@ -1871,13 +1899,35 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
 
         {/* Counter Signed & Controlling Officer signatures layout arranged exactly per PNG user request */}
         {(showCounterSig || showHeadOfficeSig || showControllingOfficerSig) && (
-          <div className="mt-3 space-y-3 font-serif text-[10.5pt] tracking-normal leading-normal text-black printable-signatures-block">
+          <div className="mt-3 space-y-3 font-serif text-[10.5pt] tracking-normal leading-normal text-black relative w-full printable-signatures-block min-h-[140px]">
+            {/* Absolute centered stamp/seal with 50% transparency between these signature blocks */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-10 opacity-50 flex items-center justify-center scale-110">
+              <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
+            </div>
+
+            {/* System Generated Circular Rubber Stamp (Gol Muhar) centered in the signature section as requested */}
+            {storeConfig.enablePrintMetadata !== "false" && (
+              <div 
+                className="absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-10 flex items-center justify-center"
+                style={{ opacity: 0.35 }}
+              >
+                <div className="w-[138px] h-[138px] border border-dashed border-indigo-600/90 rounded-full flex flex-col items-center justify-center text-center p-0.5 font-sans uppercase text-indigo-600 leading-none select-none pointer-events-none rotate-[-6deg] bg-white/65 backdrop-blur-[0.5px]">
+                  <div className="w-[124px] h-[124px] border-double border-[3.5px] border-indigo-600/100 rounded-full flex flex-col items-center justify-center gap-1.5 font-serif font-black bg-indigo-50/10">
+                    <span className="text-[8.5pt] font-extrabold tracking-widest text-indigo-600/100">SYSTEM</span>
+                    <span className="text-[11.5pt] font-black border-y border-[1px] border-indigo-600/100 py-0.5 px-2 font-sans my-0.5 bg-indigo-50/20 whitespace-nowrap text-indigo-700 font-extrabold">GENERATED</span>
+                    <span className="text-[7.5pt] font-extrabold tracking-tight text-indigo-600/100 font-sans">PLEASE VERIFY</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Row 1: Counter Signed on Left */}
             {showCounterSig && (
               <div className="flex justify-start text-black">
                 <div className="w-[200px] text-left">
                   <div className="h-6"></div> {/* Space for actual physical sign */}
-                  <p className="font-bold whitespace-nowrap">Counter Signed</p>
+                  <p className="font-bold whitespace-nowrap leading-tight">Counter Signed</p>
+                  <p className="text-[7.8pt] text-gray-600 font-semibold italic leading-none mt-0.5">(प्रति-हस्ताक्षरित)</p>
                 </div>
               </div>
             )}
@@ -1887,7 +1937,8 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
               <div className="flex justify-end text-black">
                 <div className="w-[280px] text-right">
                   <div className="h-6"></div> {/* Space for actual physical sign */}
-                  <p className="font-bold whitespace-nowrap">Signature of Head of the Office</p>
+                  <p className="font-bold whitespace-nowrap leading-tight">Signature of Supervisor/In-charge</p>
+                  <p className="text-[7.8pt] text-gray-600 font-semibold italic leading-none mt-0.5">(पर्यवेक्षक/प्रभारी के हस्ताक्षर)</p>
                 </div>
               </div>
             )}
@@ -1897,9 +1948,10 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
               <div className="flex justify-start items-end text-black">
                 <div className="w-[200px] text-left">
                   <div className="h-6"></div> {/* Space for actual physical sign */}
-                  <p className="font-bold whitespace-nowrap">
+                  <p className="font-bold whitespace-nowrap leading-tight">
                     <span className="border-b border-black pb-0.5 font-bold">Controlling Officer</span>
                   </p>
+                  <p className="text-[7.8pt] text-gray-600 font-semibold italic leading-none mt-1">(नियंत्रण अधिकारी के हस्ताक्षर)</p>
                 </div>
               </div>
             )}
@@ -1908,36 +1960,190 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
 
         {/* Dynamic System Timestamp & System Generated Circular Stamp Metadata */}
         {storeConfig.enablePrintMetadata !== "false" && (
-          <div className="mt-4 pt-1 rounded border border-gray-100 border-t border-dashed border-gray-400 flex justify-between items-center text-[7pt] font-mono text-gray-500 bg-gray-50/20 px-3 py-1">
-            {/* Authentic Circular Rubber Stamp (Gol Muhar) for System Generated authenticity */}
-            <div className="flex items-center justify-center p-1 bg-white/40 rounded-full">
-              <div className="w-[74px] h-[74px] border-2 border-dashed border-indigo-600/70 rounded-full flex flex-col items-center justify-center text-center p-0.5 font-sans uppercase text-indigo-600 leading-none select-none pointer-events-none rotate-[-6deg]">
-                <div className="w-[64px] h-[64px] border-double border-[3px] border-indigo-600/80 rounded-full flex flex-col items-center justify-center gap-0.5 font-serif font-black bg-white/20">
-                  <span className="text-[5.0pt] font-extrabold tracking-widest text-indigo-600/95">SYSTEM</span>
-                  <span className="text-[7.0pt] font-black border-y border-indigo-600/80 py-0.5 px-0.5 font-sans my-0.5 bg-indigo-50/30 whitespace-nowrap text-indigo-700">GENERATED</span>
-                  <span className="text-[4.5pt] font-extrabold tracking-tight text-indigo-600/95">PLEASE VERIFY</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-right flex flex-col items-end leading-snug">
+          <div className="mt-4 pt-2 border-t border-dashed border-gray-400 flex justify-end items-center text-[7.5pt] font-mono text-gray-500 px-1 py-1">
+            <div className="text-right flex flex-col items-end leading-tight text-[7pt]">
               <span>Dynamic Auth Code: NFR-PERS-TA-{empNo || 'DRAFT'}-{Date.now().toString().slice(-6)}</span>
-              <span>Printed At: <strong className="text-gray-900">{new Date().toLocaleDateString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true
-              })}</strong> (Local Standard Time)</span>
-              <span className="text-[6.0pt] text-gray-400 italic mt-0.5">Authentic Verification Secured</span>
+              <span className="text-gray-400 italic font-sans">Authentic Verification Secured</span>
+              <span className="text-slate-850 font-bold mt-0.5 font-mono">
+                Time: {new Date().toLocaleTimeString('en-IN', {
+                  hour12: false,
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit'
+                })}
+              </span>
             </div>
           </div>
         )}
       </>
     );
   };
+
+  const renderWelcomeDashboard = () => {
+    const filtered = savedClaims.filter(claim => 
+      (claim.employeeName || "").toLowerCase().includes(taSearchQuery.toLowerCase()) ||
+      (claim.empNo || "").toLowerCase().includes(taSearchQuery.toLowerCase()) ||
+      (claim.designation || "").toLowerCase().includes(taSearchQuery.toLowerCase())
+    );
+
+    return (
+      <div className="flex-1 bg-slate-50 min-h-[500px] p-4 md:p-8 flex flex-col justify-start items-center font-sans w-full animate-fadeIn relative">
+        {/* Navigation header for returning key portals */}
+        <div className="w-full max-w-4xl flex flex-col sm:flex-row items-center justify-between gap-3 pb-4 border-b border-gray-200 mb-4 shrink-0 z-20">
+          <button
+            onClick={() => {
+              if (onBackToDashboard) {
+                onBackToDashboard();
+              } else {
+                navigate(-1);
+              }
+            }}
+            className="flex items-center gap-2 px-4 py-2 border border-slate-350 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black shadow-md transition-all active:scale-95 cursor-pointer"
+          >
+            ← Back / वापस
+          </button>
+          
+          <button
+            onClick={() => onToggleSidebars?.(!showSidebars)}
+            className="flex items-center gap-2 px-4 py-2 border border-slate-300 hover:border-indigo-500 bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-700 rounded-xl text-xs font-black shadow-sm transition-all cursor-pointer"
+          >
+            📋 {showSidebars ? "Hide Menu / मेनू छुपाएं" : "Show Options Menu / विकल्प मेनू दिखाएं"}
+          </button>
+        </div>
+
+        <div className="max-w-4xl w-full space-y-6">
+          
+          {/* Header */}
+          <div className="text-center space-y-2 mt-4">
+            <div className="w-14 h-14 bg-indigo-100 text-indigo-700 rounded-2xl flex items-center justify-center mx-auto shadow-md">
+              <Coins className="w-8 h-8" />
+            </div>
+            <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
+              Travelling Allowance (TA) Claim System
+            </h1>
+            <p className="text-xs md:text-sm text-slate-500 max-w-xl mx-auto leading-relaxed">
+              Select an existing claim record from the list below to view and edit, or start a fresh claim to auto-fill.
+            </p>
+          </div>
+
+          {/* Action Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Create Card */}
+            <div 
+              onClick={resetForm}
+              className="bg-white border-2 border-dashed border-indigo-200 hover:border-indigo-500 hover:shadow-md rounded-2xl p-5 flex flex-col items-center text-center cursor-pointer transition-all duration-200 group active:scale-[0.98]"
+            >
+              <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <Plus className="w-5 h-5 font-bold" />
+              </div>
+              <h3 className="font-extrabold text-slate-900 text-sm">
+                Create New TA Claim Sheet
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-1 font-medium">
+                नया यात्रा भत्ता दावा प्रपत्र तैयार करें
+              </p>
+              <p className="text-[10px] text-slate-400 mt-2 max-w-xs leading-normal">
+                Starts with a clean form conforming to 7th PC rules, allowing manual entry or instant station kilometrage checks.
+              </p>
+            </div>
+
+            {/* General Info Card */}
+            <div className="bg-white border border-gray-250 shadow-sm rounded-2xl p-5 flex flex-col justify-between">
+              <div>
+                <span className="bg-emerald-50 text-emerald-800 font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mb-2">
+                  System Rates & Guidelines
+                </span>
+                <div className="space-y-1.5 mt-1">
+                  <div className="flex justify-between text-[11px] text-slate-600 border-b border-gray-100 pb-1">
+                    <span>Database TA Claim Records:</span>
+                    <strong className="text-slate-900 font-bold font-mono">{savedClaims.length} Records</strong>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-slate-600 border-b border-gray-100 pb-1">
+                    <span>7th CPC DA Rates:</span>
+                    <span className="text-indigo-605 font-semibold text-indigo-700">L1-L5: ₹625 | L6-L8: ₹1000 | L9-L11: ₹1125</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-slate-600">
+                    <span>System Authentic Stamp:</span>
+                    <span className="text-emerald-600 font-bold">Enabled (Gol Stamp)</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[9.5px] text-slate-400 italic leading-snug mt-3">
+                Select a claim below to view, update, verify or issue.
+              </p>
+            </div>
+          </div>
+
+          {/* Database Claims Selector List */}
+          <div className="bg-white border border-gray-250 rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-2.5">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-1.5">
+                  <span className="w-1.5 h-3.5 bg-indigo-600 rounded"></span>
+                  Select Saved TA Claim to Edit / सहेजे गए दावे चुनें
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Click on any employee record below to open and review.
+                </p>
+              </div>
+
+              {/* Search Claim input */}
+              <div className="relative w-full sm:w-auto">
+                <input 
+                  type="text"
+                  placeholder="🔍 Search name, BU or level..."
+                  value={taSearchQuery}
+                  onChange={(e) => setTaSearchQuery(e.target.value)}
+                  className="pl-2.5 pr-8 py-1.5 text-xs bg-slate-50 border border-slate-205 border-gray-300 rounded-lg w-full sm:w-[260px] focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-500 transition-all text-slate-800 font-semibold"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto pr-1">
+              {filtered.map(claim => (
+                <div 
+                  key={claim.id}
+                  onClick={() => loadCase(claim)}
+                  className="border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/10 p-3 rounded-xl cursor-pointer transition-all duration-200 flex flex-col gap-1 text-left relative group bg-white hover:shadow-sm"
+                >
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-extrabold text-xs text-slate-900 uppercase truncate pr-1 group-hover:text-indigo-600">
+                      {claim.employeeName}
+                    </h4>
+                    <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded font-mono">
+                      ₹{claim.totalAmount ? claim.totalAmount.toFixed(0) : "0"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    {claim.designation} ({claim.payLevel})
+                  </p>
+                  <div className="flex justify-between items-center text-[9.5px] text-slate-400 mt-2 pt-1 border-t border-slate-100 font-mono">
+                    <span>BU: {claim.billUnit || "N/A"}</span>
+                    <span className="font-bold text-slate-600">{claim.claimMonth} {claim.claimYear}</span>
+                  </div>
+                </div>
+              ))}
+
+              {filtered.length === 0 && (
+                <div className="col-span-full text-center py-10 text-slate-400 text-xs font-semibold">
+                  {taSearchQuery ? "No matching records found." : "No records found in database. Create one above."}
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    );
+  };
+
+  if (!isEditingOrDrafting) {
+    return (
+      <div className="w-full h-full min-h-[500px] overflow-y-auto bg-slate-50">
+        {renderWelcomeDashboard()}
+      </div>
+    );
+  }
 
   return (
     <div className={`flex flex-col gap-6 p-4 text-slate-800 font-sans ${
@@ -1957,7 +2163,15 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
         
         {/* Toggle Mode Switcher with Prominent "Tir ka Nishan" Toggler */}
         <div className="bg-white border border-gray-250 rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-3 shadow-sm shrink-0">
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 flex-wrap items-center">
+            <button
+              type="button"
+              onClick={() => setIsEditingOrDrafting(false)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 border border-transparent transition-all cursor-pointer mr-1.5 active:scale-95"
+              title="Return to claims list dashboard"
+            >
+              ← Back to List / वापस सूची में
+            </button>
             <button
               type="button"
               onClick={() => setViewMode("editor")}
@@ -2573,7 +2787,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                           value={leg.depTime} 
                           onChange={(e) => {
                             const val = e.target.value;
-                            updateLegField(leg.id, 'depTime', val);
+                            const __oldVal = leg.depTime; updateLegField(leg.id, 'depTime', val); if (!(val && val.length === 5 && __oldVal && __oldVal.length === 5 && __oldVal.split(':')[1] !== val.split(':')[1])) { return; };
                             if (val && val.length === 5) {
                               const inputEl = e.target;
                               setTimeout(() => {
@@ -2620,7 +2834,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars }: ClaimTaManage
                           value={leg.arrTime} 
                           onChange={(e) => {
                             const val = e.target.value;
-                            updateLegField(leg.id, 'arrTime', val);
+                            const __oldVal = leg.arrTime; updateLegField(leg.id, 'arrTime', val); if (!(val && val.length === 5 && __oldVal && __oldVal.length === 5 && __oldVal.split(':')[1] !== val.split(':')[1])) { return; };
                             if (val && val.length === 5) {
                               const inputEl = e.target;
                               setTimeout(() => {

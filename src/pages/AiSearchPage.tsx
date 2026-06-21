@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Search, Loader2, Database, UserCheck, AlertCircle, AlertTriangle, CheckCircle2, Sparkles, Brain, ShieldCheck, Scale, FileText, Cpu, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { db } from "../firebase";
 import { collection, getDocs, query, where, addDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "sonner";
@@ -12,6 +13,7 @@ export default function AiSearchPage() {
   const [activePlan, setActivePlan] = useState<any>(null);
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [isGeneratingAnswer, setIsGeneratingAnswer] = useState(false);
+  const navigate = useNavigate();
 
   // AI Response Orchestrator State
   const [searchMode, setSearchMode] = useState<"database" | "orchestrator">("database");
@@ -322,6 +324,16 @@ export default function AiSearchPage() {
 
   return (
     <div className="w-full max-w-5xl mx-auto p-4 md:p-8 animate-fade-in relative z-10 flex-1 flex flex-col">
+      {/* Simple Back button */}
+      <div className="mb-4 flex justify-start">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-black text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer"
+        >
+          ← Back
+        </button>
+      </div>
+
       <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden flex flex-col items-center p-6 md:p-10 text-center">
         
         {/* Toggle Mode */}

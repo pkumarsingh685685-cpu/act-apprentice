@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { MapPin, Phone, Mail, Clock, Send } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -9,6 +10,7 @@ import { toast } from 'sonner';
 export default function Contact() {
   const config = useStore((state) => state.config) as any;
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -46,7 +48,17 @@ export default function Contact() {
   };
 
   return (
-    <div className="w-full px-4 py-8">
+    <div className="w-full px-4 py-8 max-w-7xl mx-auto">
+      {/* Simple Back button */}
+      <div className="mb-4 flex justify-start">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-black text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer"
+        >
+          ← Back
+        </button>
+      </div>
+
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="bg-[#1c3f60] p-6 text-white">
           <h1 className="text-2xl font-bold">{t('nav_contact_us')}</h1>
