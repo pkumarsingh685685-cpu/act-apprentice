@@ -550,22 +550,24 @@ Return a JSON object matching this schema.`,
         }
       });
 
-      const prompt = `You are an expert Indian Railways verification system. Validate if the train Number or Name: "${query}" exists on Indian Railways. 
-If the train is fake, invalid, or does not exist on Indian Railways, set the "exists" field in the JSON response to false.
-If a departing station "${stationFrom || ''}" and destination station "${stationTo || ''}" are provided, find the exact official train route distance (in Kilometers) between these two stations along the official timetable/itinerary of this train.
-If they are valid stations and this train runs between them, specify the real distance. Ensure the distance is highly accurate instead of just straight-line distance.
+      const prompt = `Use Google Search to find official Indian Railways data. 
+Search online for Indian Railways train "${query}" (number or name). 
+Check if this train exists. 
+If a starting/departing station "${stationFrom || ''}" and destination station "${stationTo || ''}" are specified, search for the official timetable, itinerary, or route distance (in Kilometers) between "${stationFrom || ''}" and "${stationTo || ''}" for this train.
+Ensure you find the exact real-world official rail track distance (in KM) along the train's path, NOT the straight-line or road distance. If the distance cannot be determined or stations do not match, estimate the railway distance between them if they are valid.
 Return JSON with fields:
 - exists: boolean (true if the train exists, false if it is invalid/fake/doesn't exist)
-- trainNo: string (The 5-digit train number, or empty if exists is false)
-- trainName: string (Official train name, or empty if exists is false)
-- routeDistanceKm: number (The actual railway route distance in Kilometers between the From and To stations, or 0 if not applicable)
+- trainNo: string (The official 5-digit train number)
+- trainName: string (Official train name)
+- routeDistanceKm: number (The actual railway route distance in Kilometers between "${stationFrom || ''}" and "${stationTo || ''}" along this train's path, or 0 if not applicable)
 - routeVia: string (Key intermediate junctions, or empty if not applicable)
-Return as JSON.`;
+Return as standard JSON adhering to responseSchema structure.`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3.5-flash",
         contents: prompt,
         config: {
+          tools: [{ googleSearch: {} }],
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -581,7 +583,11 @@ Return as JSON.`;
         }
       });
 
-      const trainData = JSON.parse(response.text.trim());
+      let textStr = response.text?.trim() || "";
+      if (textStr.startsWith("```")) {
+        textStr = textStr.replace(/^```[a-z]*\r?\n/, "").replace(/\r?\n```$/, "").trim();
+      }
+      const trainData = JSON.parse(textStr);
       if (trainData.exists === false) {
         throw new Error("Train not verified by AI, using robust fallback database");
       }

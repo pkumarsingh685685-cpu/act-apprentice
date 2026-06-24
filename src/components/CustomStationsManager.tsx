@@ -57,7 +57,9 @@ export function CustomStationsManager() {
       }
       
       setSaving(true);
-      const lines = text.split(/\r?\n/);
+      // Strip UTF-8 Byte Order Mark (BOM) if present
+      const cleanText = text.replace(/^\uFEFF/, "").trim();
+      const lines = cleanText.split(/\r?\n/);
       let count = 0;
       const batch = writeBatch(db);
 
@@ -65,16 +67,41 @@ export function CustomStationsManager() {
         for (const line of lines) {
           if (!line.trim()) continue;
           
-          // Split by comma while respecting quotes (standard CSV behavior)
-          const parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+          // Auto-detect delimiter: check for Tab, Semicolon, or fall back to Comma
+          let delimiter = ",";
+          if (line.includes("\t")) {
+            delimiter = "\t";
+          } else if (line.includes(";") && !line.includes(",")) {
+            delimiter = ";";
+          } else if (line.includes(";")) {
+            // Count frequency to make a smart guess
+            const commas = (line.match(/,/g) || []).length;
+            const semis = (line.match(/;/g) || []).length;
+            if (semis > commas) delimiter = ";";
+          }
+          
+          let parts: string[] = [];
+          if (delimiter === ",") {
+            // Split by comma while respecting quotes (standard CSV behavior)
+            try {
+              parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            } catch (e) {
+              parts = line.split(",");
+            }
+          } else {
+            parts = line.split(delimiter);
+          }
           
           if (parts.length >= 2) {
-            const code = parts[0].replace(/^"|"$/g, '').trim().toUpperCase();
-            const name = parts[1].replace(/^"|"$/g, '').trim();
-            const hindi = parts[2] ? parts[2].replace(/^"|"$/g, '').trim() : name;
+            // Strip leading/trailing quotes and control characters (e.g. carriage returns or UTF BOM)
+            const rawCode = parts[0].replace(/^["']|["']$/g, '').trim().toUpperCase();
+            const code = rawCode.replace(/[\u0000-\u001F\u007F-\u009F\uFEFF]/g, "").trim();
+            
+            const name = parts[1].replace(/^["']|["']$/g, '').trim();
+            const hindi = parts[2] ? parts[2].replace(/^["']|["']$/g, '').trim() : name;
             
             if (code && name && code.length <= 10) {
-              // Ignore typical columns header row
+              // Ignore typical columns header rows
               const cleanCodeWord = code.replace(/[^A-Z]/g, "");
               if (cleanCodeWord === "CODE" || cleanCodeWord === "STATIONCODE" || cleanCodeWord === "STATION") {
                 continue;

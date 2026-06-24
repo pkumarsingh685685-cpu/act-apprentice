@@ -7,7 +7,7 @@ import { SF4Generator } from '../components/SF4Generator';
 import { SF11Generator } from '../components/SF11Generator';
 import { SF5Generator } from '../components/SF5Generator';
 import { SF14IIGenerator } from '../components/SF14IIGenerator';
-import { FileText, Info, X, Clock, ExternalLink, Inbox as InboxIcon, Link as LinkIcon, Briefcase, FileSpreadsheet, Layers2, ShieldCheck, Stamp, Coins } from 'lucide-react';
+import { FileText, Info, X, Clock, ExternalLink, Inbox as InboxIcon, Link as LinkIcon, Briefcase, FileSpreadsheet, Layers2, ShieldCheck, Stamp, Coins, Download } from 'lucide-react';
 import Inbox from './Inbox';
 import { ClaimTaManager } from '../components/ClaimTaManager';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -18,6 +18,8 @@ import HqMaterialManager from '../components/HqMaterialManager';
 import { OfficePdfStamper } from '../components/OfficePdfStamper';
 import { PromptIssuedSFModal } from '../components/PromptIssuedSFModal';
 import { DARCirculars, ActCirculars } from './DocumentPages';
+import { DocumentPanel } from '../components/DocumentPanel';
+import { DocumentItem } from '../types';
 import RailwaySignalSelectionIndicator from '../components/RailwaySignalSelectionIndicator';
 // Standard Form categories
 const SF_BREADCRUMBS: Record<string, string> = {
@@ -69,7 +71,7 @@ export default function SFGeneratorPage() {
         : "TYPES_OF_SF"
   );
 
-  const [taShowSidebars, setTaShowSidebars] = useState<boolean>(false);
+  const [taShowSidebars, setTaShowSidebars] = useState<boolean>(true);
 
   const selectDarSubTab = (sub: "TYPES_OF_SF" | "DAR_POSITION" | "HQ_MATERIAL" | "INBOX") => {
     setDarSubTab(sub);
@@ -87,6 +89,9 @@ export default function SFGeneratorPage() {
       return;
     }
     setMainTab(tab);
+    if (tab === "CLAIM_TA") {
+      setTaShowSidebars(true);
+    }
     const qParams = new URLSearchParams(location.search);
     if (tab) {
       qParams.set('tab', tab);
@@ -124,16 +129,24 @@ export default function SFGeneratorPage() {
     } else {
       setMainTab("");
       setDarSubTab("TYPES_OF_SF");
-      setActiveTab("SF-1");
+      setActiveTab("");
     }
   }, [location.search]);
 
-  const [activeTab, setActiveTab] = useState<string>("SF-1");
+  const [activeTab, setActiveTab] = useState<string>("");
   const [infoModalSf, setInfoModalSf] = useState<string | null>(null);
+  
+  // Active/full-screen states for different modules
+  const [stampActive, setStampActive] = useState<boolean>(false);
+  const [allotmentActive, setAllotmentActive] = useState<boolean>(false);
+  const [activeLink, setActiveLink] = useState<{ id: string; name: string; url: string } | null>(null);
+  const [activeCircular, setActiveCircular] = useState<DocumentItem | null>(null);
   
   const sfDescriptions = useStore((state) => state.sfDescriptions);
   const issuedSFs = useStore((state) => state.issuedSFs) || [];
   const internalLinks = useStore((state) => state.internalLinks) || [];
+  const darCirculars = useStore((state) => state.darCirculars) || [];
+  const actCirculars = useStore((state) => state.actCirculars) || [];
   const pending_sf4_drafts = useStore((state) => state.pending_sf4_drafts) || [];
   const today = new Date().toISOString().split('T')[0];
 
@@ -332,11 +345,19 @@ export default function SFGeneratorPage() {
     { id: "CLAIM_TA", label: "Claim TA", sub: "Traveling Allowance", icon: Coins }
   ];
 
+  const isSidebarHidden =
+    (mainTab === "DAR_SECTION" && darSubTab === "TYPES_OF_SF" && activeTab !== "") ||
+    (mainTab === "PDF_STAMP" && stampActive) ||
+    (mainTab === "WORK_ALLOTMENT" && allotmentActive) ||
+    (mainTab === "CLAIM_TA" && !taShowSidebars) ||
+    (mainTab === "OFFICE_LINKS" && activeLink !== null) ||
+    (mainTab === "OFFICE_ORDERS" && activeCircular !== null);
+
   return (
     <div className="w-full max-w-full mx-auto flex-1 flex flex-col lg:flex-row bg-gray-100 min-h-screen lg:h-[calc(100vh-4rem)] p-2 lg:p-4 gap-4 overflow-y-auto lg:overflow-hidden font-sans">
       {/* Premium left navigation vertical sidebar (Up to Down) layout */}
       <div className={`w-full lg:w-80 flex-col bg-slate-900 border border-slate-800 rounded-2xl shadow-[0_12px_30px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.08)] shrink-0 p-4 gap-4 backdrop-blur-md relative overflow-hidden z-30 ${
-        mainTab === "CLAIM_TA" && !taShowSidebars ? "hidden" : "flex"
+        isSidebarHidden ? "hidden" : "flex"
       }`}>
         {/* Decorative dynamic backdrop visuals */}
         <div className="absolute top-0 left-1/4 w-36 h-0.5 bg-gradient-to-r from-transparent via-violet-500 to-transparent blur-sm animate-pulse" />
@@ -512,108 +533,112 @@ export default function SFGeneratorPage() {
       {mainTab === "DAR_SECTION" && (
         <div className="flex-1 flex flex-col gap-4 overflow-hidden relative">
           {/* Sub Navigation Console under DAR SECTION */}
-          <div className="flex items-center justify-start gap-2 bg-slate-200/50 p-1 rounded-xl max-w-full lg:max-w-2xl shrink-0 border border-slate-300 overflow-x-auto whitespace-nowrap scrollbar-none py-1">
-            <button
-              onClick={() => selectDarSubTab("TYPES_OF_SF")}
-              className={`flex-1 py-1.5 px-3.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
-                darSubTab === "TYPES_OF_SF"
-                  ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
-                  : "text-slate-600 hover:text-slate-800 hover:bg-white/40"
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              Types of SF
-            </button>
-            <button
-              onClick={() => selectDarSubTab("DAR_POSITION")}
-              className={`flex-1 py-1.5 px-3.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
-                darSubTab === "DAR_POSITION"
-                  ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
-                  : "text-slate-600 hover:text-slate-800 hover:bg-white/40"
-              }`}
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              DAR Position Register
-            </button>
-            <button
-              onClick={() => selectDarSubTab("HQ_MATERIAL")}
-              className={`flex-1 py-1.5 px-3.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
-                darSubTab === "HQ_MATERIAL"
-                  ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
-                  : "text-slate-600 hover:text-slate-800 hover:bg-white/40"
-              }`}
-            >
-              <Layers2 className="w-3.5 h-3.5" />
-              HQ Material
-            </button>
-            <button
-              onClick={() => selectDarSubTab("INBOX")}
-              className={`flex-1 py-1.5 px-3.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-2 relative ${
-                darSubTab === "INBOX"
-                  ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
-                  : "text-slate-600 hover:text-slate-800 hover:bg-white/40"
-              }`}
-            >
-              <InboxIcon className="w-3.5 h-3.5" />
-              Inbox (संदेश)
-              {issuedSFs.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
-                  {issuedSFs.length}
-                </span>
-              )}
-            </button>
-          </div>
+          {activeTab === "" && (
+            <div className="flex items-center justify-start gap-2 bg-slate-200/50 p-1 rounded-xl max-w-full lg:max-w-2xl shrink-0 border border-slate-300 overflow-x-auto whitespace-nowrap scrollbar-none py-1">
+              <button
+                onClick={() => selectDarSubTab("TYPES_OF_SF")}
+                className={`flex-1 py-1.5 px-3.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
+                  darSubTab === "TYPES_OF_SF"
+                    ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
+                    : "text-slate-600 hover:text-slate-800 hover:bg-white/40"
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Types of SF
+              </button>
+              <button
+                onClick={() => selectDarSubTab("DAR_POSITION")}
+                className={`flex-1 py-1.5 px-3.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
+                  darSubTab === "DAR_POSITION"
+                    ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
+                    : "text-slate-600 hover:text-slate-800 hover:bg-white/40"
+                }`}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                DAR Position Register
+              </button>
+              <button
+                onClick={() => selectDarSubTab("HQ_MATERIAL")}
+                className={`flex-1 py-1.5 px-3.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
+                  darSubTab === "HQ_MATERIAL"
+                    ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
+                    : "text-slate-600 hover:text-slate-800 hover:bg-white/40"
+                }`}
+              >
+                <Layers2 className="w-3.5 h-3.5" />
+                HQ Material
+              </button>
+              <button
+                onClick={() => selectDarSubTab("INBOX")}
+                className={`flex-1 py-1.5 px-3.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-2 relative ${
+                  darSubTab === "INBOX"
+                    ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
+                    : "text-slate-600 hover:text-slate-800 hover:bg-white/40"
+                }`}
+              >
+                <InboxIcon className="w-3.5 h-3.5" />
+                Inbox (संदेश)
+                {issuedSFs.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
+                    {issuedSFs.length}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
 
           {darSubTab === "TYPES_OF_SF" && (
             <div className="flex-1 flex flex-col gap-4 overflow-y-auto lg:overflow-hidden relative">
               {/* Premium Purple Gradient 3D Navigation Bar - 2-3 Row Spacious Grid View */}
-              <div className="w-full bg-gradient-to-r from-[#4C1D95] via-[#7C3AED] to-[#4C1D95] border border-white/15 shadow-2xl shrink-0 rounded-2xl p-4 z-25">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-3.5 w-full">
-                  {SF_TABS.map((sf) => {
-                    const label = sf.replace('-', ' '); // "SF-1" -> "SF 1"
-                    const isActive = activeTab === sf;
-                    const pendingCount = getPendingHighlights(sf);
-                    const hasPending = pendingCount > 0;
-                    
-                    return (
-                      <div
-                        key={sf}
-                        onClick={() => setActiveTab(sf)}
-                        className={`relative flex items-center justify-center h-16 md:h-20 px-4 rounded-xl cursor-pointer select-none transition-all duration-300 group ${
-                          isActive
-                            ? "bg-white/20 border-2 border-white/60 text-white font-black shadow-[0_0_24px_rgba(196,181,253,0.95),0_3px_0_rgba(0,0,0,0.3),inset_0_1.5px_2px_rgba(255,255,255,0.7)] translate-y-[2px]"
-                            : "bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/40 text-white font-extrabold shadow-[0_5px_0_rgba(0,0,0,0.4),inset_0_1.5px_0_rgba(255,255,255,0.3)] hover:shadow-[0_8px_20px_rgba(167,139,250,0.7),0_5px_0_rgba(0,0,0,0.4),inset_0_1.5px_0_rgba(255,255,255,0.4)] hover:-translate-y-[3px] active:translate-y-[2px] active:shadow-[0_2px_0_rgba(0,0,0,0.4)]"
-                        }`}
-                      >
-                        <span className="font-black text-sm sm:text-base md:text-[18px] tracking-wider uppercase flex items-center gap-2 whitespace-nowrap text-center justify-center">
-                          {label}
-                          {hasPending && (
-                            <span className={sf === "SF-4" ? "inline-flex items-center justify-center w-6 h-6 bg-red-650 rounded-full text-[12px] text-white font-extrabold animate-pulse ring-2 ring-white shadow-[0_0_10px_rgba(239,68,68,0.95)]" : "inline-flex items-center justify-center w-5 h-5 bg-red-500 rounded-full text-[11px] text-white font-black animate-pulse"}>
-                              {sf === "SF-4" ? pendingCount : "!"}
-                            </span>
-                          )}
-                        </span>
-                        
-                        {/* Interactive Help Trigger */}
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setInfoModalSf(sf);
-                          }}
-                          className={`ml-2.5 p-1 rounded-full text-white transition-all duration-200 focus:outline-none z-30 ${
-                            isActive 
-                              ? "hover:bg-white/25" 
-                              : "opacity-60 group-hover:opacity-100 hover:bg-white/20"
+              {activeTab === "" && (
+                <div className="w-full bg-gradient-to-r from-[#4C1D95] via-[#7C3AED] to-[#4C1D95] border border-white/15 shadow-2xl shrink-0 rounded-2xl p-4 z-25">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-3.5 w-full">
+                    {SF_TABS.map((sf) => {
+                      const label = sf.replace('-', ' '); // "SF-1" -> "SF 1"
+                      const isActive = activeTab === sf;
+                      const pendingCount = getPendingHighlights(sf);
+                      const hasPending = pendingCount > 0;
+                      
+                      return (
+                        <div
+                          key={sf}
+                          onClick={() => setActiveTab(sf)}
+                          className={`relative flex items-center justify-center h-16 md:h-20 px-4 rounded-xl cursor-pointer select-none transition-all duration-300 group ${
+                            isActive
+                              ? "bg-white/20 border-2 border-white/60 text-white font-black shadow-[0_0_24px_rgba(196,181,253,0.95),0_3px_0_rgba(0,0,0,0.3),inset_0_1.5px_2px_rgba(255,255,255,0.7)] translate-y-[2px]"
+                              : "bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/40 text-white font-extrabold shadow-[0_5px_0_rgba(0,0,0,0.4),inset_0_1.5px_0_rgba(255,255,255,0.3)] hover:shadow-[0_8px_20px_rgba(167,139,250,0.7),0_5px_0_rgba(0,0,0,0.4),inset_0_1.5px_0_rgba(255,255,255,0.4)] hover:-translate-y-[3px] active:translate-y-[2px] active:shadow-[0_2px_0_rgba(0,0,0,0.4)]"
                           }`}
-                          title={`Info about ${sf}`}
                         >
-                          <Info size={16} />
-                        </button>
-                      </div>
-                    );
-                  })}
+                          <span className="font-black text-sm sm:text-base md:text-[18px] tracking-wider uppercase flex items-center gap-2 whitespace-nowrap text-center justify-center">
+                            {label}
+                            {hasPending && (
+                              <span className={sf === "SF-4" ? "inline-flex items-center justify-center w-6 h-6 bg-red-650 rounded-full text-[12px] text-white font-extrabold animate-pulse ring-2 ring-white shadow-[0_0_10px_rgba(239,68,68,0.95)]" : "inline-flex items-center justify-center w-5 h-5 bg-red-500 rounded-full text-[11px] text-white font-black animate-pulse"}>
+                                {sf === "SF-4" ? pendingCount : "!"}
+                              </span>
+                            )}
+                          </span>
+                          
+                          {/* Interactive Help Trigger */}
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setInfoModalSf(sf);
+                            }}
+                            className={`ml-2.5 p-1 rounded-full text-white transition-all duration-200 focus:outline-none z-30 ${
+                              isActive 
+                                ? "hover:bg-white/25" 
+                                : "opacity-60 group-hover:opacity-100 hover:bg-white/20"
+                            }`}
+                            title={`Info about ${sf}`}
+                          >
+                            <Info size={16} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Main Content Area */}
               <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col overflow-hidden relative z-10 w-full h-full min-w-0">
@@ -649,69 +674,146 @@ export default function SFGeneratorPage() {
       )}
 
       {mainTab === "OFFICE_LINKS" && (
-        <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col overflow-y-auto p-6 max-w-5xl mx-auto w-full z-10 h-full min-h-[400px]">
-          <div className="border-b border-gray-200 pb-4 mb-6">
-            <h2 className="text-xl font-bold text-gray-800 uppercase flex items-center gap-2">
-              <span className="w-2.5 h-6 bg-emerald-600 rounded-full inline-block"></span>
-              Internal / Office Links
-            </h2>
-            <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider">
-              Confidential division portal links for registered staff & clerk desks
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(internalLinks || []).map((link) => (
-              <a
-                key={link.id}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-start gap-4 bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-emerald-400 hover:bg-emerald-50/20 transition-all duration-300 group"
-              >
-                <div className="bg-emerald-50 text-emerald-700 p-3 rounded-lg group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                  <ExternalLink className="w-5 h-5" />
+        <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col p-6 max-w-5xl mx-auto w-full z-10 h-full min-h-[400px] overflow-y-auto">
+          {activeLink ? (
+            <div className="flex-1 flex flex-col gap-6 animate-fadeIn py-2">
+              {/* Top Navigation Row */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <button
+                  onClick={() => setActiveLink(null)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer"
+                >
+                  ← Back
+                </button>
+                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full uppercase tracking-widest font-mono">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                  Secure Workspace Link Connected
+                </span>
+              </div>
+
+              {/* Secure Desk UI container */}
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 md:p-8 flex flex-col items-center justify-center text-center text-slate-100 shadow-2xl relative overflow-hidden my-auto max-w-2xl mx-auto w-full">
+                {/* Visual decoration lines */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-indigo-500 to-emerald-500"></div>
+                <div className="absolute -right-20 -bottom-20 w-48 h-48 rounded-full bg-emerald-500/5 blur-3xl"></div>
+                <div className="absolute -left-20 -top-20 w-48 h-48 rounded-full bg-indigo-500/5 blur-3xl"></div>
+
+                <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+                  <ExternalLink className="w-8 h-8 animate-pulse" />
                 </div>
-                <div className="overflow-hidden flex-1">
-                  <h3 className="font-bold text-base text-gray-800 group-hover:text-emerald-700 transition-colors leading-snug truncate uppercase tracking-wide">
-                    {link.name}
-                  </h3>
-                  <p className="text-xs font-mono text-gray-400 mt-1.5 truncate">
-                    {link.url}
+
+                <h3 className="text-xl font-black uppercase text-white tracking-wide max-w-sm">
+                  {activeLink.name}
+                </h3>
+                <span className="text-[10px] bg-slate-800/80 border border-slate-700/50 px-2.5 py-0.5 rounded font-mono text-slate-400 uppercase tracking-widest mt-2">
+                  Confidential Desk Portal (कार्यालय पोर्टल)
+                </span>
+
+                <div className="mt-6 p-4 rounded-xl bg-slate-900/50 border border-slate-850 w-full text-left space-y-2">
+                  <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                    <span className="w-1 h-3 bg-emerald-500 rounded"></span>
+                    Access Guidelines & Instructions:
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    This encrypted office connector links to Katihar Division's official registry page. Ensure you are authorized with local active directory credentials before launching.
+                  </p>
+                  <p className="text-[11px] text-slate-400 leading-relaxed pt-1 border-t border-slate-800 font-medium">
+                    हिन्दी निर्देश: यह लिंक आपको कटिहार मंडल के आधिकारिक पोर्टल पर रीडायरेक्ट करेगा। जारी रखने के लिए नीचे दिए गए बटन पर क्लिक करें।
                   </p>
                 </div>
-              </a>
-            ))}
-            {(!internalLinks || internalLinks.length === 0) && (
-              <div className="text-center p-12 text-gray-400 font-medium col-span-full">
-                No internal links configured yet.
+
+                {/* Grand Launch CTA Button */}
+                <div className="mt-8 w-full">
+                  <a
+                    href={activeLink.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold text-sm tracking-wide rounded-xl shadow-[0_4px_15px_rgba(16,185,129,0.3)] hover:shadow-[0_6px_20px_rgba(16,185,129,0.4)] transition-all cursor-pointer transform active:scale-[0.98]"
+                  >
+                    Launch External Portal Workspace (सुरक्षित रूप से लिंक खोलें)
+                    <ExternalLink className="w-4 h-4 text-emerald-200" />
+                  </a>
+                  <span className="text-[9px] text-slate-500 font-mono mt-2.5 block tracking-wide select-none">
+                    SECURE IP TRANSIT · gateway: {activeLink.url.split('/')[2] || 'nfr.indianrailways.gov.in'}
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <>
+              <div className="border-b border-gray-200 pb-4 mb-6">
+                <h2 className="text-xl font-bold text-gray-800 uppercase flex items-center gap-2">
+                  <span className="w-2.5 h-6 bg-emerald-600 rounded-full inline-block"></span>
+                  Internal / Office Links
+                </h2>
+                <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider">
+                  Confidential division portal links for registered staff & clerk desks
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(internalLinks || []).map((link) => (
+                  <div
+                    key={link.id}
+                    onClick={() => setActiveLink(link)}
+                    className="flex items-start gap-4 bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-emerald-400 hover:bg-emerald-50/20 transition-all duration-300 group cursor-pointer"
+                  >
+                    <div className="bg-emerald-50 text-emerald-700 p-3 rounded-lg group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
+                      <ExternalLink className="w-5 h-5" />
+                    </div>
+                    <div className="overflow-hidden flex-1">
+                      <h3 className="font-bold text-base text-gray-800 group-hover:text-emerald-700 transition-colors leading-snug truncate uppercase tracking-wide">
+                        {link.name}
+                      </h3>
+                      <p className="text-xs font-mono text-gray-400 mt-1.5 truncate">
+                        {link.url}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {(!internalLinks || internalLinks.length === 0) && (
+                  <div className="text-center p-12 text-gray-400 font-medium col-span-full">
+                    No internal links configured yet.
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
 
       {mainTab === "WORK_ALLOTMENT" && (
         <div className="flex-1 bg-[#132039] border border-[#223354] rounded-xl shadow-2xl flex flex-col overflow-hidden w-full z-10 h-full relative">
-          {/* Subheader */}
-          <div className="bg-slate-900 border-b border-slate-850 px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+          {/* Subheader - Compact */}
+          <div className="bg-slate-900 border-b border-slate-850 px-4 py-2 border-none shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <span className="w-2.5 h-5 bg-violet-600 rounded-full inline-block animate-pulse"></span>
-                {t("nav_apo_allotment")} - Interactive Diagram
+              <h2 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 py-0.5">
+                <span className="w-1.5 h-3.5 bg-violet-600 rounded-full inline-block"></span>
+                {t("nav_apo_allotment")}
               </h2>
             </div>
+            {config?.apoWorkAllotmentPdfUrl && (
+              <a
+                href={config.apoWorkAllotmentPdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[10px] font-black uppercase rounded-lg shadow-md transition-all active:scale-95 border border-emerald-500/25 cursor-pointer shrink-0"
+              >
+                <Download size={11} className="stroke-[3px] animate-pulse" />
+                <span>Download PDF / पीडीएफ डाउनलोड करें</span>
+              </a>
+            )}
           </div>
           
           <div className="flex-1 overflow-y-auto">
-            <ApoAllotmentPage isEmbedded={true} />
+            <ApoAllotmentPage isEmbedded={true} onActiveStateChange={setAllotmentActive} />
           </div>
         </div>
       )}
 
       {mainTab === "PDF_STAMP" && (
         <div className="flex-1 overflow-hidden relative z-10 w-full h-full min-w-0">
-          <OfficePdfStamper />
+          <OfficePdfStamper onActiveStateChange={setStampActive} />
         </div>
       )}
 
@@ -727,35 +829,118 @@ export default function SFGeneratorPage() {
 
       {mainTab === "OFFICE_ORDERS" && (
         <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col p-6 max-w-5xl mx-auto w-full z-10 h-full min-h-[400px] overflow-y-auto">
-          <div className="border-b border-gray-200 pb-4 mb-6">
-            <h2 className="text-xl font-bold text-gray-800 uppercase flex items-center gap-2">
-              <span className="w-2.5 h-6 bg-indigo-600 rounded-full inline-block"></span>
-              {t("nav_circulars") || "Office Orders"} / कार्यालय आदेश
-            </h2>
-            <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider">
-              Official circulars, notifications, and orders regarding DAR procedure and apprentice cells
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-            <div className="border border-slate-100 rounded-xl bg-white shadow-sm overflow-hidden">
-              <div className="bg-slate-50 border-b border-slate-100 px-4 py-3 font-extrabold text-slate-800 rounded-t-xl text-center uppercase tracking-wide text-sm">
-                ⚠️ {t("nav_dar_circulars") || "D&AR Orders"}
+          {activeCircular ? (
+            <div className="flex-1 flex flex-col gap-6 animate-fadeIn py-2">
+              {/* Top Navigation Row */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <button
+                  onClick={() => setActiveCircular(null)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer"
+                >
+                  ← Back
+                </button>
+                <span className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-widest font-mono">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
+                  Official Document Securely Routed
+                </span>
               </div>
-              <div className="px-1 py-1">
-                <DARCirculars />
+
+              {/* Secure Document Viewer Desk container */}
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 md:p-8 flex flex-col items-center justify-center text-center text-slate-100 shadow-2xl relative overflow-hidden my-auto max-w-2xl mx-auto w-full">
+                {/* Visual decoration lines */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500"></div>
+                <div className="absolute -right-20 -bottom-20 w-48 h-48 rounded-full bg-indigo-500/5 blur-3xl"></div>
+                <div className="absolute -left-20 -top-20 w-48 h-48 rounded-full bg-violet-500/5 blur-3xl"></div>
+
+                <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4 shadow-[0_0_20px_rgba(99,102,241,0.1)]">
+                  <FileText className="w-8 h-8 animate-pulse" />
+                </div>
+
+                <h3 className="text-lg font-black uppercase text-white tracking-wide max-w-md leading-relaxed">
+                  {activeCircular.title}
+                </h3>
+                
+                <div className="flex items-center gap-2 mt-2.5">
+                  <span className="text-[10px] bg-indigo-900/40 border border-indigo-700/50 px-2 rounded font-semibold text-indigo-300">
+                    Circular Order
+                  </span>
+                  <span className="text-[10px] bg-slate-850 px-2 py-0.5 rounded font-mono text-slate-400">
+                    Published: {activeCircular.date}
+                  </span>
+                </div>
+
+                <div className="mt-6 p-4 rounded-xl bg-slate-900/50 border border-slate-850 w-full text-left space-y-2">
+                  <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                    <span className="w-1 h-3 bg-indigo-500 rounded"></span>
+                    Clerical Guidelines & Purpose:
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                    This document provides standard procedural guidelines regarding apprentice allotment and disciplinary models. Verify files and stamp correctly on matching records.
+                  </p>
+                  <p className="text-[11px] text-slate-400 leading-relaxed pt-1 border-t border-slate-800 font-medium">
+                    हिन्दी निर्देश: यह आधिकारिक रेलवे बोर्ड परिपत्र / कार्यालय आदेश है। संबंधित फ़ाइल को खोलने या सहेजने के लिए नीचे दिए गए बटन का उपयोग करें।
+                  </p>
+                </div>
+
+                {/* Document Launch CTAs */}
+                <div className="mt-8 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <a
+                    href={activeCircular.viewLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-650 hover:bg-indigo-600 text-white font-extrabold text-xs tracking-wider rounded-xl transition-all cursor-pointer shadow-[0_4px_12px_rgba(99,102,241,0.2)]"
+                  >
+                    Open PDF Document (दस्तावेज़ देखें)
+                    <ExternalLink className="w-3.5 h-3.5 text-indigo-200" />
+                  </a>
+                  <a
+                    href={activeCircular.downloadLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-xs tracking-wider rounded-xl transition-all cursor-pointer border border-slate-700"
+                  >
+                    Download PDF File (डाउनलोड करें)
+                    <Download className="w-3.5 h-3.5 text-slate-300" />
+                  </a>
+                </div>
+                <span className="text-[9px] text-slate-500 font-mono mt-3.5 block tracking-wide select-none">
+                  SECURE DOCUMENT ROUTING ENGINE · REF: {activeCircular.id || 'NFR-KIR-2026'}
+                </span>
               </div>
             </div>
-            
-            <div className="border border-slate-100 rounded-xl bg-white shadow-sm overflow-hidden">
-              <div className="bg-slate-50 border-b border-slate-100 px-4 py-3 font-extrabold text-slate-800 rounded-t-xl text-center uppercase tracking-wide text-sm">
-                🎓 {t("nav_act_circulars") || "Act Apprentice Orders"}
+          ) : (
+            <>
+              <div className="border-b border-gray-200 pb-4 mb-6">
+                <h2 className="text-xl font-bold text-gray-800 uppercase flex items-center gap-2">
+                  <span className="w-2.5 h-6 bg-indigo-600 rounded-full inline-block"></span>
+                  {t("nav_circulars") || "Office Orders"} / कार्यालय आदेश
+                </h2>
+                <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider">
+                  Official circulars, notifications, and orders regarding DAR procedure and apprentice cells
+                </p>
               </div>
-              <div className="px-1 py-1">
-                <ActCirculars />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <div className="shadow-sm overflow-hidden rounded-xl">
+                  <DocumentPanel 
+                    title={`⚠️ ${t("nav_dar_circulars") || "D&AR Orders (डीआर परिपत्र)"}`} 
+                    items={[...(darCirculars || [])].sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime()).map((item,index)=>({...item,isNew:index<4}))} 
+                    theme="blue"
+                    onClickItem={setActiveCircular}
+                  />
+                </div>
+                
+                <div className="shadow-sm overflow-hidden rounded-xl">
+                  <DocumentPanel 
+                    title={`🎓 ${t("nav_act_circulars") || "Act Apprentice Orders (अधिनियम अपरेंटिस परिपत्र)"}`} 
+                    items={[...(actCirculars || [])].sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime()).map((item,index)=>({...item,isNew:index<4}))} 
+                    theme="indigo"
+                    onClickItem={setActiveCircular}
+                  />
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       )}
 

@@ -66,6 +66,13 @@ interface TACase {
   showCounterSig?: boolean;
   showHeadOfficeSig?: boolean;
   showControllingOfficerSig?: boolean;
+  startWithStay?: boolean;
+  initialStayStation?: string;
+  initialStayStartDate?: string;
+  initialStayStartTime?: string;
+  initialStayEndDate?: string;
+  initialStayEndTime?: string;
+  initialStayPurpose?: string;
 }
 
 const MONTHS_LIST = [
@@ -274,6 +281,15 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
   const [hasDeclared, setHasDeclared] = useState(false);
   const [globalPurpose, setGlobalPurpose] = useState("Official Duty");
   
+  // States for starting the tour with a stationary stay instead of travel
+  const [startWithStay, setStartWithStay] = useState(false);
+  const [initialStayStation, setInitialStayStation] = useState("");
+  const [initialStayStartDate, setInitialStayStartDate] = useState("");
+  const [initialStayStartTime, setInitialStayStartTime] = useState("");
+  const [initialStayEndDate, setInitialStayEndDate] = useState("");
+  const [initialStayEndTime, setInitialStayEndTime] = useState("");
+  const [initialStayPurpose, setInitialStayPurpose] = useState("");
+  
   // Initialize with departure and return leg structures (empty and required, no mock values)
   const [journeyLegs, setJourneyLegs] = useState<JourneyLeg[]>([
     {
@@ -298,6 +314,27 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
   ]);
 
   const [savedClaims, setSavedClaims] = useState<TACase[]>([]);
+  const [customTrains, setCustomTrains] = useState<any[]>([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "custom_trains"), (snapshot) => {
+      const trainsList = snapshot.docs.map(doc => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          trainNo: d.trainNo || doc.id,
+          trainName: d.trainName || "",
+          routeDistanceKm: Number(d.routeDistanceKm) || 0,
+          routeVia: d.routeVia || ""
+        };
+      });
+      setCustomTrains(trainsList);
+    }, (err) => {
+      console.error("Error loading custom trains:", err);
+    });
+    return () => unsub();
+  }, []);
+
   const [contingentItems, setContingentItems] = useState<ContingentItem[]>([]);
   const [isEditingOrDrafting, setIsEditingOrDrafting] = useState<boolean>(false);
   const [taSearchQuery, setTaSearchQuery] = useState("");
@@ -455,6 +492,29 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     const stationTo = currentLeg?.stationTo || "";
 
     try {
+      // 1. Check custom trains list from local/firestore collection first
+      const matchedLocal = customTrains.find(
+        t => t.trainNo === cleanStr || t.trainName.toLowerCase() === cleanStr.toLowerCase()
+      );
+      if (matchedLocal) {
+        updateLegField(legId, 'trainName', matchedLocal.trainName);
+        if (matchedLocal.trainNo && cleanStr !== matchedLocal.trainNo) {
+          updateLegField(legId, 'trainNoOrVehNo', matchedLocal.trainNo);
+        }
+        if (matchedLocal.routeVia) {
+          updateLegField(legId, 'trainRouteVia', matchedLocal.routeVia);
+        }
+        if (typeof matchedLocal.routeDistanceKm === 'number' && matchedLocal.routeDistanceKm > 0) {
+          updateLegField(legId, 'roadDistanceKm', matchedLocal.routeDistanceKm);
+          toast.success(`Track distance updated from custom railway database: ${matchedLocal.routeDistanceKm} KM!`);
+        } else {
+          toast.success(`Verified from uploaded custom train database: ${matchedLocal.trainName}`);
+        }
+        setIsSearchingTrain(prev => ({ ...prev, [legId]: false }));
+        return;
+      }
+
+      // 2. Fallback to online/backend lookup
       const res = await fetch("/api/railway/lookup-train", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -605,9 +665,23 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
 
   const totalDailyRate = getDailyRate(payLevel);
 
-  // 1. Calculate travel hours and halt hours for each leg raw
+  // Compute initial stay hours if enabled
+  let initialStayHrs = 0;
+  if (startWithStay && initialStayStation && initialStayStartDate && initialStayStartTime && initialStayEndDate && initialStayEndTime) {
+    const sTime = new Date(`${initialStayStartDate}T${initialStayStartTime}`);
+    const eTime = new Date(`${initialStayEndDate}T${initialStayEndTime}`);
+    const stayDiffMs = eTime.getTime() - sTime.getTime();
+    if (!isNaN(stayDiffMs) && stayDiffMs > 0) {
+      initialStayHrs = stayDiffMs / (1000 * 60 * 60);
+    }
+  }
+
+  // 1. Calculate travel hours and halt hours for each leg raw (including initial stay for Leg 1 if active)
   const rawLegs = journeyLegs.map((leg, index) => {
-    const travelHrs = getLegHours(leg);
+    let travelHrs = getLegHours(leg);
+    if (index === 0 && startWithStay) {
+      travelHrs += initialStayHrs;
+    }
     
     let haltHrs = 0;
     const nextLeg = journeyLegs[index + 1];
@@ -671,7 +745,13 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     if (!firstLeg?.depDate || !firstLeg?.depTime || !lastLeg?.arrDate || !lastLeg?.arrTime) return list;
     
     try {
-      const startDt = new Date(`${firstLeg.depDate}T${firstLeg.depTime}`);
+      let startDt = new Date(`${firstLeg.depDate}T${firstLeg.depTime}`);
+      if (startWithStay && initialStayStation && initialStayStartDate && initialStayStartTime) {
+        const stayStartDt = new Date(`${initialStayStartDate}T${initialStayStartTime}`);
+        if (!isNaN(stayStartDt.getTime()) && stayStartDt < startDt) {
+          startDt = stayStartDt;
+        }
+      }
       const endDt = new Date(`${lastLeg.arrDate}T${lastLeg.arrTime}`);
       
       if (isNaN(startDt.getTime()) || isNaN(endDt.getTime()) || endDt < startDt) {
@@ -783,7 +863,13 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     if (!leg.depDate || !leg.depTime || !leg.arrDate || !leg.arrTime) return list;
     
     try {
-      const legStartDt = new Date(`${leg.depDate}T${leg.depTime}`);
+      let legStartDt = new Date(`${leg.depDate}T${leg.depTime}`);
+      if (index === 0 && startWithStay && initialStayStation && initialStayStartDate && initialStayStartTime) {
+        const stayStartDt = new Date(`${initialStayStartDate}T${initialStayStartTime}`);
+        if (!isNaN(stayStartDt.getTime()) && stayStartDt < legStartDt) {
+          legStartDt = stayStartDt;
+        }
+      }
       let legEndDt: Date;
       const nextLeg = rawLegs[index + 1];
       if (nextLeg?.depDate && nextLeg?.depTime) {
@@ -980,6 +1066,13 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
         showCounterSig,
         showHeadOfficeSig,
         showControllingOfficerSig,
+        startWithStay,
+        initialStayStation,
+        initialStayStartDate,
+        initialStayStartTime,
+        initialStayEndDate,
+        initialStayEndTime,
+        initialStayPurpose,
         createdAt: new Date().toISOString()
       };
 
@@ -1043,7 +1136,15 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     setShowCounterSig(claim.showCounterSig !== undefined ? claim.showCounterSig : true);
     setShowHeadOfficeSig(claim.showHeadOfficeSig !== undefined ? claim.showHeadOfficeSig : true);
     setShowControllingOfficerSig(claim.showControllingOfficerSig !== undefined ? claim.showControllingOfficerSig : true);
+    setStartWithStay(claim.startWithStay || false);
+    setInitialStayStation(claim.initialStayStation || "");
+    setInitialStayStartDate(claim.initialStayStartDate || "");
+    setInitialStayStartTime(claim.initialStayStartTime || "");
+    setInitialStayEndDate(claim.initialStayEndDate || "");
+    setInitialStayEndTime(claim.initialStayEndTime || "");
+    setInitialStayPurpose(claim.initialStayPurpose || "");
     setIsEditingOrDrafting(true);
+    onToggleSidebars?.(false);
     toast.success(`Loaded details for "${claim.employeeName}" into the active editor!`);
   };
 
@@ -1066,6 +1167,13 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     setShowCounterSig(true);
     setShowHeadOfficeSig(true);
     setShowControllingOfficerSig(true);
+    setStartWithStay(false);
+    setInitialStayStation("");
+    setInitialStayStartDate("");
+    setInitialStayStartTime("");
+    setInitialStayEndDate("");
+    setInitialStayEndTime("");
+    setInitialStayPurpose("");
     setContingentItems([]);
     setJourneyLegs([
       {
@@ -1089,6 +1197,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
       }
     ]);
     setIsEditingOrDrafting(true);
+    onToggleSidebars?.(false);
   };
 
   const renderPrintSheetContent = () => {
@@ -1203,6 +1312,41 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
 
     // Generate chronological journey and stay segments
     const printSegments: any[] = [];
+
+    // Add initial stationary stay segment at tour commencement if enabled
+    if (startWithStay && initialStayStation && initialStayStartDate && initialStayStartTime && initialStayEndDate && initialStayEndTime) {
+      const start = new Date(`${initialStayStartDate}T${initialStayStartTime}`);
+      const end = new Date(`${initialStayEndDate}T${initialStayEndTime}`);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        printSegments.push({
+          id: 'initial-stay',
+          type: 'stay',
+          start,
+          end,
+          station: initialStayStation,
+          purpose: initialStayPurpose || globalPurpose || 'Official Duty'
+        });
+        
+        // Add a gap-filler stay if there is an operational timeline gap before the first travel leg departs
+        if (sortedLegsForPrint.length > 0) {
+          const firstLeg = sortedLegsForPrint[0];
+          if (firstLeg.depDate && firstLeg.depTime) {
+            const firstLegStart = new Date(`${firstLeg.depDate}T${firstLeg.depTime}`);
+            if (!isNaN(firstLegStart.getTime()) && firstLegStart > end) {
+              printSegments.push({
+                id: `seg-s-initial-${firstLeg.id}`,
+                type: 'stay',
+                start: end,
+                end: firstLegStart,
+                station: initialStayStation,
+                purpose: firstLeg.purpose || 'Official Duty'
+              });
+            }
+          }
+        }
+      }
+    }
+
     sortedLegsForPrint.forEach((leg, idx) => {
       const start = new Date(`${leg.depDate}T${leg.depTime}`);
       const end = new Date(`${leg.arrDate}T${leg.arrTime}`);
@@ -2184,7 +2328,10 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
           <div className="flex gap-1.5 flex-wrap items-center">
             <button
               type="button"
-              onClick={() => setIsEditingOrDrafting(false)}
+              onClick={() => {
+                setIsEditingOrDrafting(false);
+                onToggleSidebars?.(true);
+              }}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 border border-transparent transition-all cursor-pointer mr-1.5 active:scale-95"
               title="Return to claims list dashboard"
             >
@@ -2521,6 +2668,95 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   </p>
                 </div>
               </form>
+
+              {/* Initial Stay Sub-Section */}
+              <div className="mt-4 pt-4 border-t border-slate-150">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input 
+                    type="checkbox"
+                    checked={startWithStay}
+                    onChange={(e) => setStartWithStay(e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                    🏨 Tour Starts with an Initial Station Stay / प्रथम ठहरने (Stay) से शुरुआत करें
+                  </span>
+                </label>
+                <p className="text-[10px] text-slate-500 ml-6 mt-0.5 leading-normal">
+                  Toggle this on if the official tour began with a stay or on-duty period at a specific station before any travel / journey up commenced. (जैसे: यात्रा के बिना सीधे किसी स्टेशन पर प्रवास या ड्यूटी से शुरुआत)
+                </p>
+
+                {startWithStay && (
+                  <div className="mt-3 ml-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 p-3 bg-indigo-50/40 border border-indigo-100 rounded-xl">
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Stay Station Code * / स्टेशन कोड</label>
+                      <input 
+                        type="text" 
+                        required={startWithStay}
+                        value={initialStayStation} 
+                        onChange={(e) => setInitialStayStation(e.target.value.toUpperCase())}
+                        placeholder="e.g. KIR, HWH, NDLS" 
+                        className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 uppercase" 
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">From Date * / तारीख से</label>
+                      <input 
+                        type="date" 
+                        required={startWithStay}
+                        value={initialStayStartDate} 
+                        onChange={(e) => setInitialStayStartDate(e.target.value)}
+                        className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500" 
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">From Time * / समय से</label>
+                      <input 
+                        type="time" 
+                        required={startWithStay}
+                        value={initialStayStartTime} 
+                        onChange={(e) => setInitialStayStartTime(e.target.value)}
+                        className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500" 
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Until Date * / तारीख तक</label>
+                      <input 
+                        type="date" 
+                        required={startWithStay}
+                        value={initialStayEndDate} 
+                        onChange={(e) => setInitialStayEndDate(e.target.value)}
+                        className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500" 
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Until Time * / समय तक</label>
+                      <input 
+                        type="time" 
+                        required={startWithStay}
+                        value={initialStayEndTime} 
+                        onChange={(e) => setInitialStayEndTime(e.target.value)}
+                        className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500" 
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-2 md:col-span-3">
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Purpose / ठहराव का उद्देश्य</label>
+                      <input 
+                        type="text" 
+                        value={initialStayPurpose} 
+                        onChange={(e) => setInitialStayPurpose(e.target.value)}
+                        placeholder="e.g. Stationary Halt / Attendance at Audit" 
+                        className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500" 
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
         {/* Journey Log Leg Table */}
@@ -2764,6 +3000,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                             required
                             value={leg.trainNoOrVehNo} 
                             placeholder="e.g. 12488 / UP-25" 
+                            list={`custom-trains-list-${leg.id}`}
                             onChange={(e) => {
                               const val = e.target.value;
                               updateLegField(leg.id, 'trainNoOrVehNo', val);
@@ -2773,6 +3010,15 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                             }}
                             className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 placeholder-slate-400 transition-all shadow-sm" 
                           />
+                          {leg.mode === 'Train' && (
+                            <datalist id={`custom-trains-list-${leg.id}`}>
+                              {customTrains.map((item) => (
+                                <option key={item.id || item.trainNo} value={item.trainNo}>
+                                  {item.trainName} {item.routeDistanceKm ? `(${item.routeDistanceKm} KM)` : ""} {item.routeVia ? `- ${item.routeVia}` : ""}
+                                </option>
+                              ))}
+                            </datalist>
+                          )}
                           {leg.mode === 'Train' && isSearchingTrain[leg.id] && (
                             <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
                               <span className="block w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>

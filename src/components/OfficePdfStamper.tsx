@@ -31,11 +31,19 @@ interface CustomStamp {
   isLocal?: boolean;
 }
 
-export function OfficePdfStamper() {
+interface OfficePdfStamperProps {
+  onActiveStateChange?: (isActive: boolean) => void;
+}
+
+export function OfficePdfStamper({ onActiveStateChange }: OfficePdfStamperProps = {}) {
   // Page core states
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pdfName, setPdfName] = useState<string>("");
   const [pdfPagesCount, setPdfPagesCount] = useState<number>(0);
+
+  useEffect(() => {
+    onActiveStateChange?.(selectedFile !== null);
+  }, [selectedFile, onActiveStateChange]);
   
   // Custom stamps persisted database
   const [customStamps, setCustomStamps] = useState<CustomStamp[]>([]);
@@ -1793,14 +1801,27 @@ export function OfficePdfStamper() {
               </div>
 
               {selectedFile && pdfPagesCount > 0 && (
-                <div className="mt-3 flex items-center justify-between text-xs bg-emerald-50 text-emerald-800 border border-emerald-100 p-2.5 rounded">
-                  <span className="font-semibold flex items-center gap-1">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                    File analyzed securely in browser.
-                  </span>
-                  <span className="font-mono bg-white px-2 py-0.5 rounded border border-emerald-200">
-                    Total Pages: {pdfPagesCount}
-                  </span>
+                <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between text-xs bg-emerald-50 text-emerald-800 border border-emerald-100 p-2.5 rounded gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="font-semibold truncate">File analyzed securely in browser.</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-mono bg-white px-2 py-0.5 rounded border border-emerald-200">
+                      Total Pages: {pdfPagesCount}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setPdfName("");
+                        setPdfPagesCount(0);
+                      }}
+                      className="px-2.5 py-1 text-[10px] font-black uppercase text-white bg-red-650 hover:bg-red-500 rounded transition-all cursor-pointer shadow-sm active:scale-95"
+                    >
+                      Close File / बंद करें
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

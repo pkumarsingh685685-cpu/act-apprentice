@@ -124,6 +124,12 @@ service cloud.firestore {
     match /custom_stations/{docId} {
       allow read, write: if true;
     }
+    match /custom_trains/{docId} {
+      allow read, write: if true;
+    }
+    match /apo_allotted_employees/{docId} {
+      allow read, write: if true;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

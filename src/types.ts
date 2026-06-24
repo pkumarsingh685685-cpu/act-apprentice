@@ -54,6 +54,13 @@ export interface SiteConfig {
   srDpoNameHi?: string;
   srDpoDesignationEn?: string;
   srDpoDesignationHi?: string;
+  srDpoWork1En?: string;
+  srDpoWork1Hi?: string;
+  srDpoWork2En?: string;
+  srDpoWork2Hi?: string;
+  srDpoNoteEn?: string;
+  srDpoNoteHi?: string;
+  apoWorkAllotmentPdfUrl?: string;
   importantMessageText?: string;
   importantMessageEnabled?: string;
   ta_rate_l1_l5?: string;
@@ -63,6 +70,9 @@ export interface SiteConfig {
   ta_rate_l14_l18?: string;
   enableContingentSection?: string;
   enablePrintMetadata?: string;
+  maintenanceMode?: string;
+  maintenanceBypassCode?: string;
+  [key: string]: any;
 }
 
 export interface LogoItem {
@@ -251,6 +261,8 @@ export interface AppState {
   updatePart2TemplateField: (id: string, updates: Partial<Part2Field>) => void;
   deletePart2TemplateField: (id: string) => void;
   reorderPart2TemplateFields: (orderedFields: Part2Field[]) => void;
+  isMaintenanceBypassed?: boolean;
+  setMaintenanceBypassed?: (bypassed: boolean) => void;
 }
 
 export interface Part2Field {

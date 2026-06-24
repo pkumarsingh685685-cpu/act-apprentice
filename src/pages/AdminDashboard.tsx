@@ -20,7 +20,9 @@ import {
   Compass,
   Palette,
   Globe,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { Header } from "../components/Header";
 import {
@@ -44,6 +46,7 @@ import { ChecklistManager } from "../components/ChecklistManager";
 import { AuditLogManager } from "../components/AuditLogManager";
 import { OfficePdfStamper } from "../components/OfficePdfStamper";
 import { CustomStationsManager } from "../components/CustomStationsManager";
+import { CustomTrainsManager } from "../components/CustomTrainsManager";
 
 export default function AdminDashboard() {
   const { t, i18n } = useTranslation();
@@ -58,6 +61,15 @@ export default function AdminDashboard() {
   const [isSidebarMobileOpen, setIsSidebarMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("System Settings");
+  const [forceSidebarOverlayHide, setForceSidebarOverlayHide] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === "apoAllotment") {
+      setForceSidebarOverlayHide(true);
+    } else {
+      setForceSidebarOverlayHide(false);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -383,6 +395,16 @@ export default function AdminDashboard() {
       categoryHi: "मानचित्र",
       desc: "Manage custom railway station names and codes dynamically for the TA claim form.",
       descHi: "टीए क्लेम फॉर्म के लिए स्टेशन कोड और नाम डेटाबेस व्यवस्थित करें।"
+    },
+    { 
+      id: "customTrains", 
+      name: "TA Railway Trains Manager", 
+      nameHi: "प्रशिक्षण एवं रेलवे ट्रेन प्रबंधक",
+      icon: FileSpreadsheet, 
+      category: "Spatial Info & Maps",
+      categoryHi: "मानचित्र",
+      desc: "Manage custom Indian Railways trains, route via points and track distances dynamically.",
+      descHi: "भारतीय रेलवे की ट्रेनों, उनके दूरी और रूट विवरण का डेटाबेस व्यवस्थित करें।"
     }
   ];
 
@@ -433,6 +455,10 @@ export default function AdminDashboard() {
         isSidebarCollapsed 
           ? "md:w-20" 
           : "md:w-72"
+      } ${
+        activeTab === "apoAllotment" && forceSidebarOverlayHide 
+          ? "w-0 md:w-0 overflow-hidden border-none pointer-events-none hidden md:hidden" 
+          : ""
       } bg-slate-950 border-r border-slate-900 shrink-0 flex flex-col z-40 shadow-[4px_0_24px_rgba(0,0,0,0.6)]`}>
         
         {/* Sidebar Header Title Area */}
@@ -515,12 +541,48 @@ export default function AdminDashboard() {
       </div>
 
       {/* Main Content Workspace Container */}
-      <div className="flex-1 p-4 md:p-8 overflow-x-hidden flex flex-col gap-6">
+      <div 
+        onClick={() => {
+          if (activeTab === "apoAllotment" && !forceSidebarOverlayHide) {
+            setForceSidebarOverlayHide(true);
+          }
+        }}
+        className="flex-1 p-4 md:p-8 overflow-x-hidden flex flex-col gap-6"
+      >
         
         {/* Top Floating Dashboard Navigator Header */}
         {activeTab !== "dashboard" ? (
           <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl backdrop-blur-md relative z-30">
             <div className="flex flex-wrap items-center gap-2.5">
+              {/* Force Show Sidebar for APO Allotment Mode (Tir ka nishan) */}
+              {activeTab === "apoAllotment" && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setForceSidebarOverlayHide(!forceSidebarOverlayHide);
+                  }}
+                  className={`px-3 py-2.5 rounded-xl border font-black text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-1.5 active:translate-y-[2px] ${
+                    forceSidebarOverlayHide 
+                      ? "bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-600 shadow-[0_0_15px_rgba(245,158,11,0.35)]" 
+                      : "bg-slate-950/80 hover:bg-slate-950 text-slate-300 border-slate-800"
+                  }`}
+                  title={forceSidebarOverlayHide ? "Show Tools Menu / श्रेणियां दिखाएं (तीर का निशान)" : "Hide Tools Menu / श्रेणियां छुपाएं"}
+                >
+                  {forceSidebarOverlayHide ? (
+                    <span className="flex items-center gap-1.5 font-black">
+                      <ChevronRight className="w-4 h-4 animate-bounce text-slate-950 shrink-0" />
+                      <span>🗂️ {currentLang === 'hi' ? "श्रेणी सूची खोलें »" : "SHOW MENU »"}</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 font-black">
+                      <ChevronLeft className="w-4 h-4 text-slate-300 shrink-0" />
+                      <span>🗂️ {currentLang === 'hi' ? "सूची छुपाएं «" : "HIDE MENU «"}</span>
+                    </span>
+                  )}
+                </button>
+              )}
+
               <button
                 onClick={() => setActiveTab("dashboard")}
                 className="px-4 py-2.5 bg-gradient-to-b from-indigo-600 to-indigo-700 hover:brightness-110 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_4px_0_0_#312e81,0_8px_15px_rgba(99,102,241,0.25)] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center gap-1.5"
@@ -789,6 +851,7 @@ export default function AdminDashboard() {
           {activeTab === "apoAllotment" && <ApoAllotmentManager />}
           {activeTab === "nfrOrgNodes" && <NfrOrgNodesManager />}
           {activeTab === "customStations" && <CustomStationsManager />}
+          {activeTab === "customTrains" && <CustomTrainsManager />}
         </div>
       </div>
     </div>
@@ -1715,6 +1778,43 @@ function SettingsForm() {
           Save Settings
         </button>
       </div>
+
+      {/* MAINTENANCE MODE ADMIN PANEL */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+        <div>
+          <h4 className="font-bold text-amber-850 flex items-center gap-1.5 text-sm md:text-base">
+            🚧 WEBSITE MAINTENANCE MODE (वेबसाइट रखरखाव मोड)
+          </h4>
+          <p className="text-xs text-amber-700 mt-1">
+            Toggle this ON to restrict public access to the website with an "Under Maintenance" page. Only you (Admin) and authorized staff using the Bypass Code can browse.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto shrink-0">
+          <div>
+            <label className="block text-[10px] font-black uppercase text-amber-800 tracking-wider mb-1">Status (स्थिति)</label>
+            <select
+              name="maintenanceMode"
+              value={localConfig.maintenanceMode || "false"}
+              onChange={(e) => setLocalConfig({ ...localConfig, maintenanceMode: e.target.value })}
+              className="p-1.5 border rounded-lg text-xs font-bold bg-white text-slate-800 border-amber-300"
+            >
+              <option value="false">🟢 Offline/Public (सार्वजनिक रूप से लाइव)</option>
+              <option value="true">🔴 Active Maintenance (रखरखाव सक्रिय)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-black uppercase text-amber-800 tracking-wider mb-1">Bypass Passcode (बायपास कोड)</label>
+            <input
+              name="maintenanceBypassCode"
+              value={localConfig.maintenanceBypassCode || "9431"}
+              onChange={(e) => setLocalConfig({ ...localConfig, maintenanceBypassCode: e.target.value })}
+              className="p-1.5 border rounded-lg text-xs font-bold text-slate-800 border-amber-300 w-28 bg-white"
+              placeholder="e.g. 9431"
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium mb-1">

@@ -12,6 +12,7 @@ interface DocumentPanelProps {
   isMarquee?: boolean;
   scrollSpeed?: string;
   className?: string; // Add className
+  onClickItem?: (item: DocumentItem) => void;
 }
 
 const themeStyles = {
@@ -114,6 +115,7 @@ export function DocumentPanel({
   isMarquee = false,
   scrollSpeed = "20s",
   className = "",
+  onClickItem,
 }: DocumentPanelProps) {
   const currentTheme = themeStyles[theme] || themeStyles.blue;
   const { t, i18n } = useTranslation();
@@ -179,9 +181,15 @@ export function DocumentPanel({
             <div className="flex-1 space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <a 
-                  href={item.downloadLink || item.viewLink || "#"} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
+                  href={onClickItem ? undefined : (item.downloadLink || item.viewLink || "#")} 
+                  target={onClickItem ? undefined : "_blank"} 
+                  rel={onClickItem ? undefined : "noopener noreferrer"}
+                  onClick={(e) => {
+                    if (onClickItem) {
+                      e.preventDefault();
+                      onClickItem(item);
+                    }
+                  }}
                   className={`font-medium leading-tight hover:text-blue-600 hover:underline transition-colors cursor-pointer decoration-2 underline-offset-2 ${currentTheme.text}`}
                 >
                   {item.title}
@@ -201,9 +209,15 @@ export function DocumentPanel({
             <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 mt-2 sm:mt-0 relative z-10">
               {item.viewLink && item.viewLink !== "#" && (
                 <a
-                  href={item.viewLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={onClickItem ? undefined : item.viewLink}
+                  target={onClickItem ? undefined : "_blank"}
+                  rel={onClickItem ? undefined : "noopener noreferrer"}
+                  onClick={(e) => {
+                    if (onClickItem) {
+                      e.preventDefault();
+                      onClickItem(item);
+                    }
+                  }}
                   className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md text-sm font-medium transition-colors cursor-pointer"
                 >
                   <Eye className="w-4 h-4" /> {t('panel_view')}
@@ -211,9 +225,15 @@ export function DocumentPanel({
               )}
               {item.downloadLink && item.downloadLink !== "#" && (
                 <a
-                  href={item.downloadLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={onClickItem ? undefined : item.downloadLink}
+                  target={onClickItem ? undefined : "_blank"}
+                  rel={onClickItem ? undefined : "noopener noreferrer"}
+                  onClick={(e) => {
+                    if (onClickItem) {
+                      e.preventDefault();
+                      onClickItem(item);
+                    }
+                  }}
                   className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-md text-sm font-medium transition-colors cursor-pointer"
                 >
                   <Download className="w-4 h-4" /> {t('panel_download')}

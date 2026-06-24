@@ -19,6 +19,7 @@ import { Header } from "./components/Header";
 import { Navigation } from "./components/Navigation";
 import { Footer } from "./components/Footer";
 import { ArrowLeft } from "lucide-react";
+import { MaintenancePage } from "./components/MaintenancePage";
 
 // Pages
 import Home from "./pages/Home";
@@ -99,6 +100,9 @@ function LanguageInitializer() {
 
 export default function App() {
   const checkSession = useStore((state) => state.checkSession);
+  const config = useStore((state) => state.config);
+  const isMaintenanceBypassed = useStore((state) => state.isMaintenanceBypassed);
+  const isAdmin = useStore((state) => state.isAdmin);
 
   useEffect(() => {
     checkSession();
@@ -108,6 +112,19 @@ export default function App() {
     }, 60000);
     return () => clearInterval(interval);
   }, [checkSession]);
+
+  const isMaintenanceActive = config?.maintenanceMode === "true";
+  const shouldShowMaintenance = isMaintenanceActive && !isMaintenanceBypassed && !isAdmin;
+
+  if (shouldShowMaintenance) {
+    return (
+      <>
+        <FirebaseSync />
+        <Toaster position="top-right" richColors />
+        <MaintenancePage />
+      </>
+    );
+  }
 
   return (
     <>

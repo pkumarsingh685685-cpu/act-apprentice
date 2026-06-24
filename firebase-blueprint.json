@@ -130,12 +130,44 @@
         "lng": { "type": "number" }
       },
       "required": ["code", "name"]
+    },
+    "CustomTrain": {
+      "title": "Custom Train Record",
+      "description": "User uploaded train records containing train number, name, and optional route/via station description.",
+      "type": "object",
+      "properties": {
+        "trainNo": { "type": "string" },
+        "trainName": { "type": "string" },
+        "routeDistanceKm": { "type": "number" },
+        "routeVia": { "type": "string" }
+      },
+      "required": ["trainNo", "trainName"]
+    },
+    "ApoAllottedEmployee": {
+      "title": "APO Allotted Employee",
+      "description": "Employees assigned to a specific department or section allot under an APO officer, with their hierarchy status.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "apoId": { "type": "string" },
+        "department": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "designation": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "parentEmployeeId": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["apoId", "department", "employeeName", "designation"]
     }
   },
   "firestore": {
     "/custom_stations/{stationId}": {
       "schema": "CustomStation",
       "description": "Custom station codes and names registered dynamically."
+    },
+    "/custom_trains/{trainId}": {
+      "schema": "CustomTrain",
+      "description": "Registered and uploaded train numbers and details."
     },
     "/nfrOrgNodes/{nodeId}": {
       "schema": "NfrOrgNode",
@@ -164,6 +196,10 @@
     "/ta_claims/{claimId}": {
       "schema": "TaClaim",
       "description": "Traveling Allowance Claims saved by the application with nested journey legs and calculations."
+    },
+    "/apo_allotted_employees/{empId}": {
+      "schema": "ApoAllottedEmployee",
+      "description": "Information on which junior and senior personnel work under each APO allotted branch."
     }
   }
 }
