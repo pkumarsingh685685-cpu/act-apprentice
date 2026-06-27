@@ -135,7 +135,7 @@ export const useStore = create<AppState>()(
         srDpoNoteEn: "All files and dynamic allotments are routed under Sr. DPO's direct guidance and administrative control.",
         srDpoNoteHi: "सभी फाइल संचलन और सहायक अधिकारियों के कार्य आवंटन वरिष्ठ मंडल कार्मिक अधिकारी के प्रत्यक्ष मार्गदर्शन और प्रशासनिक नियंत्रण में संचालित होते हैं।",
         apoWorkAllotmentPdfUrl: "",
-        importantMessageText: "ATTENTION CANDIDATES: All Act Apprentice notifications, selection schedules, and physical document verification lists are hosted ONLY on this official web portal. Please do not trust unauthorized agents demanding financial transactions or job guarantees under our DRM/Katihar division name.",
+        importantMessageText: "ATTENTION CANDIDATES: All Act Apprentice notifications, selection schedules, and physical document verification lists are hosted ONLY on this web portal. Please do not trust unauthorized agents demanding financial transactions or job guarantees under our DRM/Katihar division name.",
         importantMessageEnabled: "true",
         ta_rate_l1_l5: "625",
         ta_rate_l6_l8: "1000",
@@ -274,7 +274,7 @@ export const useStore = create<AppState>()(
       }),
 
       warningConfig: {
-        text: "Please be aware of fake job offers. Railway recruitment is done only through official channels.",
+        text: "Please be aware of fake job offers. Railway recruitment is done only through established channels.",
         enabled: true,
       },
       updateWarningConfig: (data) => set((state) => {

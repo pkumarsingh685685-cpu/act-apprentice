@@ -72,13 +72,13 @@ export function MaintenancePage() {
           वेबसाइट का रखरखाव चल रहा है
         </h2>
 
-        {/* Official Description */}
+        {/* Description */}
         <div className="mt-6 space-y-4 text-xs md:text-sm text-slate-300 leading-relaxed text-left border-t border-slate-800/60 pt-6">
           <p className="border-l-2 border-amber-500 pl-3">
-            <strong>English:</strong> Katihar Division's official Act Apprentice & D&AR Portal is currently undergoing scheduled technical upgrades to improve features, reliability, and security. Standard Form checks, results registry, and other sections will be active shortly.
+            <strong>English:</strong> Katihar Division's Act Apprentice & D&AR Portal is currently undergoing scheduled technical upgrades to improve features, reliability, and security. Standard Form checks, results registry, and other sections will be active shortly.
           </p>
           <p className="border-l-2 border-slate-600 pl-3 pt-1">
-            <strong>हिन्दी:</strong> कटिहार मंडल का आधिकारिक एक्ट अपरेंटिस एवं डी.ए.आर. पोर्टल वर्तमान में तकनीकी सुधार, सुरक्षा उन्नयन और नए फीचर्स को जोड़ने के लिए रखरखाव के अधीन है। बहुत जल्द ही सभी जनरेटर टूल्स एवं अन्य महत्वपूर्ण सूचनाएं सुचारू रूप से कार्य करने लगेंगी।
+            <strong>हिन्दी:</strong> कटिहार मंडल का एक्ट अपरेंटिस एवं डी.ए.आर. पोर्टल वर्तमान में तकनीकी सुधार, सुरक्षा उन्नयन और नए फीचर्स को जोड़ने के लिए रखरखाव के अधीन है। बहुत जल्द ही सभी जनरेटर टूल्स एवं अन्य महत्वपूर्ण सूचनाएं सुचारू रूप से कार्य करने लगेंगी।
           </p>
         </div>
 
@@ -86,7 +86,7 @@ export function MaintenancePage() {
         <div className="mt-6 flex flex-col md:flex-row items-center justify-between gap-3 p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-left">
           <div>
             <div className="text-[10px] text-slate-500 uppercase font-black tracking-wider">
-              Official Helpline / सहायता काउंटर
+              Helpline / सहायता काउंटर
             </div>
             <div className="text-xs font-semibold text-slate-300">
               Mobile: {config.contactMobile || "8709796234"}

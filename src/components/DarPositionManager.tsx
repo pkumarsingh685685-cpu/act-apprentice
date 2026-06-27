@@ -723,7 +723,7 @@ export function DarPositionManager() {
               <p className="text-xs text-slate-400 font-medium mt-0.5">
                 {currentLang === 'hi'
                   ? "अनुशासन विभाग की वास्तविक समय स्थिति पत्रक और संपादन ग्रिड"
-                  : "Interactive real-time database ledger and Excel-style spreadsheets editor for official use."}
+                  : "Interactive real-time database ledger and Excel-style spreadsheets editor for office use."}
               </p>
             </div>
           </div>

@@ -41,6 +41,7 @@ import CandidateLogin from "./pages/CandidateLogin";
 import AiSearchPage from "./pages/AiSearchPage";
 import SFGeneratorPage from "./pages/SFGeneratorPage";
 import ApoAllotmentPage from "./pages/ApoAllotmentPage";
+import PnrStatus from "./pages/PnrStatus";
 
 function Layout() {
   const location = useLocation();
@@ -147,6 +148,7 @@ export default function App() {
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/merit" element={<Merit />} />
             <Route path="/results" element={<Results />} />
+            <Route path="/pnr" element={<PnrStatus />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/candidate-login" element={<CandidateLogin />} />
             <Route path="/ai-search" element={<AiSearchPage />} />

@@ -3,15 +3,9 @@ import { useStore } from "../store/useStore";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Shield, Key, ArrowRight } from "lucide-react";
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
-import { auth } from "../firebase";
 import { toast } from "sonner";
-
-declare global {
-  interface Window {
-    recaptchaVerifier: RecaptchaVerifier;
-  }
-}
+import { db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function AdminLogin() {
   const login = useStore((state) => state.login);
@@ -19,14 +13,15 @@ export default function AdminLogin() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const [step, setStep] = useState<"LOGIN" | "FORGOT" | "OTP">("LOGIN");
+  const [step, setStep] = useState<"LOGIN" | "FORGOT" | "OTP" | "RESET">("LOGIN");
   const [username, setUsername] = useState("9199732466");
   const [password, setPassword] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("+91");
   const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -35,32 +30,50 @@ export default function AdminLogin() {
     }
   }, [isAdmin, navigate]);
 
-  // Clean up reCaptcha on component unmount to prevent invisible element issues
-  useEffect(() => {
-    return () => {
-      try {
-        if (window.recaptchaVerifier) {
-          window.recaptchaVerifier.clear();
-          //@ts-ignore
-          window.recaptchaVerifier = null;
-        }
-      } catch (err) {
-        console.error("Cleanup error", err);
-      }
-    };
-  }, []);
-
   if (isAdmin) {
     return null;
   }
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((username === "9199732466" || username === "admin") && password === "admin123") {
-      login();
-      navigate("/admin/dashboard");
-    } else {
-      setError(t('invalid_credentials'));
+    setError("");
+    setLoading(true);
+
+    try {
+      let isPasswordValid = false;
+
+      // Check default fallback first
+      if (password === "admin123") {
+        isPasswordValid = true;
+      } else {
+        // Fetch custom saved password from Firestore
+        const credentialsRef = doc(db, "settings", "admin_credentials");
+        const docSnap = await getDoc(credentialsRef);
+        if (docSnap.exists()) {
+          const savedData = docSnap.data();
+          if (savedData && savedData.password === password) {
+            isPasswordValid = true;
+          }
+        }
+      }
+
+      if ((username === "9199732466" || username === "admin") && isPasswordValid) {
+        login();
+        navigate("/admin/dashboard");
+      } else {
+        setError(t('invalid_credentials'));
+      }
+    } catch (err: any) {
+      console.error("Login verification error:", err);
+      // Fail-safe default backup login
+      if ((username === "9199732466" || username === "admin") && password === "admin123") {
+        login();
+        navigate("/admin/dashboard");
+      } else {
+        setError(t('invalid_credentials'));
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -69,50 +82,31 @@ export default function AdminLogin() {
     setError("");
     setLoading(true);
 
-    if (!phoneNumber || phoneNumber.length < 10) {
+    if (!phoneNumber || phoneNumber.replace(/\D/g, "").length < 10) {
       setError("Please enter a valid phone number with country code (e.g., +9199732466).");
       setLoading(false);
       return;
     }
 
     try {
-      setError("");
-      setLoading(true);
-      console.log("OTP request started");
-      console.log("Current Auth API Key:", auth.app.options.apiKey);
-      console.log("Current Auth Project ID:", auth.app.options.projectId);
+      const response = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ phoneNumber })
+      });
 
-      // Lazily initialize reCAPTCHA
-      if (!window.recaptchaVerifier) {
-        console.log("Initializing RecaptchaVerifier for the first time...");
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          'size': 'invisible',
-          'callback': (response: any) => {
-            console.log("reCAPTCHA verified");
-          },
-          'expired-callback': () => {
-            setError("reCAPTCHA expired. Please try again.");
-          }
-        });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send OTP. Please check your phone number.");
       }
 
-      const appVerifier = window.recaptchaVerifier;
-      const result = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
-      setConfirmationResult(result);
       setStep("OTP");
-      console.log("OTP sent successfully");
-      toast.success("OTP sent to your phone number.");
+      toast.success("OTP sent successfully via WhatsApp.");
     } catch (err: any) {
-      console.error("OTP Error:", err);
-      if (err.code === 'auth/operation-not-allowed') {
-        setError("Firebase Error: Phone Auth is NOT enabled in your Firebase Console OR the current Domain is not authorized.");
-      } else if (err.code === 'auth/unauthorized-domain') {
-        setError("Firebase Error: This app's domain is not added to Firebase 'Authorized domains'.");
-      } else if (err.code === 'auth/invalid-phone-number') {
-        setError("Invalid phone number format. Please include country code (e.g., +91).");
-      } else {
-        setError(`OTP failed: ${err.message || String(err)}`);
-      }
+      console.error("Send OTP Error:", err);
+      setError(err.message || "Failed to send OTP via WhatsApp. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -123,19 +117,73 @@ export default function AdminLogin() {
     setError("");
     setLoading(true);
 
-    if (!confirmationResult) {
-      setError("Please request OTP first.");
+    if (!otp || otp.length < 5) {
+      setError("Please enter a valid OTP code.");
       setLoading(false);
       return;
     }
 
     try {
-      await confirmationResult.confirm(otp);
-      login();
-      navigate("/admin/dashboard");
+      const response = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ phoneNumber, otp })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Invalid OTP code. Please try again.");
+      }
+
+      setStep("RESET");
+      toast.success("OTP verified successfully. Create a new password.");
     } catch (err: any) {
-      console.error(err);
-      setError(`Verification failed: ${err.message || 'Invalid OTP'}`);
+      console.error("Verify OTP Error:", err);
+      setError(err.message || "OTP verification failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (newPassword.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ password: newPassword })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to reset password.");
+      }
+
+      toast.success("Password reset successfully.");
+      setStep("LOGIN");
+      setPassword(newPassword);
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      console.error("Reset Password Error:", err);
+      setError(err.message || "Failed to reset password. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -159,13 +207,10 @@ export default function AdminLogin() {
             {t('admin_portal') || "Admin Portal"}
           </h2>
           <p className="opacity-75 text-xs font-semibold text-slate-400 uppercase tracking-widest mt-1">
-            {t('admin_portal_subtitle') || "NFR Control Console • उत्तर पूर्व सीमांत रेलवे"}
+            {t('admin_portal_subtitle') || "NFR Control Console • N.F. Railway"}
           </p>
         </div>
-
         <div className="p-7 space-y-6">
-          <div id="recaptcha-container" />
-          
           {error && (
             <div className="bg-red-950/40 border border-red-800/60 text-red-400 p-4 rounded-xl text-xs font-bold shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]">
               ⚠️ {error}
@@ -281,7 +326,7 @@ export default function AdminLogin() {
                   className="w-full bg-slate-950 text-white placeholder-slate-700 px-4 py-3.5 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-center tracking-[1em] text-xl font-mono shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
-                  placeholder="000000"
+                  placeholder="00000"
                   maxLength={6}
                   required
                 />
@@ -302,6 +347,54 @@ export default function AdminLogin() {
                 disabled={loading}
               >
                 {t('resend_otp') || "Try Different Number"}
+              </button>
+            </form>
+          )}
+
+          {step === "RESET" && (
+            <form onSubmit={handleResetPassword} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  className="w-full bg-slate-950 text-white placeholder-slate-600 px-4 py-3 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent font-medium transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.7)]"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  className="w-full bg-slate-950 text-white placeholder-slate-600 px-4 py-3 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent font-medium transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.7)]"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-red-600 via-red-700 to-red-800 text-white py-3.5 rounded-xl font-bold uppercase tracking-wider text-sm hover:brightness-110 active:translate-y-[3px] active:shadow-none transition-all shadow-[0_5px_0_0_#7f1d1d,0_10px_20px_rgba(239,68,68,0.2),inset_0_1px_1px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {loading ? "Saving..." : "Save New Password"} <ArrowRight className="w-4.5 h-4.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStep("LOGIN")}
+                className="w-full bg-slate-800/80 text-slate-300 py-3 rounded-xl font-bold uppercase tracking-wider text-xs border border-slate-700/50 hover:bg-slate-800 active:translate-y-[2px] active:shadow-none transition-all shadow-[0_3px_0_0_#0f172a]"
+              >
+                Cancel & Back to Login
               </button>
             </form>
           )}

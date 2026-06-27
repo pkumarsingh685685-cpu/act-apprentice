@@ -561,7 +561,7 @@ const DAR_UNIFIED_TREE: Record<string, DecisionPopupNode> = {
     ]
   },
   sf1_reviewed: {
-    question: "What is the official decision of the Suspension Review Board?",
+    question: "What is the formal decision of the Suspension Review Board?",
     options: [
       {
         text: "Extend Suspension (Up to further 180 days)",
@@ -897,7 +897,7 @@ const DAR_UNIFIED_TREE: Record<string, DecisionPopupNode> = {
       {
         text: "Yes, SF-7 and SF-8 are issued",
         target: "sf5_inquiry_active",
-        infoText: "Inquiry proceedings can officially start."
+        infoText: "Inquiry proceedings can formally start."
       },
       {
         text: "No, not issued or pending",
@@ -1163,7 +1163,7 @@ const POPUP_DECISION_TREES: Record<"sf5" | "sf11" | "sf1", Record<string, Decisi
         {
           text: "Yes, issued Form SF-7 (IO) & SF-8 (PO)",
           target: "inquiry_proceedings",
-          infoText: "The inquiry can officially commence hearings."
+          infoText: "The inquiry can formally commence hearings."
         },
         {
           text: "No, not appointed yet",
@@ -1574,7 +1574,7 @@ const POPUP_DECISION_TREES: Record<"sf5" | "sf11" | "sf1", Record<string, Decisi
       ]
     },
     extension_status: {
-      question: "What is the official decision of the Review Board?",
+      question: "What is the formal decision of the Review Board?",
       options: [
         {
           text: "Extend Suspension",
@@ -1724,7 +1724,7 @@ const DAR_REQUIREMENTS: RequirementItem[] = [
     id: "req5",
     title: "Written Statement of Defense (Reply)",
     category: "charge-sheet",
-    description: "The official answer/representation submitted by the Charged Officer against the allegations in the charge sheet within 10-15 days.",
+    description: "The formal answer/representation submitted by the Charged Officer against the allegations in the charge sheet within 10-15 days.",
     isMandatory: true,
     docReference: "Rule 11(1)(b) / Rule 9(13)",
     tips: "If no reply is received within limits, record a formal reminder and note-sheet entry to process the case ex-parte or appoint IO."
@@ -4408,7 +4408,7 @@ export default function HqMaterialManager() {
                     DAR Case Index Manager (केस इंडेक्स)
                   </h4>
                   <p className="text-[10px] text-slate-300 mt-1 uppercase font-semibold">
-                    Fill or synchronize the 31-point index sheet for official dockets.
+                    Fill or synchronize the 31-point index sheet for standard dockets.
                   </p>
                 </div>
               </div>
@@ -4522,7 +4522,7 @@ export default function HqMaterialManager() {
                     ];
                     setDarIndexFields(sample);
                     setCaseNameInput("Shri Santosh Kumar (Station Master)");
-                    toast.success("Loaded official sample DAR index sheet (Shri Santosh Kumar)!");
+                    toast.success("Loaded sample DAR index sheet (Shri Santosh Kumar)!");
                   }}
                   className="bg-slate-900 hover:bg-slate-800 text-indigo-300 font-extrabold text-xs px-3 py-2 rounded border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer text-xs"
                 >
@@ -4560,7 +4560,7 @@ export default function HqMaterialManager() {
                       INDEX OF D&AR CASE WORKSHEET (डीएआर केस सामग्री का सूचकांक)
                     </h3>
                     <p className="text-[10px] text-slate-400 uppercase mt-0.5 font-bold tracking-wider">
-                      Edit values for each official document/stage in the D&AR docket below:
+                      Edit values for each document/stage in the D&AR docket below:
                     </p>
                   </div>
                   <span className="text-[9px] px-2 py-0.5 rounded border border-slate-700 bg-slate-900 text-slate-300 font-extrabold">
@@ -4604,7 +4604,7 @@ export default function HqMaterialManager() {
 
                 <div className="flex justify-between items-center pt-3 border-t border-slate-850">
                   <p className="text-[10px] text-amber-500/80 font-bold uppercase tracking-wider">
-                    * The printed output matches official format & fits perfectly onto 1 Page!
+                    * The printed output matches standard format & fits perfectly onto 1 Page!
                   </p>
                   <button
                     onClick={handleSaveToDb}
@@ -5253,7 +5253,7 @@ export default function HqMaterialManager() {
                                             This Inquiry Officer field is marked as Not Applicable (N/A).
                                           </div>
                                           <div className="text-amber-400/80 text-[10px] font-medium max-w-sm">
-                                            "NA" will be printed officially in the docket. To input custom Inquiry Officer names, click 'Enter Names' above.
+                                            "NA" will be printed in the docket. To input custom Inquiry Officer names, click 'Enter Names' above.
                                           </div>
                                         </div>
                                       ) : (

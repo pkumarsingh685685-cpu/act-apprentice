@@ -378,7 +378,7 @@ export function SF2Generator({ onBack }: { onBack?: () => void } = {}) {
                      onChange={(e) => updateCopy(idx, e.target.value)} 
                      rows={1} 
                      className="flex-1 text-xs bg-slate-900/60 border border-slate-800 rounded-md px-2.5 py-1.5 text-white placeholder-slate-600 focus:outline-none resize-y" 
-                     placeholder="Enter department or official copy info..." 
+                     placeholder="Enter department or office copy info..." 
                    />
                    <button type="button" onClick={() => removeCopy(idx)} className="p-1 mt-0.5 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-rose-950/20 transition-all cursor-pointer">
                      <Trash2 className="w-4 h-4" />

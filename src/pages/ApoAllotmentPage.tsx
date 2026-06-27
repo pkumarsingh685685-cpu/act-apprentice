@@ -355,6 +355,130 @@ export default function ApoAllotmentPage({ isEmbedded = false, onActiveStateChan
   
   const isAdmin = useStore((state) => state.isAdmin);
 
+  // Default and active state for the left grid and right grid panels requested by the user
+  const DEFAULT_LEFT_GRID = [
+    ["APO-1 (Praveen Karn)", "APO-2 (Lalit Kumar)"],
+    ["APO-2 (Lalit Kumar)", "APO-3 (Santosh Dutta)"],
+    ["APO-3 (Santosh Dutta)", "APO-1 (Praveen Karn)"],
+    ["All APOs Absent", "SPO / Sr. DPO Desk"]
+  ];
+
+  const DEFAULT_RIGHT_GRID = [
+    ["1", "Overall Administration & Policy Decisions"],
+    ["2", "Gazetted Officers & Union Negotiations"],
+    ["3", "Inter-Divisional Postings & Transfers"],
+    ["4", "Welfare Policy, Budget Control & Audit"]
+  ];
+
+  const [leftGridData, setLeftGridData] = useState<string[][]>(DEFAULT_LEFT_GRID);
+  const [rightGridData, setRightGridData] = useState<string[][]>(DEFAULT_RIGHT_GRID);
+  const [panelStatus, setPanelStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  // Dimensional layout heights and column spans adjusted by administrator
+  const [leftMinHeight, setLeftMinHeight] = useState<number>(140);
+  const [srDpoMinHeight, setSrDpoMinHeight] = useState<number>(110);
+  const [rightMinHeight, setRightMinHeight] = useState<number>(140);
+  const [leftColSpan, setLeftColSpan] = useState<number>(1);
+  const [srDpoColSpan, setSrDpoColSpan] = useState<number>(2);
+  const [rightColSpan, setRightColSpan] = useState<number>(1);
+  const [isLargeScreen, setIsLargeScreen] = useState<boolean>(true);
+
+  // New customizable title, note, and sizes
+  const [srDpoNote, setSrDpoNote] = useState<string>("");
+  const [srDpoTitleText, setSrDpoTitleText] = useState<string>("📋 SR. DPO KEY WORKS & FUNCTIONS");
+  const [srDpoTitleSize, setSrDpoTitleSize] = useState<number>(9);
+
+  useEffect(() => {
+    setIsLargeScreen(window.innerWidth >= 1024);
+    const handleResize = () => setIsLargeScreen(window.innerWidth >= 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Fetch panel data from Firestore in real-time
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "settings", "apo_dashboard_panels"), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.leftGridStr) {
+          try {
+            const parsed = JSON.parse(data.leftGridStr);
+            if (Array.isArray(parsed)) {
+              setLeftGridData(parsed);
+            }
+          } catch (e) {
+            console.error("Failed to parse leftGridStr:", e);
+          }
+        } else if (data.leftGrid && Array.isArray(data.leftGrid)) {
+          setLeftGridData(data.leftGrid);
+        }
+        
+        if (data.rightGridStr) {
+          try {
+            const parsed = JSON.parse(data.rightGridStr);
+            if (Array.isArray(parsed)) {
+              setRightGridData(parsed);
+            }
+          } catch (e) {
+            console.error("Failed to parse rightGridStr:", e);
+          }
+        }
+
+        // Custom dimension states loaded from database
+        if (data.leftMinHeight !== undefined) setLeftMinHeight(Number(data.leftMinHeight));
+        if (data.srDpoMinHeight !== undefined) setSrDpoMinHeight(Number(data.srDpoMinHeight));
+        if (data.rightMinHeight !== undefined) setRightMinHeight(Number(data.rightMinHeight));
+        if (data.leftColSpan !== undefined) setLeftColSpan(Number(data.leftColSpan));
+        if (data.srDpoColSpan !== undefined) setSrDpoColSpan(Number(data.srDpoColSpan));
+        if (data.rightColSpan !== undefined) setRightColSpan(Number(data.rightColSpan));
+        if (data.srDpoNote !== undefined) setSrDpoNote(data.srDpoNote);
+        if (data.srDpoTitleText !== undefined) setSrDpoTitleText(data.srDpoTitleText);
+        if (data.srDpoTitleSize !== undefined) setSrDpoTitleSize(Number(data.srDpoTitleSize));
+      }
+    }, (err) => {
+      console.error("Error loading apo dashboard panels:", err);
+    });
+    return () => unsub();
+  }, []);
+
+  const savePanelsData = async (
+    newLeftGrid: string[][], 
+    newRightGrid: string[][],
+    customLeftHeight = leftMinHeight,
+    customSrHeight = srDpoMinHeight,
+    customRightHeight = rightMinHeight,
+    customLeftCol = leftColSpan,
+    customSrCol = srDpoColSpan,
+    customRightCol = rightColSpan,
+    customSrDpoNote = srDpoNote,
+    customSrDpoTitleText = srDpoTitleText,
+    customSrDpoTitleSize = srDpoTitleSize
+  ) => {
+    setPanelStatus("saving");
+    try {
+      await setDoc(doc(db, "settings", "apo_dashboard_panels"), {
+        leftGridStr: JSON.stringify(newLeftGrid),
+        rightGridStr: JSON.stringify(newRightGrid),
+        leftMinHeight: Number(customLeftHeight),
+        srDpoMinHeight: Number(customSrHeight),
+        rightMinHeight: Number(customRightHeight),
+        leftColSpan: Number(customLeftCol),
+        srDpoColSpan: Number(customSrCol),
+        rightColSpan: Number(customRightCol),
+        srDpoNote: String(customSrDpoNote),
+        srDpoTitleText: String(customSrDpoTitleText),
+        srDpoTitleSize: Number(customSrDpoTitleSize),
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      setPanelStatus("saved");
+      setTimeout(() => setPanelStatus("idle"), 2000);
+    } catch (err) {
+      console.error("Error saving panels data:", err);
+      toast.error("Failed to save layout panels data");
+      setPanelStatus("idle");
+    }
+  };
+
   // Load custom department edits from Firestore settings
   const [customDepts, setCustomDepts] = useState<Record<string, { titleEn?: string; titleHi?: string; desc?: string }>>({});
 
@@ -475,7 +599,7 @@ export default function ApoAllotmentPage({ isEmbedded = false, onActiveStateChan
     ? (config.srDpoWork2Hi || "अंतिम अपीलीय प्राधिकारी, बजट आवंटन और अंतर-विभागीय समन्वय")
     : (config.srDpoWork2En || "Final Appellate Authority, Budget Allocation & Inter-Departmental Coordination");
 
-  const srDpoNote = currentLang.startsWith("hi")
+  const srDpoLegacyNote = currentLang.startsWith("hi")
     ? (config.srDpoNoteHi || "सभी फाइल संचलन और सहायक अधिकारियों के कार्य आवंटन वरिष्ठ मंडल कार्मिक अधिकारी के प्रत्यक्ष मार्गदर्शन और प्रशासनिक नियंत्रण में संचालित होते हैं।")
     : (config.srDpoNoteEn || "All files and dynamic allotments are routed under Sr. DPO's direct guidance and administrative control.");
 
@@ -800,139 +924,236 @@ export default function ApoAllotmentPage({ isEmbedded = false, onActiveStateChan
                 <div className="w-0.5 h-10 bg-gradient-to-b from-indigo-500/10 via-amber-500/40 to-amber-500 shadow-[0_0_12px_#f59e0b]" />
               </div>
 
-              {/* High-end Official 3D Box for Sr. DPO with corner spotlight light-source beams */}
-              <div className="max-w-2xl mx-auto w-full relative z-20 px-2 sm:px-4">
+              {/* High-end Dashboard Panels with Left Grid, Middle Sr. DPO, and Right List */}
+              <div className="max-w-7xl mx-auto w-full relative z-20 px-2 sm:px-4">
                 <div 
-                  className="relative bg-gradient-to-b from-[#0e172e] via-[#050b18] to-[#02050f] rounded-2xl py-3 px-6 md:py-4 md:px-8 text-center border border-amber-500/30 shadow-[0_25px_60px_-12px_rgba(0,0,0,0.9),_inset_0_2px_4px_rgba(255,255,255,0.1),_0_0_0_1px_rgba(245,158,11,0.15)] overflow-hidden transition-all duration-500 hover:scale-[1.02] group hover:border-amber-400/50 flex flex-col justify-center"
-                  style={{ transformStyle: 'preserve-3d', perspective: '1200px' }}
+                  className="grid grid-cols-1 gap-4 items-stretch"
+                  style={{
+                    gridTemplateColumns: isLargeScreen 
+                      ? `${leftColSpan}fr ${srDpoColSpan}fr ${rightColSpan}fr` 
+                      : "1fr"
+                  }}
                 >
-                  {/* VOLUMETRIC SPOTLIGHT BEAMS (Inspired by User-uploaded image) */}
                   
-                  {/* Top-Left Corner Spotlight & Fan Rays */}
-                  <div className="absolute top-0 left-0 w-32 h-32 pointer-events-none z-0" style={{ backgroundImage: 'radial-gradient(circle at top left, rgba(245,158,11,0.4) 0%, transparent 70%)' }} />
-                  <div className="absolute top-0 left-0 pointer-events-none z-10 overflow-hidden w-48 h-48 origin-top-left">
-                    {/* Overlapping spotlight beams */}
-                    <div className="absolute top-0 left-0 w-[15px] h-[250px] bg-gradient-to-b from-amber-400/40 via-amber-500/10 to-transparent blur-[3px] origin-top-left rotate-[18deg]" />
-                    <div className="absolute top-0 left-0 w-[25px] h-[220px] bg-gradient-to-b from-amber-300/45 via-amber-500/12 to-transparent blur-[4px] origin-top-left rotate-[33deg]" />
-                    <div className="absolute top-0 left-0 w-[12px] h-[260px] bg-gradient-to-b from-amber-400/35 via-amber-500/8 to-transparent blur-[2px] origin-top-left rotate-[48deg]" />
-                  </div>
-                  {/* Glowing hardware bulb */}
-                  <div className="absolute top-1 left-1 w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_12px_6px_rgba(251,191,36,0.95),_0_0_24px_12px_rgba(245,158,11,0.6)] z-20 animate-pulse" />
-
-                  {/* Top-Right Corner Spotlight & Fan Rays */}
-                  <div className="absolute top-0 right-0 w-32 h-32 pointer-events-none z-0" style={{ backgroundImage: 'radial-gradient(circle at top right, rgba(245,158,11,0.4) 0%, transparent 70%)' }} />
-                  <div className="absolute top-0 right-0 pointer-events-none z-10 overflow-hidden w-48 h-48 origin-top-right">
-                    {/* Overlapping spotlight beams */}
-                    <div className="absolute top-0 right-0 w-[15px] h-[250px] bg-gradient-to-b from-amber-400/40 via-amber-500/10 to-transparent blur-[3px] origin-top-right -rotate-[18deg]" />
-                    <div className="absolute top-0 right-0 w-[25px] h-[220px] bg-gradient-to-b from-amber-300/45 via-amber-500/12 to-transparent blur-[4px] origin-top-right -rotate-[33deg]" />
-                    <div className="absolute top-0 right-0 w-[12px] h-[260px] bg-gradient-to-b from-amber-400/35 via-amber-500/8 to-transparent blur-[2px] origin-top-right -rotate-[48deg]" />
-                  </div>
-                  {/* Glowing hardware bulb */}
-                  <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_12px_6px_rgba(251,191,36,0.95),_0_0_24px_12px_rgba(245,158,11,0.6)] z-20 animate-pulse" />
-
-                  {/* Bottom-Left Corner Spotlight & Fan Rays */}
-                  <div className="absolute bottom-0 left-0 w-32 h-32 pointer-events-none z-0" style={{ backgroundImage: 'radial-gradient(circle at bottom left, rgba(245,158,11,0.3) 0%, transparent 70%)' }} />
-                  <div className="absolute bottom-0 left-0 pointer-events-none z-10 overflow-hidden w-48 h-48 origin-bottom-left">
-                    {/* Overlapping spotlight beams pointing up-right */}
-                    <div className="absolute bottom-0 left-0 w-[15px] h-[250px] bg-gradient-to-t from-amber-400/35 via-amber-500/8 to-transparent blur-[3px] origin-bottom-left rotate-[18deg]" />
-                    <div className="absolute bottom-0 left-0 w-[22px] h-[220px] bg-gradient-to-t from-amber-300/40 via-amber-500/10 to-transparent blur-[4px] origin-bottom-left rotate-[33deg]" />
-                    <div className="absolute bottom-0 left-0 w-[12px] h-[260px] bg-gradient-to-t from-amber-400/30 via-amber-500/6 to-transparent blur-[2px] origin-bottom-left rotate-[48deg]" />
-                  </div>
-                  {/* Glowing hardware bulb */}
-                  <div className="absolute bottom-1 left-1 w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_12px_6px_rgba(251,191,36,0.95),_0_0_24px_12px_rgba(245,158,11,0.6)] z-20 animate-pulse" />
-
-                  {/* Bottom-Right Corner Spotlight & Fan Rays */}
-                  <div className="absolute bottom-0 right-0 w-32 h-32 pointer-events-none z-0" style={{ backgroundImage: 'radial-gradient(circle at bottom right, rgba(245,158,11,0.3) 0%, transparent 70%)' }} />
-                  <div className="absolute bottom-0 right-0 pointer-events-none z-10 overflow-hidden w-48 h-48 origin-bottom-right">
-                    {/* Overlapping spotlight beams pointing up-left */}
-                    <div className="absolute bottom-0 right-0 w-[15px] h-[250px] bg-gradient-to-t from-amber-400/35 via-amber-500/8 to-transparent blur-[3px] origin-bottom-right -rotate-[18deg]" />
-                    <div className="absolute bottom-0 right-0 w-[22px] h-[220px] bg-gradient-to-t from-amber-300/40 via-amber-500/10 to-transparent blur-[4px] origin-bottom-right -rotate-[33deg]" />
-                    <div className="absolute bottom-0 right-0 w-[12px] h-[260px] bg-gradient-to-t from-amber-400/30 via-amber-500/6 to-transparent blur-[2px] origin-bottom-right -rotate-[48deg]" />
-                  </div>
-                  {/* Glowing hardware bulb */}
-                  <div className="absolute bottom-1 right-1 w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_12px_6px_rgba(251,191,36,0.95),_0_0_24px_12px_rgba(245,158,11,0.6)] z-20 animate-pulse" />
-
-                  {/* Floating Magic Golden Dust/Particles in the beams */}
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
-                    <div className="absolute top-[25%] left-[20%] w-[2px] h-[2px] bg-amber-200 rounded-full animate-ping [animation-duration:3s]" />
-                    <div className="absolute top-[40%] left-[15%] w-[1.5px] h-[1.5px] bg-amber-300 rounded-full animate-pulse [animation-duration:2.5s]" />
-                    <div className="absolute top-[15%] left-[35%] w-[2px] h-[2px] bg-amber-100 rounded-full animate-pulse [animation-duration:4s]" />
-                    <div className="absolute top-[60%] left-[25%] w-[1px] h-[1px] bg-amber-300 rounded-full opacity-60" />
-                    
-                    <div className="absolute top-[30%] right-[20%] w-[2px] h-[2px] bg-amber-200 rounded-full animate-ping [animation-duration:2.5s]" />
-                    <div className="absolute top-[50%] right-[15%] w-[1.5px] h-[1.5px] bg-amber-300 rounded-full animate-pulse [animation-duration:3.5s]" />
-                    <div className="absolute top-[20%] right-[40%] w-[2px] h-[2px] bg-amber-100 rounded-full animate-pulse [animation-duration:2s]" />
-                    <div className="absolute top-[70%] right-[30%] w-[1px] h-[1px] bg-amber-300 rounded-full opacity-60" />
-
-                    <div className="absolute bottom-[25%] left-[45%] w-[2px] h-[2px] bg-amber-200 rounded-full animate-pulse [animation-duration:3s]" />
-                    <div className="absolute bottom-[35%] right-[45%] w-[1.5px] h-[1.5px] bg-amber-300 rounded-full animate-ping [animation-duration:4s]" />
-                  </div>
-
-                  {/* 3D Inner Plate Bezel */}
-                  <div className="absolute inset-[4px] bg-[#040916]/95 rounded-xl pointer-events-none z-0 border border-amber-950/40" />
-
-                  {/* Inner Contents */}
-                  <div className="relative z-10 py-1.5 px-3 space-y-1.5 flex flex-col justify-center">
-                    <div className="inline-flex items-center justify-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-950/40 border border-amber-500/30 text-[8px] font-black uppercase text-amber-300 tracking-wider mb-0.5 shadow-md font-mono">
-                      <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-ping shrink-0" />
-                      <span>DIVISIONAL PERSONNEL BRANCH HEAD</span>
-                    </div>
-
-                    {/* Highly Professional 3D Golden text styling */}
-                    <h3 className="text-base md:text-lg font-black tracking-widest uppercase select-none bg-gradient-to-b from-amber-100 via-yellow-300 to-amber-500 bg-clip-text text-transparent drop-shadow-[0_2px_8px_rgba(245,158,11,0.4)]">
-                      {headOfficerInfo.name}
-                    </h3>
-
-                    <p className="text-[9.5px] md:text-[10.5px] font-black text-emerald-400 tracking-wider uppercase px-3 py-1 inline-block bg-emerald-950/60 border border-emerald-500/25 rounded-md shadow-md font-mono self-center">
-                      {headOfficerInfo.designation}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Official Allotment PDF Download Section */}
-              {config?.apoWorkAllotmentPdfUrl && (
-                <div className="max-w-7xl mx-auto w-full px-2 sm:px-4 mt-2">
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="relative rounded-2xl overflow-hidden p-0.5 bg-gradient-to-r from-violet-600 via-indigo-600 to-emerald-600 shadow-[0_0_25px_rgba(99,102,241,0.25)]"
+                  {/* LEFT GRID PANEL (Yellow/Amber Theme - Excel-like APO Absence Link Charge Matrix) */}
+                  <div 
+                    className="bg-gradient-to-b from-[#181308] via-[#0b0803] to-[#040200] rounded-2xl p-3 border border-amber-500/20 shadow-[0_15px_40px_rgba(245,158,11,0.08)] flex flex-col justify-between relative overflow-hidden"
+                    style={{
+                      minHeight: `${leftMinHeight}px`
+                    }}
                   >
-                    <div className="bg-[#050b18]/95 backdrop-blur-md rounded-[14px] p-4 sm:px-6 sm:py-4 flex flex-col md:flex-row items-center justify-between gap-4">
-                      <div className="flex items-center gap-3.5 text-left">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-emerald-500/20 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0 shadow-inner">
-                          <Download size={18} className="text-emerald-400 animate-pulse" />
-                        </div>
-                        <div>
-                          <span className="text-[10px] font-black tracking-widest uppercase text-emerald-400 font-mono block leading-none mb-1">
-                            OFFICIAL GAZETTED ALLOTMENT DOCUMENT
-                          </span>
-                          <h4 className="text-xs sm:text-sm font-black text-slate-100 uppercase tracking-wide">
-                            {currentLang.startsWith("hi") 
-                              ? "आधिकारिक कार्य आवंटन आदेश (पीडीएफ डाउनलोड करें)" 
-                              : "Official Officer Work Allotment Order (Download PDF)"}
-                          </h4>
-                          <p className="text-[10px] text-slate-400 font-medium leading-tight mt-0.5 max-w-xl">
-                            {currentLang.startsWith("hi")
-                              ? "वरिष्ठ मंडल कार्मिक अधिकारी द्वारा हस्ताक्षरित एवं जारी किए गए मूल कार्य आवंटन का आधिकारिक आदेश पत्र।"
-                              : "Official signed establishment order detailing section duties, supervision matrices & routine link officers."}
-                          </p>
-                        </div>
+                    {/* Tiny neon yellow header light */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-[1px] bg-amber-400 shadow-[0_0_8px_#f59e0b]" />
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center pb-1.5 border-b border-amber-950/40">
+                        <span className="text-[9px] font-black tracking-wider text-amber-400 uppercase font-mono">
+                          {/* Title removed as per user request */}
+                        </span>
+                        {panelStatus === "saving" && (
+                          <span className="text-[8px] text-amber-500/80 animate-pulse font-bold font-mono">saving...</span>
+                        )}
+                        {panelStatus === "saved" && (
+                          <span className="text-[8px] text-emerald-400 font-bold font-mono">saved ✓</span>
+                        )}
                       </div>
 
-                      <a 
-                        href={config.apoWorkAllotmentPdfUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black tracking-widest uppercase rounded-xl transition-all duration-300 hover:shadow-[0_0_15px_rgba(16,185,129,0.4)] active:scale-95 cursor-pointer border border-emerald-400/25 shrink-0"
-                      >
-                        <Download size={14} className="stroke-[3px]" />
-                        <span>{currentLang.startsWith("hi") ? "पीडीएफ डाउनलोड करें" : "Download PDF Document"}</span>
-                      </a>
+                      {/* Excel-style Grid Table */}
+                      <div className="border border-amber-500/20 rounded-lg overflow-hidden bg-[#080502]/90 shadow-inner">
+                        <table className="w-full border-collapse text-left">
+                          <thead>
+                            <tr className="bg-amber-950/40 border-b border-amber-500/25">
+                              <th className="w-1/2 border-r border-amber-500/20 px-2 py-1 text-[8px] font-black tracking-wider text-amber-300 font-mono text-center">
+                                ABSENT APO POST
+                              </th>
+                              <th className="w-1/2 px-2 py-1 text-[8px] font-black tracking-wider text-amber-300 font-mono text-center">
+                                CHARGE TO ASSIGN
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {leftGridData.map((row, rIdx) => (
+                              <tr key={rIdx} className="border-b border-amber-500/15 last:border-b-0">
+                                {row.map((cell, cIdx) => (
+                                  <td key={cIdx} className={`px-1 py-1 text-center text-[10px] font-bold text-amber-200/90 ${cIdx === 0 ? "border-r border-amber-500/20" : ""}`}>
+                                    <span className="block truncate py-0.5" title={cell}>
+                                      {cell || "-"}
+                                    </span>
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </motion.div>
+
+                    <div className="text-[8px] text-amber-500/40 font-mono mt-1 text-center select-none uppercase">
+                      🔒 Read-only Link Arrangement
+                    </div>
+                  </div>
+
+                  {/* MIDDLE SR. DPO PANEL (Red Theme - preserving original 3D box styles & effects with reduced height) */}
+                  <div 
+                    className="relative flex flex-col justify-center"
+                  >
+                    <div 
+                      className="relative bg-gradient-to-b from-[#0e172e] via-[#050b18] to-[#02050f] rounded-2xl py-2 px-6 md:py-3 md:px-8 text-center border border-amber-500/30 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.9),_inset_0_2px_4px_rgba(255,255,255,0.1),_0_0_0_1px_rgba(245,158,11,0.15)] overflow-hidden transition-all duration-500 hover:scale-[1.01] group hover:border-amber-400/50 flex flex-col justify-center h-full"
+                      style={{ 
+                        transformStyle: 'preserve-3d', 
+                        perspective: '1200px',
+                        minHeight: `${srDpoMinHeight}px`
+                      }}
+                    >
+                      {/* VOLUMETRIC SPOTLIGHT BEAMS */}
+                      
+                      {/* Top-Left Corner Spotlight & Fan Rays */}
+                      <div className="absolute top-0 left-0 w-32 h-32 pointer-events-none z-0" style={{ backgroundImage: 'radial-gradient(circle at top left, rgba(245,158,11,0.4) 0%, transparent 70%)' }} />
+                      <div className="absolute top-0 left-0 pointer-events-none z-10 overflow-hidden w-48 h-48 origin-top-left">
+                        <div className="absolute top-0 left-0 w-[15px] h-[250px] bg-gradient-to-b from-amber-400/40 via-amber-500/10 to-transparent blur-[3px] origin-top-left rotate-[18deg]" />
+                        <div className="absolute top-0 left-0 w-[25px] h-[220px] bg-gradient-to-b from-amber-300/45 via-amber-500/12 to-transparent blur-[4px] origin-top-left rotate-[33deg]" />
+                        <div className="absolute top-0 left-0 w-[12px] h-[260px] bg-gradient-to-b from-amber-400/35 via-amber-500/8 to-transparent blur-[2px] origin-top-left rotate-[48deg]" />
+                      </div>
+                      <div className="absolute top-1 left-1 w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_12px_6px_rgba(251,191,36,0.95),_0_0_24px_12px_rgba(245,158,11,0.6)] z-20 animate-pulse" />
+
+                      {/* Top-Right Corner Spotlight & Fan Rays */}
+                      <div className="absolute top-0 right-0 w-32 h-32 pointer-events-none z-0" style={{ backgroundImage: 'radial-gradient(circle at top right, rgba(245,158,11,0.4) 0%, transparent 70%)' }} />
+                      <div className="absolute top-0 right-0 pointer-events-none z-10 overflow-hidden w-48 h-48 origin-top-right">
+                        <div className="absolute top-0 right-0 w-[15px] h-[250px] bg-gradient-to-b from-amber-400/40 via-amber-500/10 to-transparent blur-[3px] origin-top-right -rotate-[18deg]" />
+                        <div className="absolute top-0 right-0 w-[25px] h-[220px] bg-gradient-to-b from-amber-300/45 via-amber-500/12 to-transparent blur-[4px] origin-top-right -rotate-[33deg]" />
+                        <div className="absolute top-0 right-0 w-[12px] h-[260px] bg-gradient-to-b from-amber-400/35 via-amber-500/8 to-transparent blur-[2px] origin-top-right -rotate-[48deg]" />
+                      </div>
+                      <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_12px_6px_rgba(251,191,36,0.95),_0_0_24px_12px_rgba(245,158,11,0.6)] z-20 animate-pulse" />
+
+                      {/* Bottom-Left Corner Spotlight & Fan Rays */}
+                      <div className="absolute bottom-0 left-0 w-32 h-32 pointer-events-none z-0" style={{ backgroundImage: 'radial-gradient(circle at bottom left, rgba(245,158,11,0.3) 0%, transparent 70%)' }} />
+                      <div className="absolute bottom-0 left-0 pointer-events-none z-10 overflow-hidden w-48 h-48 origin-bottom-left">
+                        <div className="absolute bottom-0 left-0 w-[15px] h-[250px] bg-gradient-to-t from-amber-400/35 via-amber-500/8 to-transparent blur-[3px] origin-bottom-left rotate-[18deg]" />
+                        <div className="absolute bottom-0 left-0 w-[22px] h-[220px] bg-gradient-to-t from-amber-300/40 via-amber-500/10 to-transparent blur-[4px] origin-bottom-left rotate-[33deg]" />
+                        <div className="absolute bottom-0 left-0 w-[12px] h-[260px] bg-gradient-to-t from-amber-400/30 via-amber-500/6 to-transparent blur-[2px] origin-bottom-left rotate-[48deg]" />
+                      </div>
+                      <div className="absolute bottom-1 left-1 w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_12px_6px_rgba(251,191,36,0.95),_0_0_24px_12px_rgba(245,158,11,0.6)] z-20 animate-pulse" />
+
+                      {/* Bottom-Right Corner Spotlight & Fan Rays */}
+                      <div className="absolute bottom-0 right-0 w-32 h-32 pointer-events-none z-0" style={{ backgroundImage: 'radial-gradient(circle at bottom right, rgba(245,158,11,0.3) 0%, transparent 70%)' }} />
+                      <div className="absolute bottom-0 right-0 pointer-events-none z-10 overflow-hidden w-48 h-48 origin-bottom-right">
+                        <div className="absolute bottom-0 right-0 w-[15px] h-[250px] bg-gradient-to-t from-amber-400/35 via-amber-500/8 to-transparent blur-[3px] origin-bottom-right -rotate-[18deg]" />
+                        <div className="absolute bottom-0 right-0 w-[22px] h-[220px] bg-gradient-to-t from-amber-300/40 via-amber-500/10 to-transparent blur-[4px] origin-bottom-right -rotate-[33deg]" />
+                        <div className="absolute bottom-0 right-0 w-[12px] h-[260px] bg-gradient-to-t from-amber-400/30 via-amber-500/6 to-transparent blur-[2px] origin-bottom-right -rotate-[48deg]" />
+                      </div>
+                      <div className="absolute bottom-1 right-1 w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_12px_6px_rgba(251,191,36,0.95),_0_0_24px_12px_rgba(245,158,11,0.6)] z-20 animate-pulse" />
+
+                      {/* Floating Particles */}
+                      <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
+                        <div className="absolute top-[25%] left-[20%] w-[2px] h-[2px] bg-amber-200 rounded-full animate-ping [animation-duration:3s]" />
+                        <div className="absolute top-[40%] left-[15%] w-[1.5px] h-[1.5px] bg-amber-300 rounded-full animate-pulse [animation-duration:2.5s]" />
+                        <div className="absolute top-[15%] left-[35%] w-[2px] h-[2px] bg-amber-100 rounded-full animate-pulse [animation-duration:4s]" />
+                        <div className="absolute top-[30%] right-[20%] w-[2px] h-[2px] bg-amber-200 rounded-full animate-ping [animation-duration:2.5s]" />
+                        <div className="absolute top-[50%] right-[15%] w-[1.5px] h-[1.5px] bg-amber-300 rounded-full animate-pulse [animation-duration:3.5s]" />
+                        <div className="absolute top-[20%] right-[40%] w-[2px] h-[2px] bg-amber-100 rounded-full animate-pulse [animation-duration:2s]" />
+                      </div>
+
+                      {/* 3D Inner Plate Bezel */}
+                      <div className="absolute inset-[4px] bg-[#040916]/95 rounded-xl pointer-events-none z-0 border border-amber-950/40" />
+
+                      {/* Inner Contents */}
+                      <div className="relative z-10 py-1.5 px-4 space-y-1 flex flex-col justify-center">
+                        <div className="inline-flex items-center justify-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-950/40 border border-amber-500/30 text-[7.5px] font-black uppercase text-amber-300 tracking-wider mb-0.5 shadow-md font-mono self-center">
+                          <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-ping shrink-0" />
+                          <span>DIVISIONAL PERSONNEL BRANCH HEAD</span>
+                        </div>
+
+                        {/* Highly Professional 3D Golden text styling */}
+                        <h3 className="text-xs sm:text-sm md:text-base lg:text-lg font-black tracking-widest uppercase select-none bg-gradient-to-b from-amber-100 via-yellow-300 to-amber-500 bg-clip-text text-transparent drop-shadow-[0_2px_8px_rgba(245,158,11,0.4)] whitespace-nowrap">
+                          {headOfficerInfo.name}
+                        </h3>
+
+                        <p className="text-[8.5px] md:text-[9.5px] font-black text-emerald-400 tracking-wider uppercase px-2.5 py-0.5 inline-block bg-emerald-950/60 border border-emerald-500/25 rounded-md shadow-md font-mono self-center">
+                          {headOfficerInfo.designation}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RIGHT CHECKLIST PANEL (Green Theme - Excel-like Sr. DPO Key Works List) */}
+                  <div 
+                    className="bg-gradient-to-b from-[#081813] via-[#030b08] to-[#000402] rounded-2xl p-3 border border-emerald-500/20 shadow-[0_15px_40px_rgba(16,185,129,0.08)] flex flex-col justify-between relative overflow-hidden"
+                    style={{
+                      minHeight: `${rightMinHeight}px`
+                    }}
+                  >
+                    {/* Tiny neon green header light */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-[1px] bg-emerald-400 shadow-[0_0_8px_#10b981]" />
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center pb-1.5 border-b border-emerald-950/40">
+                        <span 
+                          style={{ fontSize: `${srDpoTitleSize || 9}px` }}
+                          className="font-black tracking-wider text-emerald-400 uppercase font-mono"
+                        >
+                          {srDpoTitleText || "📋 SR. DPO KEY WORKS & FUNCTIONS"}
+                        </span>
+                        {panelStatus === "saving" && (
+                          <span className="text-[8px] text-emerald-500/80 animate-pulse font-bold font-mono">saving...</span>
+                        )}
+                        {panelStatus === "saved" && (
+                          <span className="text-[8px] text-emerald-400 font-bold font-mono">saved ✓</span>
+                        )}
+                      </div>
+
+                      {/* Excel-style Grid Table */}
+                      <div className="border border-emerald-500/20 rounded-lg overflow-hidden bg-[#020805]/90 shadow-inner">
+                        <table className="w-full border-collapse text-left">
+                          <thead>
+                            <tr className="bg-emerald-950/40 border-b border-emerald-500/25">
+                              <th className="w-1/6 border-r border-emerald-500/20 px-1 py-1 text-[8px] font-black tracking-wider text-emerald-300 font-mono text-center">
+                                S.NO
+                              </th>
+                              <th className="w-5/6 px-2 py-1 text-[8px] font-black tracking-wider text-emerald-300 font-mono text-center">
+                                KEY WORK / RESPONSIBILITY
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rightGridData.map((row, rIdx) => (
+                              <tr key={rIdx} className="border-b border-emerald-500/15 last:border-b-0">
+                                {row.map((cell, cIdx) => (
+                                  <td 
+                                    key={cIdx} 
+                                    className={`px-1 py-1 text-[9.5px] font-bold text-emerald-200/90 ${
+                                      cIdx === 0 ? "border-r border-emerald-500/20 text-center" : "text-left pl-2"
+                                    }`}
+                                  >
+                                    <span className="block truncate py-0.5" title={cell}>
+                                      {cell || "-"}
+                                    </span>
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                            {/* Persistent Note row inside the Sr. DPO Works checklist table */}
+                            {srDpoNote && (
+                              <tr className="bg-emerald-950/20 border-t border-emerald-500/25">
+                                <td className="border-r border-emerald-500/20 px-1 py-1.5 text-[8px] font-black text-emerald-300 text-center uppercase font-mono">
+                                  NOTE
+                                </td>
+                                <td className="px-2 py-1.5 text-[9px] text-emerald-200 font-bold text-left italic">
+                                  {srDpoNote}
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="text-[8px] text-emerald-500/40 font-mono mt-1 text-center select-none uppercase">
+                      🔒 Read-only Official Assignments
+                    </div>
+                  </div>
+
                 </div>
-              )}
+              </div>
 
               {/* FLOW CONNECTION PIPELINE - Desktop graphical organogram tree line */}
               <div className="hidden lg:block relative h-16 w-full z-10 -mt-2">

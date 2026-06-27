@@ -252,7 +252,7 @@ export function PromptIssuedSFModal() {
                 </span>
               ) : (
                 <span>
-                  Would you like to register this printed <strong>{activePrompt.sfType}</strong> form into the official <strong className="text-amber-400 font-black">DAR Position database of the Personnel Branch</strong>?
+                  Would you like to register this printed <strong>{activePrompt.sfType}</strong> form into the <strong className="text-amber-400 font-black">DAR Position database of the Personnel Branch</strong>?
                 </span>
               )}
             </div>

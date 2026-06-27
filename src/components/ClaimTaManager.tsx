@@ -1,16 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { triggerPrint } from '../utils/printHelper';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, addDoc, getDocs, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs, onSnapshot, query, orderBy, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
-import { Printer, FileText, RotateCcw, Plus, Trash2, ShieldCheck, CheckSquare, Coins, Info, Calendar, Edit3, Eye, Clock, ChevronsLeftRight, ChevronsRightLeft } from 'lucide-react';
+import { Printer, FileText, RotateCcw, Plus, PlusCircle, Trash2, ShieldCheck, CheckSquare, Coins, Info, Calendar, Edit3, Eye, Clock, ChevronsLeftRight, ChevronsRightLeft } from 'lucide-react';
 import { PrintCustomizer, PrintSettings, RenderPrintOverlayWatermark, RenderPrintOverlaySeal, RenderPrintOverlaySignature } from './PrintCustomizer';
 import { INDIAN_STATIONS, findStation, getStationDistance, registerStation } from '../utils/stationHelper';
 
 interface JourneyLeg {
   id: string;
+  tripId?: string;
   stationFrom: string;
   stationTo: string;
   mode: 'Train' | 'Road' | 'Air';
@@ -34,8 +35,21 @@ interface JourneyLeg {
   trainRouteVia?: string;
 }
 
+export interface TripStay {
+  tripId: string;
+  startWithStay: boolean;
+  stayType?: 'before' | 'after';
+  initialStayStation: string;
+  initialStayStartDate: string;
+  initialStayStartTime: string;
+  initialStayEndDate: string;
+  initialStayEndTime: string;
+  initialStayPurpose: string;
+}
+
 interface ContingentItem {
   id: string;
+  tripId?: string;
   amount: number;
   remarks: string;
 }
@@ -73,6 +87,7 @@ interface TACase {
   initialStayEndDate?: string;
   initialStayEndTime?: string;
   initialStayPurpose?: string;
+  tripStays?: TripStay[];
 }
 
 const MONTHS_LIST = [
@@ -258,6 +273,199 @@ const RAILWAY_DESIGNATIONS = [
   "Divisional Railway Manager (DRM)"
 ];
 
+interface TimePickerInputProps {
+  id: string;
+  value: string;
+  onChange: (val: string) => void;
+  required?: boolean;
+  className?: string;
+  placeholder?: string;
+}
+
+const parse24To12 = (time24: string) => {
+  if (!time24) return { hour: "12", minute: "00", ampm: "AM", display: "" };
+  const parts = time24.split(":");
+  if (parts.length !== 2) return { hour: "12", minute: "00", ampm: "AM", display: "" };
+  let h = parseInt(parts[0], 10);
+  let m = parseInt(parts[1], 10);
+  if (isNaN(h) || isNaN(m)) return { hour: "12", minute: "00", ampm: "AM", display: "" };
+  
+  const ampm = h >= 12 ? "PM" : "AM";
+  let h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  
+  const h12Str = h12.toString().padStart(2, "0");
+  const m12Str = m.toString().padStart(2, "0");
+  return {
+    hour: h12Str,
+    minute: m12Str,
+    ampm,
+    display: `${h12Str}:${m12Str} ${ampm}`
+  };
+};
+
+const convert12To24 = (h12: string, m12: string, ampm: string) => {
+  let h = parseInt(h12, 10) || 12;
+  let m = parseInt(m12, 10) || 0;
+  if (ampm === "PM" && h < 12) h += 12;
+  if (ampm === "AM" && h === 12) h = 0;
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+};
+
+function TimePickerInput({ id, value, onChange, required, className, placeholder = "Select Time / समय चुनें" }: TimePickerInputProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const { hour, minute, ampm, display } = parse24To12(value);
+
+  const selectHour = (h: string) => {
+    const newVal = convert12To24(h, minute, ampm);
+    onChange(newVal);
+  };
+
+  const selectMinute = (m: string) => {
+    const newVal = convert12To24(hour, m, ampm);
+    onChange(newVal);
+  };
+
+  const toggleAmPm = (newAmpm: string) => {
+    const newVal = convert12To24(hour, minute, newAmpm);
+    onChange(newVal);
+  };
+
+  const hoursList = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+  const minutesList = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+
+  return (
+    <div ref={containerRef} className="relative w-full select-none">
+      <div className="relative">
+        <input
+          id={id}
+          type="text"
+          readOnly
+          required={required}
+          value={display}
+          placeholder={placeholder}
+          onClick={() => setIsOpen(!isOpen)}
+          className={className || "w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg pl-3 pr-8 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm cursor-pointer"}
+        />
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 focus:outline-none"
+        >
+          <Clock className="w-4 h-4" />
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-xl z-50 p-3 text-[12px] animate-fade-in">
+          <div className="grid grid-cols-3 gap-1.5">
+            {/* Hours Column */}
+            <div>
+              <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 text-center">Hour</span>
+              <div className="h-32 overflow-y-auto border border-slate-150 rounded bg-slate-50 scrollbar-thin">
+                {hoursList.map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => selectHour(h)}
+                    className={`w-full text-center py-1 text-[11px] transition-colors block ${
+                      hour === h
+                        ? "bg-indigo-600 text-white font-bold"
+                        : "text-slate-700 hover:bg-indigo-50"
+                    }`}
+                  >
+                    {h}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Minutes Column */}
+            <div>
+              <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 text-center">Min</span>
+              <div className="h-32 overflow-y-auto border border-slate-150 rounded bg-slate-50 scrollbar-thin">
+                {minutesList.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => selectMinute(m)}
+                    className={`w-full text-center py-1 text-[11px] transition-colors block ${
+                      minute === m
+                        ? "bg-indigo-600 text-white font-bold"
+                        : "text-slate-700 hover:bg-indigo-50"
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* AM/PM Column */}
+            <div className="flex flex-col justify-center space-y-2">
+              <button
+                type="button"
+                onClick={() => toggleAmPm("AM")}
+                className={`w-full py-2 rounded text-center font-bold border transition-colors ${
+                  ampm === "AM"
+                    ? "bg-indigo-600 border-indigo-600 text-white"
+                    : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                AM
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleAmPm("PM")}
+                className={`w-full py-2 rounded text-center font-bold border transition-colors ${
+                  ampm === "PM"
+                    ? "bg-indigo-600 border-indigo-600 text-white"
+                    : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                PM
+              </button>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                onChange("");
+                setIsOpen(false);
+              }}
+              className="px-2 py-1 text-red-650 hover:text-red-750 rounded text-[11px] font-semibold transition-colors"
+            >
+              Clear / साफ़ करें
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[11px] font-semibold transition-colors shadow-sm"
+            >
+              OK / ठीक है
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export interface ClaimTaManagerProps {
   showSidebars?: boolean;
   onToggleSidebars?: (show: boolean) => void;
@@ -267,6 +475,8 @@ export interface ClaimTaManagerProps {
 export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboard }: ClaimTaManagerProps) {
   const navigate = useNavigate();
   const storeConfig = useStore((state) => state.config);
+  const isAdmin = useStore((state) => state.isAdmin);
+  const [editingClaimId, setEditingClaimId] = useState<string | null>(null);
   const [employeeName, setEmployeeName] = useState("");
   const [designation, setDesignation] = useState("");
   const [empNo, setEmpNo] = useState("");
@@ -279,7 +489,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
   const [calculationMode, setCalculationMode] = useState<'calendar_day' | 'continuous'>('calendar_day');
   const [isLandscape, setIsLandscape] = useState(true);
   const [hasDeclared, setHasDeclared] = useState(false);
-  const [globalPurpose, setGlobalPurpose] = useState("Official Duty");
+  const [globalPurpose, setGlobalPurpose] = useState("Duty");
   
   // States for starting the tour with a stationary stay instead of travel
   const [startWithStay, setStartWithStay] = useState(false);
@@ -289,6 +499,74 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
   const [initialStayEndDate, setInitialStayEndDate] = useState("");
   const [initialStayEndTime, setInitialStayEndTime] = useState("");
   const [initialStayPurpose, setInitialStayPurpose] = useState("");
+  
+  const [tripStays, setTripStays] = useState<TripStay[]>([]);
+
+  const updateTripStayField = (tripId: string, field: keyof TripStay, value: any) => {
+    setTripStays(prev => {
+      const existing = prev.find(ts => ts.tripId === tripId);
+      if (existing) {
+        return prev.map(ts => ts.tripId === tripId ? { ...ts, [field]: value } : ts);
+      } else {
+        const newStay: TripStay = {
+          tripId,
+          startWithStay: false,
+          initialStayStation: "",
+          initialStayStartDate: "",
+          initialStayStartTime: "",
+          initialStayEndDate: "",
+          initialStayEndTime: "",
+          initialStayPurpose: "",
+          [field]: value
+        };
+        return [...prev, newStay];
+      }
+    });
+  };
+
+  const updateTripStayFields = (tripId: string, updates: Partial<TripStay>) => {
+    setTripStays(prev => {
+      const existing = prev.find(ts => ts.tripId === tripId);
+      if (existing) {
+        return prev.map(ts => ts.tripId === tripId ? { ...ts, ...updates } : ts);
+      } else {
+        const newStay: TripStay = {
+          tripId,
+          startWithStay: false,
+          initialStayStation: "",
+          initialStayStartDate: "",
+          initialStayStartTime: "",
+          initialStayEndDate: "",
+          initialStayEndTime: "",
+          initialStayPurpose: "",
+          ...updates
+        };
+        return [...prev, newStay];
+      }
+    });
+  };
+
+  const addContingentItemToTrip = (tripId: string) => {
+    const newItem: ContingentItem = {
+      id: `cont-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      tripId: tripId,
+      amount: 0,
+      remarks: ""
+    };
+    setContingentItems(prev => [...prev, newItem]);
+  };
+
+  const getTripInitialStayHrs = (ts: TripStay) => {
+    if (ts.startWithStay && ts.initialStayStation && ts.initialStayStartDate && ts.initialStayStartTime && ts.initialStayEndDate && ts.initialStayEndTime) {
+      const sTime = new Date(`${ts.initialStayStartDate}T${ts.initialStayStartTime}`);
+      const eTime = new Date(`${ts.initialStayEndDate}T${ts.initialStayEndTime}`);
+      const stayDiffMs = eTime.getTime() - sTime.getTime();
+      if (!isNaN(stayDiffMs) && stayDiffMs > 0) {
+        return stayDiffMs / (1000 * 60 * 60);
+      }
+    }
+    return 0;
+  };
   
   // Initialize with departure and return leg structures (empty and required, no mock values)
   const [journeyLegs, setJourneyLegs] = useState<JourneyLeg[]>([
@@ -359,7 +637,8 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     sigImageData: null,
     sigScale: 100,
     sigXOffset: 0,
-    sigYOffset: 0
+    sigYOffset: 0,
+    tableFontSizeScale: 100
   });
 
   const [viewMode, setViewMode] = useState<"editor" | "preview">("editor");
@@ -539,6 +818,20 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
         } else {
           toast.success(`Train Verified: ${data.train.trainName}`);
         }
+
+        // Persistent save to Firebase "custom_trains"
+        try {
+          const tNo = data.train.trainNo || cleanStr;
+          await setDoc(doc(db, "custom_trains", tNo), {
+            trainNo: tNo,
+            trainName: data.train.trainName,
+            routeDistanceKm: Number(data.train.routeDistanceKm) || 0,
+            routeVia: data.train.routeVia || ""
+          });
+          console.log(`Saved online train details to Firestore custom_trains for ${tNo}`);
+        } catch (fbErr) {
+          console.warn("Failed to persist online train query in Firestore:", fbErr);
+        }
       } else {
         toast.error("Train not found online. You can still input manually.");
       }
@@ -676,272 +969,393 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     }
   }
 
-  // 1. Calculate travel hours and halt hours for each leg raw (including initial stay for Leg 1 if active)
-  const rawLegs = journeyLegs.map((leg, index) => {
-    let travelHrs = getLegHours(leg);
-    if (index === 0 && startWithStay) {
-      travelHrs += initialStayHrs;
-    }
+  const normalizedJourneyLegs = useMemo(() => {
+    if (journeyLegs.length === 0) return [];
+    const hqStation = journeyLegs[0]?.stationFrom || "";
+    let currentTripNo = 1;
+    let currentTripId = `trip-1`;
     
-    let haltHrs = 0;
-    const nextLeg = journeyLegs[index + 1];
-    if (nextLeg && leg.arrDate && leg.arrTime && nextLeg.depDate && nextLeg.depTime) {
-      const start = new Date(`${leg.arrDate}T${leg.arrTime}`);
-      const end = new Date(`${nextLeg.depDate}T${nextLeg.depTime}`);
-      const diffMs = end.getTime() - start.getTime();
-      if (!isNaN(diffMs) && diffMs > 0) {
-        haltHrs = diffMs / (1000 * 60 * 60);
+    return journeyLegs.map((leg, index) => {
+      if (leg.tripId) {
+        return leg;
       }
-    }
-    const totalLegHrs = travelHrs + haltHrs;
-    return {
-      ...leg,
-      purpose: globalPurpose || leg.purpose || "Official Duty",
-      travelHours: travelHrs,
-      haltHours: haltHrs,
-      hours: totalLegHrs
-    };
-  });
-
-  // 2. Compute total continuous absence hours
-  const totalAbsenceHrs = rawLegs.reduce((sum, current) => sum + current.hours, 0);
-
-  // 3. Compute continuous daily allowance percentage for the entire journey
-  const getContinuousDaPct = (hours: number) => {
-    if (hours <= 0) return 0;
-    
-    // Check if any training flat rules apply across legs
-    const isFreeTraining = journeyLegs.some(l => l.isFreeMessingTraining);
-    const isBreakdown = journeyLegs.some(l => l.isBreakdownDuty);
-    
-    if (isFreeTraining) {
-      return 0.20; // 20% flat for training with free messing
-    }
-    if (isBreakdown) {
-      return 1.00; // 100% flat for breakdown duty
-    }
-
-    // Standard Railway TA formula: 12h periods at 100% + remaining remainder (<6h is 30%, >=6h is 70%)
-    const full12s = Math.floor(hours / 12);
-    const remainder = hours % 12;
-    let remainderPct = 0;
-    if (remainder > 0) {
-      if (remainder < 6) {
-        remainderPct = 0.30;
-      } else {
-        remainderPct = 0.70;
+      const newLeg = { ...leg, tripId: currentTripId };
+      const isReturnToHQ = leg.stationTo && hqStation && leg.stationTo.trim().toUpperCase() === hqStation.trim().toUpperCase();
+      if (isReturnToHQ) {
+        currentTripNo++;
+        currentTripId = `trip-${currentTripNo}-${Date.now()}`;
       }
-    }
-    return full12s + remainderPct;
-  };
+      return newLeg;
+    });
+  }, [journeyLegs]);
 
-  // Helper to split continuous tour by calendar day (midnight to midnight)
-  const getCalendarDaysBreakdown = () => {
-    const list: { date: string; hours: number; pct: number; detail: string; amount: number }[] = [];
-    if (rawLegs.length === 0) return list;
-    
-    const firstLeg = rawLegs[0];
-    const lastLeg = rawLegs[rawLegs.length - 1];
-    if (!firstLeg?.depDate || !firstLeg?.depTime || !lastLeg?.arrDate || !lastLeg?.arrTime) return list;
-    
-    try {
-      let startDt = new Date(`${firstLeg.depDate}T${firstLeg.depTime}`);
-      if (startWithStay && initialStayStation && initialStayStartDate && initialStayStartTime) {
-        const stayStartDt = new Date(`${initialStayStartDate}T${initialStayStartTime}`);
-        if (!isNaN(stayStartDt.getTime()) && stayStartDt < startDt) {
-          startDt = stayStartDt;
+  const tripsGrouped = useMemo(() => {
+    const groups: { tripId: string; legs: JourneyLeg[] }[] = [];
+    normalizedJourneyLegs.forEach(leg => {
+      const tId = leg.tripId || "trip-1";
+      let group = groups.find(g => g.tripId === tId);
+      if (!group) {
+        group = { tripId: tId, legs: [] };
+        groups.push(group);
+      }
+      group.legs.push(leg);
+    });
+    return groups;
+  }, [normalizedJourneyLegs]);
+
+  const calculatedTrips = useMemo(() => {
+    let accumulatedProcessedLegs: any[] = [];
+    let accumulatedCalendarDaysBreakdown: any[] = [];
+    let sumTotalAbsenceHrs = 0;
+    let sumTotalContinuousDaAmount = 0;
+
+    tripsGrouped.forEach((trip, tripIndex) => {
+      const tripLegs = trip.legs;
+      if (tripLegs.length === 0) return;
+
+      const tripStay = tripStays.find(ts => ts.tripId === trip.tripId);
+      const tripInitialStayHrs = tripStay ? getTripInitialStayHrs(tripStay) : 0;
+
+      const tripRawLegs = tripLegs.map((leg, index) => {
+        let travelHrs = getLegHours(leg);
+        if (index === 0 && tripStay?.startWithStay && (!tripStay.stayType || tripStay.stayType === 'before')) {
+          travelHrs += tripInitialStayHrs;
         }
-      }
-      const endDt = new Date(`${lastLeg.arrDate}T${lastLeg.arrTime}`);
-      
-      if (isNaN(startDt.getTime()) || isNaN(endDt.getTime()) || endDt < startDt) {
-        return list;
-      }
-      
-      const startMs = startDt.getTime();
-      const endMs = endDt.getTime();
-      
-      // Get chronological list of YYYY-MM-DD strings from start to end
-      let current = new Date(startDt.getFullYear(), startDt.getMonth(), startDt.getDate());
-      const endDay = new Date(endDt.getFullYear(), endDt.getMonth(), endDt.getDate());
-      
-      const isFreeTraining = journeyLegs.some(l => l.isFreeMessingTraining);
-      const isBreakdown = journeyLegs.some(l => l.isBreakdownDuty);
-      const isTAEnabled = journeyLegs.some(l => l.isTerritorialArmy);
-
-      let safetyCounter = 0;
-      while (current <= endDay && safetyCounter < 100) {
-        safetyCounter++;
-        const yyyy = current.getFullYear();
-        const mm = String(current.getMonth() + 1).padStart(2, '0');
-        const dd = String(current.getDate()).padStart(2, '0');
-        const dateStr = `${yyyy}-${mm}-${dd}`;
-        
-        // Define day boundaries in local time
-        const dayStartMs = new Date(`${dateStr}T00:00:00`).getTime();
-        const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
-        
-        const overlapStartMs = Math.max(startMs, dayStartMs);
-        const overlapEndMs = Math.min(endMs, dayEndMs);
-        
-        let hoursInDay = 0;
-        if (overlapEndMs > overlapStartMs) {
-          hoursInDay = (overlapEndMs - overlapStartMs) / (1000 * 60 * 60);
+        if (index === tripLegs.length - 1 && tripStay?.startWithStay && tripStay.stayType === 'after') {
+          travelHrs += tripInitialStayHrs;
         }
         
-        let pct = 0;
-        let detail = "";
-        
-        if (hoursInDay > 0) {
-          if (isFreeTraining) {
-            pct = 0.20;
-            detail = "Flat 20% Training Rate";
-          } else if (isBreakdown) {
-            pct = 1.00;
-            detail = "Flat 100% Breakdown Rate";
-          } else {
-            if (hoursInDay < 6) {
-              pct = 0.30;
-              detail = `<6 Hrs absence (30%)`;
-            } else if (hoursInDay <= 12) {
-              pct = 0.70;
-              detail = `6 to 12 Hrs absence (70%)`;
-            } else {
-              pct = 1.00;
-              detail = `>12 Hrs absence (100%)`;
+        let haltHrs = 0;
+        const nextLeg = tripLegs[index + 1];
+        const hqStation = tripLegs[0]?.stationFrom || "";
+        const isReturnToHQ = leg.stationTo && leg.stationTo.trim().toUpperCase() === hqStation.trim().toUpperCase();
+        if (nextLeg && !isReturnToHQ && leg.arrDate && leg.arrTime && nextLeg.depDate && nextLeg.depTime) {
+          const start = new Date(`${leg.arrDate}T${leg.arrTime}`);
+          const end = new Date(`${nextLeg.depDate}T${nextLeg.depTime}`);
+          const diffMs = end.getTime() - start.getTime();
+          if (!isNaN(diffMs) && diffMs > 0) {
+            haltHrs = diffMs / (1000 * 60 * 60);
+          }
+        }
+
+        let legGapHrs = 0;
+        if (tripStay?.startWithStay) {
+          if (index === 0 && (tripStay.stayType === 'before' || !tripStay.stayType)) {
+            if (tripStay.initialStayEndDate && tripStay.initialStayEndTime && leg.depDate && leg.depTime) {
+              const stayEnd = new Date(`${tripStay.initialStayEndDate}T${tripStay.initialStayEndTime}`);
+              const firstLegDep = new Date(`${leg.depDate}T${leg.depTime}`);
+              const diffMs = firstLegDep.getTime() - stayEnd.getTime();
+              if (!isNaN(diffMs) && diffMs > 0) {
+                legGapHrs = diffMs / (1000 * 60 * 60);
+              }
             }
           }
-        } else {
-          pct = 0;
-          detail = "No tour active";
-        }
-        
-        let dayDaAmount = Math.round(totalDailyRate * pct);
-        if (isTAEnabled) {
-          dayDaAmount = dayDaAmount * 2;
-        }
-
-        list.push({
-          date: dateStr,
-          hours: hoursInDay,
-          pct: pct,
-          detail: detail,
-          amount: dayDaAmount
-        });
-        
-        current.setDate(current.getDate() + 1);
-      }
-    } catch (e) {
-      console.error("Error computing calendar breakdown:", e);
-    }
-    return list;
-  };
-
-  const calendarDaysBreakdown = getCalendarDaysBreakdown();
-
-  const continuousDaPct = (calculationMode === 'calendar_day' && calendarDaysBreakdown.length > 0)
-    ? calendarDaysBreakdown.reduce((sum, current) => sum + current.pct, 0)
-    : getContinuousDaPct(totalAbsenceHrs);
-  
-  // Check if at least one leg went beyond 8 KM or is breakdown duty to make the entire journey eligible
-  const isEntireTourEligible = journeyLegs.some(leg => (leg.beyond8Km !== false) || leg.isBreakdownDuty);
-  
-  // Base continuous DA amount
-  let baseContinuousDaAmount = isEntireTourEligible ? (totalDailyRate * continuousDaPct) : 0;
-  
-  // Check if Territorial Army double rate is active on any leg
-  const isTAEnabled = journeyLegs.some(leg => leg.isTerritorialArmy);
-  if (isTAEnabled) {
-    baseContinuousDaAmount = baseContinuousDaAmount * 2.0;
-  }
-  
-  const totalContinuousDaAmount = Math.round(baseContinuousDaAmount);
-
-  // Helper to split a leg's continuous window by calendar day
-  const getLegCalendarBreakdown = (leg: any, index: number) => {
-    const list: { date: string; hours: number; dayTotalHours: number; dayPct: number; amount: number }[] = [];
-    if (!leg.depDate || !leg.depTime || !leg.arrDate || !leg.arrTime) return list;
-    
-    try {
-      let legStartDt = new Date(`${leg.depDate}T${leg.depTime}`);
-      if (index === 0 && startWithStay && initialStayStation && initialStayStartDate && initialStayStartTime) {
-        const stayStartDt = new Date(`${initialStayStartDate}T${initialStayStartTime}`);
-        if (!isNaN(stayStartDt.getTime()) && stayStartDt < legStartDt) {
-          legStartDt = stayStartDt;
-        }
-      }
-      let legEndDt: Date;
-      const nextLeg = rawLegs[index + 1];
-      if (nextLeg?.depDate && nextLeg?.depTime) {
-        legEndDt = new Date(`${nextLeg.depDate}T${nextLeg.depTime}`);
-      } else {
-        legEndDt = new Date(`${leg.arrDate}T${leg.arrTime}`);
-      }
-      
-      if (isNaN(legStartDt.getTime()) || isNaN(legEndDt.getTime()) || legEndDt < legStartDt) {
-        return list;
-      }
-      
-      // Let's loop over all dates in calendarDaysBreakdown that overlap with this leg
-      calendarDaysBreakdown.forEach(day => {
-        const dayStartMs = new Date(`${day.date}T00:00:00`).getTime();
-        const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
-        
-        const overlapStartMs = Math.max(legStartDt.getTime(), dayStartMs);
-        const overlapEndMs = Math.min(legEndDt.getTime(), dayEndMs);
-        
-        if (overlapEndMs > overlapStartMs) {
-          const legHoursInDay = (overlapEndMs - overlapStartMs) / (1000 * 60 * 60);
-          if (legHoursInDay > 0 && day.hours > 0) {
-            // Share of this day's DA amount
-            const fraction = legHoursInDay / day.hours;
-            let legDayAmt = Math.round(day.amount * fraction);
-            list.push({
-              date: day.date,
-              hours: legHoursInDay,
-              dayTotalHours: day.hours,
-              dayPct: day.pct,
-              amount: legDayAmt
-            });
+          if (index === tripLegs.length - 1 && tripStay.stayType === 'after') {
+            if (leg.arrDate && leg.arrTime && tripStay.initialStayStartDate && tripStay.initialStayStartTime) {
+              const lastLegArr = new Date(`${leg.arrDate}T${leg.arrTime}`);
+              const stayStart = new Date(`${tripStay.initialStayStartDate}T${tripStay.initialStayStartTime}`);
+              const diffMs = stayStart.getTime() - lastLegArr.getTime();
+              if (!isNaN(diffMs) && diffMs > 0) {
+                legGapHrs = diffMs / (1000 * 60 * 60);
+              }
+            }
           }
         }
+        haltHrs += legGapHrs;
+
+        const totalLegHrs = travelHrs + haltHrs;
+        return {
+          ...leg,
+          purpose: globalPurpose || leg.purpose || "Duty",
+          travelHours: travelHrs,
+          haltHours: haltHrs,
+          hours: totalLegHrs,
+          gapHours: legGapHrs
+        };
       });
-    } catch (e) {
-      console.error("Error computing leg calendar breakdown:", e);
-    }
-    return list;
-  };
 
-  // 4. Distribute the total continuous DA amount to each leg based on its contribution to totalAbsenceHrs
-  const processedLegs = rawLegs.map((leg, index) => {
-    const legCalendarBreakdown = getLegCalendarBreakdown(leg, index);
+      const tripAbsenceHrs = tripRawLegs.reduce((sum, current) => sum + current.hours, 0);
+      sumTotalAbsenceHrs += tripAbsenceHrs;
 
-    const legDaAmount = calculationMode === 'calendar_day'
-      ? legCalendarBreakdown.reduce((sum, item) => sum + item.amount, 0)
-      : (totalAbsenceHrs > 0 ? Math.round(totalContinuousDaAmount * (leg.hours / totalAbsenceHrs)) : 0);
+      const getContinuousDaPctLocal = (hours: number) => {
+        if (hours <= 0) return 0;
+        const isFreeTraining = tripLegs.some(l => l.isFreeMessingTraining);
+        const isBreakdown = tripLegs.some(l => l.isBreakdownDuty);
+        
+        if (isFreeTraining) return 0.20;
+        if (isBreakdown) return 1.00;
 
-    let mileageAmt = 0;
-    if (leg.mode === 'Road' && leg.roadDistanceKm && leg.roadDistanceKm > 0) {
-      const kmRate = leg.roadType === 'auto_scooter' ? 12 : 24;
-      mileageAmt = leg.roadDistanceKm * kmRate;
-    }
+        const full12s = Math.floor(hours / 12);
+        const remainder = hours % 12;
+        let remainderPct = 0;
+        if (remainder > 0) {
+          if (remainder < 6) {
+            remainderPct = 0.30;
+          } else {
+            remainderPct = 0.70;
+          }
+        }
+        return full12s + remainderPct;
+      };
 
-    const haltDaContributed = leg.hours > 0
-      ? Math.round(legDaAmount * (leg.haltHours / leg.hours))
-      : 0;
+      const getTripCalendarDaysBreakdown = () => {
+        const list: { tripId?: string; date: string; hours: number; pct: number; detail: string; amount: number }[] = [];
+        const firstLeg = tripRawLegs[0];
+        const lastLeg = tripRawLegs[tripRawLegs.length - 1];
+        if (!firstLeg?.depDate || !firstLeg?.depTime || !lastLeg?.arrDate || !lastLeg?.arrTime) return list;
+        
+        try {
+          let startDt = new Date(`${firstLeg.depDate}T${firstLeg.depTime}`);
+          if (tripStay?.startWithStay && (!tripStay.stayType || tripStay.stayType === 'before') && tripStay.initialStayStation && tripStay.initialStayStartDate && tripStay.initialStayStartTime) {
+            const stayStartDt = new Date(`${tripStay.initialStayStartDate}T${tripStay.initialStayStartTime}`);
+            if (!isNaN(stayStartDt.getTime()) && stayStartDt < startDt) {
+              startDt = stayStartDt;
+            }
+          }
+          let endDt = new Date(`${lastLeg.arrDate}T${lastLeg.arrTime}`);
+          if (tripStay?.startWithStay && tripStay.stayType === 'after' && tripStay.initialStayEndDate && tripStay.initialStayEndTime) {
+            const stayEndDt = new Date(`${tripStay.initialStayEndDate}T${tripStay.initialStayEndTime}`);
+            if (!isNaN(stayEndDt.getTime()) && stayEndDt > endDt) {
+              endDt = stayEndDt;
+            }
+          }
+          
+          if (isNaN(startDt.getTime()) || isNaN(endDt.getTime()) || endDt < startDt) {
+            return list;
+          }
+          
+          const hqStation = tripRawLegs[0]?.stationFrom || "";
+          const tourIntervals = tripRawLegs.map((leg, index) => {
+            let legS = new Date(`${leg.depDate}T${leg.depTime}`);
+            if (index === 0 && tripStay?.startWithStay && (!tripStay.stayType || tripStay.stayType === 'before') && tripStay.initialStayStation && tripStay.initialStayStartDate && tripStay.initialStayStartTime) {
+              const stayStartDt = new Date(`${tripStay.initialStayStartDate}T${tripStay.initialStayStartTime}`);
+              if (!isNaN(stayStartDt.getTime()) && stayStartDt < legS) {
+                legS = stayStartDt;
+              }
+            }
+            let legE: Date;
+            const nextLeg = tripRawLegs[index + 1];
+            if (leg.stationTo && leg.stationTo.trim().toUpperCase() === hqStation.trim().toUpperCase()) {
+              legE = new Date(`${leg.arrDate}T${leg.arrTime}`);
+            } else if (nextLeg?.depDate && nextLeg?.depTime) {
+              legE = new Date(`${nextLeg.depDate}T${nextLeg.depTime}`);
+            } else {
+              legE = new Date(`${leg.arrDate}T${leg.arrTime}`);
+            }
+            if (index === tripRawLegs.length - 1 && tripStay?.startWithStay && tripStay.stayType === 'after' && tripStay.initialStayEndDate && tripStay.initialStayEndTime) {
+              const stayEndDt = new Date(`${tripStay.initialStayEndDate}T${tripStay.initialStayEndTime}`);
+              if (!isNaN(stayEndDt.getTime()) && stayEndDt > legE) {
+                legE = stayEndDt;
+              }
+            }
+            return { start: legS, end: legE };
+          });
+
+          let current = new Date(startDt.getFullYear(), startDt.getMonth(), startDt.getDate());
+          const endDay = new Date(endDt.getFullYear(), endDt.getMonth(), endDt.getDate());
+          
+          const isFreeTraining = tripLegs.some(l => l.isFreeMessingTraining);
+          const isBreakdown = tripLegs.some(l => l.isBreakdownDuty);
+          const isTAEnabled = tripLegs.some(l => l.isTerritorialArmy);
+
+          let safetyCounter = 0;
+          while (current <= endDay && safetyCounter < 100) {
+            safetyCounter++;
+            const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+            
+            const dayStartMs = new Date(`${dateStr}T00:00:00`).getTime();
+            const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
+            
+            let hoursInDay = 0;
+            tourIntervals.forEach(interval => {
+              if (!isNaN(interval.start.getTime()) && !isNaN(interval.end.getTime())) {
+                const overlapStartMs = Math.max(interval.start.getTime(), dayStartMs);
+                const overlapEndMs = Math.min(interval.end.getTime(), dayEndMs);
+                if (overlapEndMs > overlapStartMs) {
+                  hoursInDay += (overlapEndMs - overlapStartMs) / (1000 * 60 * 60);
+                }
+              }
+            });
+
+            if (hoursInDay > 24) hoursInDay = 24;
+
+            let pct = 0;
+            let detail = "";
+            
+            if (hoursInDay > 0) {
+              if (isFreeTraining) {
+                pct = 0.20;
+                detail = "Flat 20% Training Rate";
+              } else if (isBreakdown) {
+                pct = 1.00;
+                detail = "Flat 100% Breakdown Rate";
+              } else {
+                if (hoursInDay < 6) {
+                  pct = 0.30;
+                  detail = `<6 Hrs absence (30%)`;
+                } else if (hoursInDay <= 12) {
+                  pct = 0.70;
+                  detail = `6 to 12 Hrs absence (70%)`;
+                } else {
+                  pct = 1.00;
+                  detail = `>12 Hrs absence (100%)`;
+                }
+              }
+            } else {
+              pct = 0;
+              detail = "No tour active";
+            }
+            
+            let dayDaAmount = Math.round(totalDailyRate * pct);
+            if (isTAEnabled) {
+              dayDaAmount = dayDaAmount * 2;
+            }
+
+            list.push({
+              tripId: trip.tripId,
+              date: dateStr,
+              hours: hoursInDay,
+              pct: pct,
+              detail: detail,
+              amount: dayDaAmount
+            });
+            
+            current.setDate(current.getDate() + 1);
+          }
+        } catch (e) {
+          console.error("Error computing calendar breakdown for trip:", e);
+        }
+        return list;
+      };
+
+      const tripCalendarDaysBreakdown = getTripCalendarDaysBreakdown();
+      accumulatedCalendarDaysBreakdown = [...accumulatedCalendarDaysBreakdown, ...tripCalendarDaysBreakdown];
+
+      const tripContinuousDaPct = (calculationMode === 'calendar_day' && tripCalendarDaysBreakdown.length > 0)
+        ? tripCalendarDaysBreakdown.reduce((sum, current) => sum + current.pct, 0)
+        : getContinuousDaPctLocal(tripAbsenceHrs);
+      
+      const isTripEntireTourEligible = tripLegs.some(leg => (leg.beyond8Km !== false) || leg.isBreakdownDuty);
+      
+      let tripBaseContinuousDaAmount = isTripEntireTourEligible ? (totalDailyRate * tripContinuousDaPct) : 0;
+      const isTripTAEnabled = tripLegs.some(leg => leg.isTerritorialArmy);
+      if (isTripTAEnabled) {
+        tripBaseContinuousDaAmount = tripBaseContinuousDaAmount * 2.0;
+      }
+      const tripTotalContinuousDaAmount = Math.round(tripBaseContinuousDaAmount);
+      sumTotalContinuousDaAmount += tripTotalContinuousDaAmount;
+
+      const getLegCalendarBreakdownLocal = (leg: any, index: number) => {
+        const list: { date: string; hours: number; dayTotalHours: number; dayPct: number; amount: number }[] = [];
+        if (!leg.depDate || !leg.depTime || !leg.arrDate || !leg.arrTime) return list;
+        
+        try {
+          let legStartDt = new Date(`${leg.depDate}T${leg.depTime}`);
+          if (index === 0 && tripStay?.startWithStay && (!tripStay.stayType || tripStay.stayType === 'before') && tripStay.initialStayStation && tripStay.initialStayStartDate && tripStay.initialStayStartTime) {
+            const stayStartDt = new Date(`${tripStay.initialStayStartDate}T${tripStay.initialStayStartTime}`);
+            if (!isNaN(stayStartDt.getTime()) && stayStartDt < legStartDt) {
+              legStartDt = stayStartDt;
+            }
+          }
+          let legEndDt: Date;
+          const nextLeg = tripRawLegs[index + 1];
+          const hqStation = tripRawLegs[0]?.stationFrom || "";
+          const isReturnToHQ = leg.stationTo && leg.stationTo.trim().toUpperCase() === hqStation.trim().toUpperCase();
+          if (nextLeg && !isReturnToHQ && nextLeg.depDate && nextLeg.depTime) {
+            legEndDt = new Date(`${nextLeg.depDate}T${nextLeg.depTime}`);
+          } else {
+            legEndDt = new Date(`${leg.arrDate}T${leg.arrTime}`);
+          }
+          if (index === tripRawLegs.length - 1 && tripStay?.startWithStay && tripStay.stayType === 'after' && tripStay.initialStayEndDate && tripStay.initialStayEndTime) {
+            const stayEndDt = new Date(`${tripStay.initialStayEndDate}T${tripStay.initialStayEndTime}`);
+            if (!isNaN(stayEndDt.getTime()) && stayEndDt > legEndDt) {
+              legEndDt = stayEndDt;
+            }
+          }
+          
+          if (isNaN(legStartDt.getTime()) || isNaN(legEndDt.getTime()) || legEndDt < legStartDt) {
+            return list;
+          }
+          
+          tripCalendarDaysBreakdown.forEach(day => {
+            const dayStartMs = new Date(`${day.date}T00:00:00`).getTime();
+            const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
+            
+            const overlapStartMs = Math.max(legStartDt.getTime(), dayStartMs);
+            const overlapEndMs = Math.min(legEndDt.getTime(), dayEndMs);
+            
+            if (overlapEndMs > overlapStartMs) {
+              const legHoursInDay = (overlapEndMs - overlapStartMs) / (1000 * 60 * 60);
+              if (legHoursInDay > 0 && day.hours > 0) {
+                const fraction = legHoursInDay / day.hours;
+                let legDayAmt = Math.round(day.amount * fraction);
+                list.push({
+                  date: day.date,
+                  hours: legHoursInDay,
+                  dayTotalHours: day.hours,
+                  dayPct: day.pct,
+                  amount: legDayAmt
+                });
+              }
+            }
+          });
+        } catch (e) {
+          console.error("Error computing leg calendar breakdown:", e);
+        }
+        return list;
+      };
+
+      const tripProcessedLegs = tripRawLegs.map((leg, index) => {
+        const legCalendarBreakdown = getLegCalendarBreakdownLocal(leg, index);
+
+        const legDaAmount = calculationMode === 'calendar_day'
+          ? legCalendarBreakdown.reduce((sum, item) => sum + item.amount, 0)
+          : (tripAbsenceHrs > 0 ? Math.round(tripTotalContinuousDaAmount * (leg.hours / tripAbsenceHrs)) : 0);
+
+        let mileageAmt = 0;
+        if (leg.mode === 'Road' && leg.roadDistanceKm && leg.roadDistanceKm > 0) {
+          const kmRate = leg.roadType === 'auto_scooter' ? 12 : 24;
+          mileageAmt = leg.roadDistanceKm * kmRate;
+        }
+
+        const haltDaContributed = leg.hours > 0
+          ? Math.round(legDaAmount * (leg.haltHours / leg.hours))
+          : 0;
+
+        return {
+          ...leg,
+          daAmount: legDaAmount,
+          haltDaContributed: haltDaContributed,
+          mileageAmount: Math.round(mileageAmt),
+          amount: Math.round(legDaAmount + mileageAmt),
+          percentage: calculationMode === 'calendar_day'
+            ? legCalendarBreakdown.reduce((sum, item) => sum + (item.dayPct * (item.hours / item.dayTotalHours)), 0)
+            : (tripAbsenceHrs > 0 ? (tripContinuousDaPct * (leg.hours / tripAbsenceHrs)) : 0),
+          calendarBreakdown: legCalendarBreakdown,
+          tripContinuousDaPct: tripContinuousDaPct
+        };
+      });
+
+      accumulatedProcessedLegs = [...accumulatedProcessedLegs, ...tripProcessedLegs];
+    });
+
+    const isEntireTourEligible = normalizedJourneyLegs.some(leg => (leg.beyond8Km !== false) || leg.isBreakdownDuty);
+    const isTAEnabled = normalizedJourneyLegs.some(leg => leg.isTerritorialArmy);
+    const rateMultiplier = isTAEnabled ? 2 : 1;
+    const continuousDaPct = sumTotalContinuousDaAmount / (totalDailyRate * rateMultiplier);
 
     return {
-      ...leg,
-      daAmount: legDaAmount,
-      haltDaContributed: haltDaContributed,
-      mileageAmount: Math.round(mileageAmt),
-      amount: Math.round(legDaAmount + mileageAmt),
-      percentage: calculationMode === 'calendar_day'
-        ? legCalendarBreakdown.reduce((sum, item) => sum + (item.dayPct * (item.hours / item.dayTotalHours)), 0)
-        : (totalAbsenceHrs > 0 ? (continuousDaPct * (leg.hours / totalAbsenceHrs)) : 0),
-      calendarBreakdown: legCalendarBreakdown
+      processedLegs: accumulatedProcessedLegs,
+      calendarDaysBreakdown: accumulatedCalendarDaysBreakdown,
+      totalAbsenceHrs: sumTotalAbsenceHrs,
+      totalContinuousDaAmount: sumTotalContinuousDaAmount,
+      continuousDaPct: isNaN(continuousDaPct) ? 0 : continuousDaPct,
+      isEntireTourEligible,
+      isTAEnabled
     };
-  });
+  }, [tripsGrouped, payLevel, tripStays, globalPurpose, calculationMode, totalDailyRate, normalizedJourneyLegs]);
+
+  const { processedLegs, calendarDaysBreakdown, totalAbsenceHrs, totalContinuousDaAmount, continuousDaPct, isEntireTourEligible, isTAEnabled } = calculatedTrips;
 
   const totalContingentAmount = storeConfig.enableContingentSection !== "false"
     ? contingentItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
@@ -949,19 +1363,63 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
 
   const totalAmount = processedLegs.reduce((sum, current) => sum + current.amount, 0) + totalContingentAmount;
 
-  const addLeg = () => {
-    const lastLeg = journeyLegs[journeyLegs.length - 1];
+  const addLegToTrip = (tripId: string) => {
+    const tripLegs = normalizedJourneyLegs.filter(leg => leg.tripId === tripId);
+    const lastLeg = tripLegs[tripLegs.length - 1];
     const newLeg: JourneyLeg = {
       id: `leg-${Date.now()}`,
+      tripId: tripId,
       stationFrom: lastLeg?.stationTo || "",
       stationTo: "",
       mode: "Train",
       trainNoOrVehNo: "",
-      depDate: lastLeg?.arrDate || "",
+      depDate: "",
       depTime: "",
-      arrDate: lastLeg?.arrDate || "",
+      arrDate: "",
       arrTime: "",
-      purpose: globalPurpose,
+      purpose: globalPurpose || lastLeg?.purpose || "",
+      stoppedDurationHrs: 0,
+      isBreakdownDuty: false,
+      isFreeMessingTraining: false,
+      isTerritorialArmy: false,
+      roadDistanceKm: 0,
+      roadType: 'car_taxi',
+      beyond8Km: true
+    };
+    
+    const lastLegInStateIndex = journeyLegs.findIndex(l => l.id === lastLeg.id);
+    if (lastLegInStateIndex !== -1) {
+      const updated = [...journeyLegs];
+      updated.splice(lastLegInStateIndex + 1, 0, newLeg);
+      setJourneyLegs(updated);
+    } else {
+      setJourneyLegs([...journeyLegs, newLeg]);
+    }
+  };
+
+  const addLeg = () => {
+    // Backwards compatibility
+    const lastLeg = journeyLegs[journeyLegs.length - 1];
+    const currentTripId = lastLeg?.tripId || "trip-1";
+    addLegToTrip(currentTripId);
+  };
+
+  const addNewTrip = () => {
+    const hqStation = journeyLegs[0]?.stationFrom || "";
+    const lastLeg = journeyLegs[journeyLegs.length - 1];
+    const newTripId = `trip-${Date.now()}`;
+    const newLeg: JourneyLeg = {
+      id: `leg-${Date.now()}`,
+      tripId: newTripId,
+      stationFrom: hqStation,
+      stationTo: "",
+      mode: "Train",
+      trainNoOrVehNo: "",
+      depDate: "",
+      depTime: "",
+      arrDate: "",
+      arrTime: "",
+      purpose: globalPurpose || "",
       stoppedDurationHrs: 0,
       isBreakdownDuty: false,
       isFreeMessingTraining: false,
@@ -971,6 +1429,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
       beyond8Km: true
     };
     setJourneyLegs([...journeyLegs, newLeg]);
+    toast.success(`New Trip Added! Starting from HQ Station: ${hqStation || 'Home Station'}`);
   };
 
   const removeLeg = (id: string) => {
@@ -1018,7 +1477,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
       const calculatedDist = getStationDistance(currentFrom, currentTo);
       if (calculatedDist !== null && calculatedDist > 0) {
         updateLegField(legId, 'roadDistanceKm', calculatedDist);
-        toast.success(`Distance auto-calculated: ${calculatedDist} KM (दूरी: ${calculatedDist} कि.मी.)`, {
+        toast.success(`Distance auto-calculated: ${calculatedDist} KM`, {
           duration: 3500,
           id: `dist-calc-${legId}`
         });
@@ -1042,7 +1501,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     }
 
     try {
-      const docData: TACase = {
+      const docData: any = {
         employeeName,
         designation,
         empNo,
@@ -1073,11 +1532,20 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
         initialStayEndDate,
         initialStayEndTime,
         initialStayPurpose,
+        tripStays,
         createdAt: new Date().toISOString()
       };
 
-      await addDoc(collection(db, "ta_claims"), docData);
-      toast.success("Travelling Allowance claim record saved to database successfully!");
+      if (editingClaimId) {
+        await updateDoc(doc(db, "ta_claims", editingClaimId), {
+          ...docData,
+          updatedAt: new Date().toISOString()
+        });
+        toast.success("Travelling Allowance claim record updated in database successfully!");
+      } else {
+        await addDoc(collection(db, "ta_claims"), docData);
+        toast.success("Travelling Allowance claim record saved to database successfully!");
+      }
     } catch (err: any) {
       console.error(err);
       toast.error("Failed to save claim: " + err.message);
@@ -1086,6 +1554,21 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
       } catch (e) {
         console.error("Suppressed or reformatted save error:", e);
       }
+    }
+  };
+
+  const handleDeleteClaim = async () => {
+    if (!editingClaimId) return;
+    if (!window.confirm("Are you sure you want to permanently delete this claim from the database?")) {
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, "ta_claims", editingClaimId));
+      toast.success("Travelling Allowance claim record deleted from database successfully!");
+      resetForm();
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to delete claim: " + err.message);
     }
   };
 
@@ -1116,6 +1599,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
   };
 
   const loadCase = (claim: TACase) => {
+    setEditingClaimId(claim.id || null);
     setEmployeeName(claim.employeeName);
     setDesignation(claim.designation);
     setEmpNo(claim.empNo);
@@ -1127,9 +1611,16 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     setBillUnit(claim.billUnit || "");
     setCalculationMode(claim.calculationMode || 'calendar_day');
     setJourneyLegs(claim.journeyLegs || []);
-    setContingentItems(claim.contingentItems || []);
+    
+    // Map existing contingent items to have tripId: 'trip-1' if none exists
+    const loadedContingent = (claim.contingentItems || []).map(item => ({
+      ...item,
+      tripId: item.tripId || "trip-1"
+    }));
+    setContingentItems(loadedContingent);
+    
     setHasDeclared(claim.hasDeclared);
-    setGlobalPurpose(claim.globalPurpose || "Official Duty");
+    setGlobalPurpose(claim.globalPurpose || "Duty");
     setShowSummaryTable(claim.showSummaryTable !== undefined ? claim.showSummaryTable : false);
     setShowNoFreePassDeclaration(claim.showNoFreePassDeclaration !== undefined ? claim.showNoFreePassDeclaration : false);
     setShowClaimantSig(claim.showClaimantSig !== undefined ? claim.showClaimantSig : true);
@@ -1143,12 +1634,30 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     setInitialStayEndDate(claim.initialStayEndDate || "");
     setInitialStayEndTime(claim.initialStayEndTime || "");
     setInitialStayPurpose(claim.initialStayPurpose || "");
+    
+    const initialStays: TripStay[] = claim.tripStays || [];
+    // Seed from old legacy fields if no tripStays exists but legacy startWithStay is true
+    if (initialStays.length === 0 && claim.startWithStay) {
+      initialStays.push({
+        tripId: "trip-1",
+        startWithStay: true,
+        initialStayStation: claim.initialStayStation || "",
+        initialStayStartDate: claim.initialStayStartDate || "",
+        initialStayStartTime: claim.initialStayStartTime || "",
+        initialStayEndDate: claim.initialStayEndDate || "",
+        initialStayEndTime: claim.initialStayEndTime || "",
+        initialStayPurpose: claim.initialStayPurpose || ""
+      });
+    }
+    setTripStays(initialStays);
+
     setIsEditingOrDrafting(true);
     onToggleSidebars?.(false);
     toast.success(`Loaded details for "${claim.employeeName}" into the active editor!`);
   };
 
   const resetForm = () => {
+    setEditingClaimId(null);
     setEmployeeName("");
     setDesignation("");
     setEmpNo("");
@@ -1160,7 +1669,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     setBillUnit("");
     setCalculationMode('calendar_day');
     setHasDeclared(false);
-    setGlobalPurpose("Official Duty");
+    setGlobalPurpose("Duty");
     setShowSummaryTable(false);
     setShowNoFreePassDeclaration(false);
     setShowClaimantSig(true);
@@ -1174,6 +1683,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     setInitialStayEndDate("");
     setInitialStayEndTime("");
     setInitialStayPurpose("");
+    setTripStays([]);
     setContingentItems([]);
     setJourneyLegs([
       {
@@ -1182,11 +1692,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
         stationTo: "",
         mode: "Train",
         trainNoOrVehNo: "",
-        depDate: new Date().toISOString().split('T')[0],
-        depTime: "08:00",
-        arrDate: new Date().toISOString().split('T')[0],
-        arrTime: "14:00",
-        purpose: "Official Duty",
+        depDate: "",
+        depTime: "",
+        arrDate: "",
+        arrTime: "",
+        purpose: "Duty",
         stoppedDurationHrs: 0,
         isBreakdownDuty: false,
         isFreeMessingTraining: false,
@@ -1303,188 +1813,343 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
       }
     };
 
-    // Let's create a list of chronological legs sorted
-    const sortedLegsForPrint = [...processedLegs].sort((a, b) => {
-      const d1 = new Date(`${a.depDate}T${a.depTime}`).getTime();
-      const d2 = new Date(`${b.depDate}T${b.depTime}`).getTime();
-      return d1 - d2;
+    // Let's group processedLegs by tripId to process each trip separately
+    const tripsWithProcessedLegs: { tripId: string; legs: any[] }[] = [];
+    processedLegs.forEach(leg => {
+      const tId = leg.tripId || "trip-1";
+      let group = tripsWithProcessedLegs.find(g => g.tripId === tId);
+      if (!group) {
+        group = { tripId: tId, legs: [] };
+        tripsWithProcessedLegs.push(group);
+      }
+      group.legs.push(leg);
     });
 
-    // Generate chronological journey and stay segments
-    const printSegments: any[] = [];
+    const tableRows: any[] = [];
 
-    // Add initial stationary stay segment at tour commencement if enabled
-    if (startWithStay && initialStayStation && initialStayStartDate && initialStayStartTime && initialStayEndDate && initialStayEndTime) {
-      const start = new Date(`${initialStayStartDate}T${initialStayStartTime}`);
-      const end = new Date(`${initialStayEndDate}T${initialStayEndTime}`);
-      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-        printSegments.push({
-          id: 'initial-stay',
-          type: 'stay',
-          start,
-          end,
-          station: initialStayStation,
-          purpose: initialStayPurpose || globalPurpose || 'Official Duty'
-        });
-        
-        // Add a gap-filler stay if there is an operational timeline gap before the first travel leg departs
-        if (sortedLegsForPrint.length > 0) {
-          const firstLeg = sortedLegsForPrint[0];
-          if (firstLeg.depDate && firstLeg.depTime) {
-            const firstLegStart = new Date(`${firstLeg.depDate}T${firstLeg.depTime}`);
-            if (!isNaN(firstLegStart.getTime()) && firstLegStart > end) {
-              printSegments.push({
-                id: `seg-s-initial-${firstLeg.id}`,
-                type: 'stay',
-                start: end,
-                end: firstLegStart,
-                station: initialStayStation,
-                purpose: firstLeg.purpose || 'Official Duty'
-              });
+    tripsWithProcessedLegs.forEach((trip, tripIndex) => {
+      const tripNo = tripIndex + 1;
+      const tripLegsSorted = [...trip.legs].sort((a, b) => {
+        const d1 = new Date(`${a.depDate}T${a.depTime}`).getTime();
+        const d2 = new Date(`${b.depDate}T${b.depTime}`).getTime();
+        return d1 - d2;
+      });
+
+      if (tripLegsSorted.length === 0) return;
+
+      // Generate chronological journey and stay segments for THIS trip
+      const tripPrintSegments: any[] = [];
+
+      // Add initial stationary stay segment for this trip if enabled and is before the journey
+      const tripStay = tripStays.find(ts => ts.tripId === trip.tripId);
+      if (tripStay?.startWithStay && (!tripStay.stayType || tripStay.stayType === 'before') && tripStay.initialStayStation && tripStay.initialStayStartDate && tripStay.initialStayStartTime && tripStay.initialStayEndDate && tripStay.initialStayEndTime) {
+        const start = new Date(`${tripStay.initialStayStartDate}T${tripStay.initialStayStartTime}`);
+        const end = new Date(`${tripStay.initialStayEndDate}T${tripStay.initialStayEndTime}`);
+        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+          tripPrintSegments.push({
+            id: `initial-stay-${trip.tripId}`,
+            type: 'stay',
+            start,
+            end,
+            station: tripStay.initialStayStation,
+            purpose: tripStay.initialStayPurpose || globalPurpose || 'Duty'
+          });
+          
+          if (tripLegsSorted.length > 0) {
+            const firstLeg = tripLegsSorted[0];
+            if (firstLeg.depDate && firstLeg.depTime) {
+              const firstLegStart = new Date(`${firstLeg.depDate}T${firstLeg.depTime}`);
+              if (!isNaN(firstLegStart.getTime()) && firstLegStart > end) {
+                tripPrintSegments.push({
+                  id: `seg-s-initial-${firstLeg.id}`,
+                  type: 'stay',
+                  start: end,
+                  end: firstLegStart,
+                  station: tripStay.initialStayStation,
+                  purpose: firstLeg.purpose || 'Duty'
+                });
+              }
             }
           }
         }
       }
-    }
 
-    sortedLegsForPrint.forEach((leg, idx) => {
-      const start = new Date(`${leg.depDate}T${leg.depTime}`);
-      const end = new Date(`${leg.arrDate}T${leg.arrTime}`);
-      
-      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-        printSegments.push({
-          id: `seg-j-${leg.id}`,
-          type: 'journey',
-          start,
-          end,
-          leg,
-          from: leg.stationFrom,
-          to: leg.stationTo,
-          trainNo: leg.trainNoOrVehNo || leg.mode,
-          mode: leg.mode,
-          roadDistanceKm: leg.roadDistanceKm,
-          roadType: leg.roadType,
-          purpose: leg.purpose,
-          beyond8Km: leg.beyond8Km,
-          isBreakdownDuty: leg.isBreakdownDuty,
-          isFreeMessingTraining: leg.isFreeMessingTraining,
-          isTerritorialArmy: leg.isTerritorialArmy,
-          mileageAmount: leg.mileageAmount || 0
-        });
-      }
-
-      // If there is a next leg, add a stay segment between them
-      const nextLeg = sortedLegsForPrint[idx + 1];
-      if (nextLeg) {
-        const nextStart = new Date(`${nextLeg.depDate}T${nextLeg.depTime}`);
-        if (!isNaN(end.getTime()) && !isNaN(nextStart.getTime()) && nextStart > end) {
-          printSegments.push({
-            id: `seg-s-${leg.id}-${nextLeg.id}`,
-            type: 'stay',
-            start: end,
-            end: nextStart,
-            station: leg.stationTo || nextLeg.stationFrom || "Halt",
-            purpose: nextLeg.purpose || leg.purpose
+      tripLegsSorted.forEach((leg, idx) => {
+        const start = new Date(`${leg.depDate}T${leg.depTime}`);
+        const end = new Date(`${leg.arrDate}T${leg.arrTime}`);
+        
+        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+          tripPrintSegments.push({
+            id: `seg-j-${leg.id}`,
+            type: 'journey',
+            start,
+            end,
+            leg,
+            from: leg.stationFrom,
+            to: leg.stationTo,
+            trainNo: leg.trainNoOrVehNo || leg.mode,
+            mode: leg.mode,
+            roadDistanceKm: leg.roadDistanceKm,
+            roadType: leg.roadType,
+            purpose: leg.purpose,
+            beyond8Km: leg.beyond8Km,
+            isBreakdownDuty: leg.isBreakdownDuty,
+            isFreeMessingTraining: leg.isFreeMessingTraining,
+            isTerritorialArmy: leg.isTerritorialArmy,
+            mileageAmount: leg.mileageAmount || 0
           });
         }
+
+        // If there is a next leg, add a stay segment between them
+        const nextLeg = tripLegsSorted[idx + 1];
+        const homeStation = tripLegsSorted[0]?.stationFrom || "";
+        const isReturnToHQ = leg.stationTo && leg.stationTo.trim().toUpperCase() === homeStation.trim().toUpperCase();
+        if (nextLeg && !isReturnToHQ) {
+          const nextStart = new Date(`${nextLeg.depDate}T${nextLeg.depTime}`);
+          if (!isNaN(end.getTime()) && !isNaN(nextStart.getTime()) && nextStart > end) {
+            tripPrintSegments.push({
+              id: `seg-s-${leg.id}-${nextLeg.id}`,
+              type: 'stay',
+              start: end,
+              end: nextStart,
+              station: leg.stationTo || nextLeg.stationFrom || "Halt",
+              purpose: nextLeg.purpose || leg.purpose
+            });
+          }
+        }
+      });
+
+      // Add final stationary stay segment for this trip if enabled and is after the journey
+      if (tripStay?.startWithStay && tripStay.stayType === 'after' && tripStay.initialStayStation && tripStay.initialStayStartDate && tripStay.initialStayStartTime && tripStay.initialStayEndDate && tripStay.initialStayEndTime) {
+        const start = new Date(`${tripStay.initialStayStartDate}T${tripStay.initialStayStartTime}`);
+        const end = new Date(`${tripStay.initialStayEndDate}T${tripStay.initialStayEndTime}`);
+        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+          if (tripLegsSorted.length > 0) {
+            const lastLeg = tripLegsSorted[tripLegsSorted.length - 1];
+            if (lastLeg.arrDate && lastLeg.arrTime) {
+              const lastLegEnd = new Date(`${lastLeg.arrDate}T${lastLeg.arrTime}`);
+              if (!isNaN(lastLegEnd.getTime()) && start > lastLegEnd) {
+                tripPrintSegments.push({
+                  id: `seg-s-final-gap-${lastLeg.id}`,
+                  type: 'stay',
+                  start: lastLegEnd,
+                  end: start,
+                  station: lastLeg.stationTo || 'Halt',
+                  purpose: lastLeg.purpose || 'Duty'
+                });
+              }
+            }
+          }
+
+          tripPrintSegments.push({
+            id: `final-stay-${trip.tripId}`,
+            type: 'stay',
+            start,
+            end,
+            station: tripStay.initialStayStation,
+            purpose: tripStay.initialStayPurpose || globalPurpose || 'Duty'
+          });
+        }
+      }
+
+      // Generate printing dates for this trip
+      const tripPrintDates: string[] = [];
+      if (tripPrintSegments.length > 0) {
+        const firstStart = tripPrintSegments[0].start;
+        const lastEnd = tripPrintSegments[tripPrintSegments.length - 1].end;
+        
+        let curr = new Date(firstStart.getFullYear(), firstStart.getMonth(), firstStart.getDate());
+        const finalDay = new Date(lastEnd.getFullYear(), lastEnd.getMonth(), lastEnd.getDate());
+        
+        let safety = 0;
+        while (curr <= finalDay && safety < 100) {
+          safety++;
+          const y = curr.getFullYear();
+          const m = String(curr.getMonth() + 1).padStart(2, '0');
+          const d = String(curr.getDate()).padStart(2, '0');
+          tripPrintDates.push(`${y}-${m}-${d}`);
+          curr.setDate(curr.getDate() + 1);
+        }
+      }
+
+      // Assemble each day-wise row for THIS trip
+      const tripDayRows = tripPrintDates.map(dateStr => {
+        const [year, month, day] = dateStr.split('-');
+        const formattedDate = `${day}-${month}-${year}`; // DD-MM-YYYY format
+        
+        const dayStartMs = new Date(`${dateStr}T00:00:00`).getTime();
+        const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
+        
+        const overlappingSegs: any[] = [];
+        let totalMileageAmountOnDay = 0;
+        
+        tripPrintSegments.forEach(seg => {
+          const overlapStartMs = Math.max(seg.start.getTime(), dayStartMs);
+          const overlapEndMs = Math.min(seg.end.getTime(), dayEndMs);
+          
+          if (overlapEndMs > overlapStartMs) {
+            const hoursOnDay = (overlapEndMs - overlapStartMs) / (1000 * 60 * 60);
+            
+            let mileageVal = 0;
+            if (seg.type === 'journey' && seg.start.getTime() >= dayStartMs && seg.start.getTime() < dayEndMs) {
+              mileageVal = seg.mileageAmount;
+              totalMileageAmountOnDay += mileageVal;
+            }
+            
+            overlappingSegs.push({
+              ...seg,
+              overlapStartMs,
+              overlapEndMs,
+              hoursOnDay,
+              mileageOnDay: mileageVal
+            });
+          }
+        });
+        
+        const dbRecord = calendarDaysBreakdown.find(d => d.date === dateStr && d.tripId === trip.tripId);
+        const dayDaAmt = dbRecord ? dbRecord.amount : 0;
+        const dayPct = dbRecord ? dbRecord.pct : 0;
+        const dayHrs = dbRecord ? dbRecord.hours : 0;
+        
+        const dayTotalClaimed = dayDaAmt + totalMileageAmountOnDay;
+        
+        return {
+          dateStr,
+          formattedDate,
+          daySegments: overlappingSegs,
+          dayDaAmt,
+          dayPct,
+          dayHrs,
+          totalMileageAmountOnDay,
+          dayTotalClaimed,
+          purpose: overlappingSegs.map(s => s.purpose).find(p => !!p) || globalPurpose || 'Duty',
+          isBreakdownDuty: overlappingSegs.some(s => s.isBreakdownDuty),
+          isFreeMessingTraining: overlappingSegs.some(s => s.isFreeMessingTraining),
+          isTerritorialArmy: overlappingSegs.some(s => s.isTerritorialArmy),
+          beyond8Km: overlappingSegs.some(s => s.beyond8Km !== false)
+        };
+      }).filter(row => row.daySegments.length > 0);
+
+      // Group contiguous stay rows for this trip
+      const tripGroupedTableRows: any[] = [];
+      let currentStayGroup: any[] = [];
+
+      const flushStayGroup = () => {
+        if (currentStayGroup.length === 0) return;
+        if (currentStayGroup.length === 1) {
+          tripGroupedTableRows.push(currentStayGroup[0]);
+        } else {
+          const first = currentStayGroup[0];
+          const last = currentStayGroup[currentStayGroup.length - 1];
+          
+          const totalDaAmt = currentStayGroup.reduce((sum, r) => sum + r.dayDaAmt, 0);
+          const totalHrs = currentStayGroup.reduce((sum, r) => sum + r.dayHrs, 0);
+          const totalClaimed = currentStayGroup.reduce((sum, r) => sum + r.dayTotalClaimed, 0);
+          
+          const formatDateWithDots = (fDate: string) => fDate.replace(/-/g, '.');
+          const formattedDateRange = `${formatDateWithDots(first.formattedDate)} to ${formatDateWithDots(last.formattedDate)}`;
+          
+          const aggregatedSegments = [
+            {
+              ...first.daySegments[0],
+              hoursOnDay: totalHrs,
+              overlapStartMs: first.daySegments[0].overlapStartMs,
+              overlapEndMs: last.daySegments[last.daySegments.length - 1].overlapEndMs,
+              start: first.daySegments[0].start,
+              end: last.daySegments[last.daySegments.length - 1].end
+            }
+          ];
+
+          tripGroupedTableRows.push({
+            dateStr: first.dateStr,
+            formattedDate: formattedDateRange,
+            daySegments: aggregatedSegments,
+            dayDaAmt: totalDaAmt,
+            dayPct: first.dayPct,
+            dayHrs: totalHrs,
+            totalMileageAmountOnDay: 0,
+            dayTotalClaimed: totalClaimed,
+            purpose: first.purpose,
+            isBreakdownDuty: false,
+            isFreeMessingTraining: first.isFreeMessingTraining,
+            isTerritorialArmy: first.isTerritorialArmy,
+            beyond8Km: first.beyond8Km,
+            isGroupedStay: true,
+            stayDaysCount: currentStayGroup.length,
+            groupedDays: [...currentStayGroup]
+          });
+        }
+        currentStayGroup = [];
+      };
+
+      tripDayRows.forEach(row => {
+        const isStay = row.daySegments.length > 0 && row.daySegments.every((s: any) => s.type === 'stay');
+        if (isStay) {
+          if (currentStayGroup.length > 0) {
+            const prev = currentStayGroup[currentStayGroup.length - 1];
+            const prevStation = prev.daySegments[0]?.station || "";
+            const currStation = row.daySegments[0]?.station || "";
+            if (prevStation === currStation && prev.purpose === row.purpose) {
+              currentStayGroup.push(row);
+            } else {
+              flushStayGroup();
+              currentStayGroup.push(row);
+            }
+          } else {
+            currentStayGroup.push(row);
+          }
+        } else {
+          flushStayGroup();
+          tripGroupedTableRows.push(row);
+        }
+      });
+      flushStayGroup();
+
+      // Push a Trip Header / separator row if there are actual rows
+      if (tripGroupedTableRows.length > 0) {
+        if (tripsWithProcessedLegs.length > 1) {
+          tableRows.push({
+            isTripHeader: true,
+            tripNo: tripNo,
+            tripId: trip.tripId,
+            purpose: "Header",
+            daySegments: []
+          });
+        }
+        tableRows.push(...tripGroupedTableRows);
       }
     });
 
-    // Collect all calendar days spanning from the very start to the very end
-    const printDates: string[] = [];
-    if (printSegments.length > 0) {
-      const firstStart = printSegments[0].start;
-      const lastEnd = printSegments[printSegments.length - 1].end;
-      
-      let curr = new Date(firstStart.getFullYear(), firstStart.getMonth(), firstStart.getDate());
-      const finalDay = new Date(lastEnd.getFullYear(), lastEnd.getMonth(), lastEnd.getDate());
-      
-      let safety = 0;
-      while (curr <= finalDay && safety < 100) {
-        safety++;
-        const y = curr.getFullYear();
-        const m = String(curr.getMonth() + 1).padStart(2, '0');
-        const d = String(curr.getDate()).padStart(2, '0');
-        printDates.push(`${y}-${m}-${d}`);
-        curr.setDate(curr.getDate() + 1);
-      }
-    }
-
-    // Now, let's assemble each day-wise row
-    const dayRows = printDates.map(dateStr => {
-      const [year, month, day] = dateStr.split('-');
-      const formattedDate = `${day}-${month}-${year}`; // DD-MM-YYYY format
-      
-      const dayStartMs = new Date(`${dateStr}T00:00:00`).getTime();
-      const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
-      
-      // Filter segments overlapping with this day
-      const overlappingSegs: any[] = [];
-      let totalMileageAmountOnDay = 0;
-      
-      printSegments.forEach(seg => {
-        const overlapStartMs = Math.max(seg.start.getTime(), dayStartMs);
-        const overlapEndMs = Math.min(seg.end.getTime(), dayEndMs);
-        
-        if (overlapEndMs > overlapStartMs) {
-          const hoursOnDay = (overlapEndMs - overlapStartMs) / (1000 * 60 * 60);
-          
-          // Mileage is credited on the departure date of that specific leg
-          let mileageVal = 0;
-          if (seg.type === 'journey' && seg.start.getTime() >= dayStartMs && seg.start.getTime() < dayEndMs) {
-            mileageVal = seg.mileageAmount;
-            totalMileageAmountOnDay += mileageVal;
-          }
-          
-          overlappingSegs.push({
-            ...seg,
-            overlapStartMs,
-            overlapEndMs,
-            hoursOnDay,
-            mileageOnDay: mileageVal
-          });
-        }
-      });
-      
-      // Calculate daily DA metrics from calendarDaysBreakdown
-      const dbRecord = calendarDaysBreakdown.find(d => d.date === dateStr);
-      const dayDaAmt = dbRecord ? dbRecord.amount : 0;
-      const dayPct = dbRecord ? dbRecord.pct : 0;
-      const dayHrs = dbRecord ? dbRecord.hours : 0;
-      
-      const dayTotalClaimed = dayDaAmt + totalMileageAmountOnDay;
-      
-      return {
-        dateStr,
-        formattedDate,
-        daySegments: overlappingSegs,
-        dayDaAmt,
-        dayPct,
-        dayHrs,
-        totalMileageAmountOnDay,
-        dayTotalClaimed,
-        purpose: overlappingSegs.map(s => s.purpose).find(p => !!p) || globalPurpose || 'Official Duty',
-        isBreakdownDuty: overlappingSegs.some(s => s.isBreakdownDuty),
-        isFreeMessingTraining: overlappingSegs.some(s => s.isFreeMessingTraining),
-        isTerritorialArmy: overlappingSegs.some(s => s.isTerritorialArmy),
-        beyond8Km: overlappingSegs.some(s => s.beyond8Km !== false)
-      };
-    }).filter(row => row.daySegments.length > 0); // Keep only days with active segments
-
-    const tableRows = dayRows; // Keep tableRows structure compatible with code placeholders if any
-
-    // Precalculate rowSpan for "purpose" (Object of journey) column grouped by contiguous identical purpose values
     const purposeRowSpans: { [key: number]: number } = {};
     let currentPurposeIndex = 0;
     while (currentPurposeIndex < tableRows.length) {
+      if (tableRows[currentPurposeIndex].isTripHeader) {
+        purposeRowSpans[currentPurposeIndex] = 1;
+        currentPurposeIndex++;
+        continue;
+      }
+      
       const currentPurpose = tableRows[currentPurposeIndex].purpose || "";
       let count = 1;
+      let firstRowJourneySegs = tableRows[currentPurposeIndex].daySegments.filter((seg: any) => seg.type === 'journey');
+      let totalRowSpan = Math.max(1, firstRowJourneySegs.length);
+      
       let nextIndex = currentPurposeIndex + 1;
-      while (nextIndex < tableRows.length && (tableRows[nextIndex].purpose || "") === currentPurpose) {
+      while (
+        nextIndex < tableRows.length && 
+        !tableRows[nextIndex].isTripHeader && 
+        (tableRows[nextIndex].purpose || "") === currentPurpose
+      ) {
+        let nextRowJourneySegs = tableRows[nextIndex].daySegments.filter((seg: any) => seg.type === 'journey');
+        totalRowSpan += Math.max(1, nextRowJourneySegs.length);
         count++;
         nextIndex++;
       }
-      purposeRowSpans[currentPurposeIndex] = count;
+      
+      purposeRowSpans[currentPurposeIndex] = totalRowSpan;
+      for (let j = currentPurposeIndex + 1; j < nextIndex; j++) {
+        purposeRowSpans[j] = 0;
+      }
       currentPurposeIndex = nextIndex;
     }
 
@@ -1496,7 +2161,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page {
-              size: ${isLandscape ? 'landscape' : 'portrait'};
+              size: A4 ${isLandscape ? 'landscape' : 'portrait'};
               margin: ${isLandscape ? '4mm 6mm' : '6mm 12mm'} !important;
             }
             body.printing-mode {
@@ -1520,122 +2185,143 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
               max-width: 100% !important;
               box-sizing: border-box !important;
             }
-            /* Fast fix: prevent any background clipping in table headers */
+            /* Fast fix: prevent any background clipping in table headers and keep height compact */
             th, td {
               page-break-inside: avoid !important;
+              padding-top: 1px !important;
+              padding-bottom: 1px !important;
             }
+          }
+          .c75-scaled {
+            font-size: ${((isLandscape ? 8.5 : 6.8) * (printSettings.tableFontSizeScale ?? 100) / 100).toFixed(2)}pt !important;
+          }
+          .c80-scaled {
+            font-size: ${((isLandscape ? 9.5 : 7.2) * (printSettings.tableFontSizeScale ?? 100) / 100).toFixed(2)}pt !important;
+          }
+          .c60-scaled {
+            font-size: ${((isLandscape ? 7.5 : 5.8) * (printSettings.tableFontSizeScale ?? 100) / 100).toFixed(2)}pt !important;
+          }
+          .c65-scaled {
+            font-size: ${((isLandscape ? 8.0 : 6.2) * (printSettings.tableFontSizeScale ?? 100) / 100).toFixed(2)}pt !important;
           }
         `}} />
         <RenderPrintOverlayWatermark watermark={printSettings.watermark} />
         
         {/* Authentic 3-Column Railway Header Layout from PNG */}
-        <div className={`grid grid-cols-3 items-end w-full border-b border-double border-black pb-1 mb-2 font-serif leading-tight text-black ${fh('text-[9.5pt]', 'text-[7pt]')}`}>
-          <div className="text-left font-bold">
-            <div className={fh('text-[10.5pt] font-extrabold', 'text-[7.5pt] font-extrabold')}>पूर्वोत्तर सीमांत रेलवे</div>
-            <div className={fh('text-[9.5pt] uppercase tracking-tight', 'text-[7pt] uppercase tracking-tight')}>NORTHEAST FRONTIER RAILWAY</div>
-            <div className={`${fh('text-[8.5pt]', 'text-[6.5pt]')} text-gray-700 italic font-semibold mt-0.5`}>{division} Div. / {department} Dept.</div>
+        <div className={`grid grid-cols-[25%_50%_25%] items-end w-full border-b border-double border-black pt-[22px] pb-1 mb-2 font-serif leading-tight text-black ${fh('text-[10pt]', 'text-[8pt]')}`}>
+          <div className="text-left font-bold whitespace-nowrap">
+            <div className={`${fh('text-[11pt]', 'text-[9pt]')} text-slate-900 mb-0.5 leading-none`}>पूर्वोत्तर सीमांत रेलवे</div>
+            <div className={`${fh('text-[11.5pt]', 'text-[9.5pt]')} uppercase tracking-tight font-extrabold leading-none`}>NORTHEAST FRONTIER RAILWAY</div>
+            <div className={`${fh('text-[10pt]', 'text-[8.5pt]')} text-slate-850 italic font-semibold mt-1 leading-none`}>{division} Div.</div>
           </div>
           
-          <div className="text-center font-bold self-center space-y-0.5">
-            <div className={fh('text-[13pt] font-extrabold uppercase tracking-wide', 'text-[9.5pt] font-extrabold uppercase tracking-widest')}>यात्रा भत्ता जर्नल</div>
-            <div className={fh('text-[12pt] font-extrabold uppercase tracking-wide', 'text-[8.7pt] font-extrabold uppercase tracking-wider')}>TRAVELLING ALLOWANCE JOURNAL</div>
-            <div className={`${fh('text-[8px]', 'text-[6pt]')} text-gray-600 block leading-none font-medium italic`}>
+          <div className="text-center font-bold self-center space-y-0.5 whitespace-nowrap translate-x-[75px]">
+            <div className={`${fh('text-[12pt]', 'text-[10.5pt]')} text-slate-900 leading-none`}>यात्रा भत्ता जर्नल</div>
+            <div className={`${fh('text-[13pt]', 'text-[11.5pt]')} font-extrabold uppercase tracking-wide leading-none`}>TRAVELLING ALLOWANCE JOURNAL</div>
+            <div className={`${fh('text-[8.5pt]', 'text-[7.2pt]')} text-gray-600 block leading-tight font-medium italic`}>
               JOURNAL & CLAIM FOR TRAVELLING ALLOWANCE (TA) — Rule CPC-7
             </div>
           </div>
           
-          <div className={`text-right font-mono font-bold leading-none text-gray-800 space-y-0.5 ${fh('text-[8pt]', 'text-[6pt]')}`}>
-            <div>जी. ए. 31 एस आर सी/जी 1677</div>
-            <div>G. A. 31 S.R.C. / G. 1677</div>
-            <div className="text-gray-550 italic font-sans text-[6.5pt]">NFR-PERS-CLERICAL-TA-V3</div>
+          <div className={`relative -translate-y-[24px] text-right font-bold leading-tight text-slate-800 space-y-0.5 whitespace-nowrap ${fh('text-[10pt]', 'text-[8.5pt]')}`}>
+            <div className="font-semibold text-slate-900">जी. ए. 31 एस आर सी/जी 1677</div>
+            <div className="font-semibold">G. A. 31 S.R.C. / G. 1677</div>
+            <div className={`text-slate-700 font-mono font-bold tracking-tight ${fh('text-[8.5pt]', 'text-[7.2pt]')}`}>NFR-PERS-CLERICAL-TA-V3</div>
           </div>
         </div>
 
         {/* Compact 3-Column Employee Parameters Grid */}
-        <div className={`grid grid-cols-3 gap-x-3 gap-y-1 mb-2 border border-black p-1.5 rounded-sm bg-slate-50/10 text-left leading-tight text-black font-serif ${fh('text-[9.5pt]', 'text-[7.2pt]')}`}>
-          <div><strong>Employee Name:</strong> <span className="underline font-sans font-extrabold">{employeeName || "____________________"}</span></div>
-          <div><strong>Designation (पद):</strong> <span className="underline font-sans font-bold">{designation || "____________________"}</span></div>
-          <div><strong>Employee/PF No:</strong> <span className="underline font-mono font-bold">{empNo || "____________________"}</span></div>
+        <div className={`grid grid-cols-3 gap-x-4 gap-y-1 mb-2 border border-black p-2 rounded bg-white text-left leading-tight text-slate-900 font-serif ${fh('text-[10pt]', 'text-[8.5pt]')}`}>
+          <div className="whitespace-nowrap">
+            <strong>Emp Name:</strong> <span className="font-sans font-extrabold ml-1">{employeeName}</span>
+          </div>
+          <div className="whitespace-nowrap">
+            <strong>Desig. (पद):</strong> <span className="font-sans font-bold ml-1">{designation}</span>
+          </div>
+          <div className="whitespace-nowrap">
+            <strong>Employee/PF No:</strong> <span className="font-mono font-bold ml-1">{empNo}</span>
+          </div>
           
-          <div><strong>7th CPC Pay Level:</strong> <span className="underline font-mono font-bold">{payLevel}</span></div>
-          <div><strong>Daily TA Rate (100%):</strong> <span className="underline font-mono font-bold">₹ {totalDailyRate}</span></div>
-          <div><strong>Bill Unit (बी.यू.):</strong> <span className="underline font-mono font-bold">{billUnit || "____________________"}</span></div>
+          <div className="whitespace-nowrap">
+            <strong>Pay Level:</strong> <span className="font-mono font-bold ml-1">{payLevel}</span>
+          </div>
+          <div className="whitespace-nowrap">
+            <strong>Daily TA Rate (100%):</strong> <span className="font-mono font-bold ml-1">₹ {totalDailyRate}</span>
+          </div>
+          <div className="whitespace-nowrap">
+            <strong>Bill Unit (बी.यू.):</strong> <span className="font-mono font-bold ml-1">{billUnit}</span>
+          </div>
           
-          <div className="col-span-2"><strong>Division / Department:</strong> <span className="underline font-sans">{division} / {department}</span></div>
-          <div><strong>Claim Month/Year:</strong> <span className="underline font-bold text-slate-900 font-mono">{claimMonth} {claimYear}</span></div>
+          <div className="col-span-2 whitespace-nowrap">
+            <strong>Department:</strong> <span className="font-sans font-bold ml-1">{department}</span>
+          </div>
+          <div className="whitespace-nowrap">
+            <strong>Claim Month/Year:</strong> <span className="font-bold text-slate-950 font-mono ml-1">{claimMonth} {claimYear}</span>
+          </div>
         </div>
 
-        <table className={`w-full text-left border-collapse border border-black mb-2 font-serif table-fixed ${fh('text-[8.5pt]', 'text-[7.2pt]')}`}>
+        <table className="w-full text-left border-collapse border border-black mb-2 font-serif table-fixed">
           <colgroup>
+            <col style={{ width: isLandscape ? '8%' : '8.5%' }} />
             <col style={{ width: isLandscape ? '6.5%' : '7%' }} />
-            <col style={{ width: isLandscape ? '4.5%' : '5%' }} />
-            <col style={{ width: isLandscape ? '4.5%' : '5%' }} />
-            <col style={{ width: isLandscape ? '4.5%' : '5%' }} />
-            <col style={{ width: isLandscape ? '6.5%' : '7%' }} />
-            <col style={{ width: isLandscape ? '6.5%' : '7.5%' }} />
-            <col style={{ width: isLandscape ? '7%' : '6.5%' }} />
-            <col style={{ width: isLandscape ? '30%' : '27%' }} />
-            <col style={{ width: isLandscape ? '14%' : '13%' }} />
-            <col style={{ width: isLandscape ? '7.5%' : '8%' }} />
+            <col style={{ width: isLandscape ? '9%' : '9.5%' }} />
+            <col style={{ width: isLandscape ? '9%' : '9.5%' }} />
+            <col style={{ width: isLandscape ? '7%' : '7.5%' }} />
+            <col style={{ width: isLandscape ? '7%' : '7.5%' }} />
             <col style={{ width: isLandscape ? '8.5%' : '9%' }} />
+            <col style={{ width: isLandscape ? '9%' : '9.5%' }} />
+            <col style={{ width: isLandscape ? '22%' : '18%' }} />
+            <col style={{ width: isLandscape ? '7%' : '7%' }} />
+            <col style={{ width: isLandscape ? '7%' : '7%' }} />
           </colgroup>
           <thead>
             {/* Row 1 Headers (Matching PNG format) */}
             <tr className="bg-gray-150 text-center font-bold">
-              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
-                माह और तारीख
-                <br />
-                Month & Date
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`} rowSpan={2}>
+                Month & Date / <span className={`block ${fh('text-[8pt]', 'text-[6.5pt]')}`}>तारीख व तिथि</span>
               </th>
-              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
-                गाड़ी का क्रमांक
-                <br />
-                Train No.
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`} rowSpan={2}>
+                Train No. / <span className={`block ${fh('text-[8pt]', 'text-[6.5pt]')}`}>गाड़ी सं.</span>
               </th>
-              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
-                प्रस्थान समय
-                <br />
-                Time left
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`} rowSpan={2}>
+                Departure / <span className={`block ${fh('text-[8pt]', 'text-[6.5pt]')}`}>प्रस्थान</span>
               </th>
-              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
-                आगमन समय
-                <br />
-                Time arrived
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`} rowSpan={2}>
+                Arrival / <span className={`block ${fh('text-[8pt]', 'text-[6.5pt]')}`}>आगमन</span>
               </th>
-              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} colSpan={2}>
-                स्टेशन / Station
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`} colSpan={2}>
+                Station / <span className={`block ${fh('text-[8pt]', 'text-[6.5pt]')}`}>स्टेशन</span>
               </th>
-              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
-                कि. मी.
-                <br />
-                Kms.
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`} rowSpan={2}>
+                Kms / <span className={`block ${fh('text-[8pt]', 'text-[6.5pt]')}`}>कि.मी.</span>
               </th>
-              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
-                यात्री/ठहराव या घंटे
-                <br />
-                Journey/Stay/Hrs
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`} rowSpan={2}>
+                Journey/
+                <span className="block">Stay/</span>
+                <span className="block">Hrs /</span>
+                <span className={`block mt-0.5 ${fh('text-[8pt]', 'text-[6.5pt]')}`}>अवधि</span>
               </th>
-              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
-                यात्रा का उद्देश्य
-                <br />
-                Object of journey
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`} rowSpan={2}>
+                Purpose / <span className={`block ${fh('text-[8pt]', 'text-[6.5pt]')}`}>उद्देश्य</span>
               </th>
-              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
-                दर / Rate
+              <th className={`border border-black p-0.5 py-1 leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`} rowSpan={2}>
+                Rate / <span className={`block ${fh('text-[8pt]', 'text-[6.5pt]')}`}>दर</span>
               </th>
-              <th className={`border border-black p-0.5 py-1 text-center font-extrabold leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`} rowSpan={2}>
-                दावा राशि
-                <br />
-                Claimed Amt
+              <th className={`border border-black p-0.5 py-1 text-center font-extrabold leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`} rowSpan={2}>
+                Amount / <span className={`block ${fh('text-[8pt]', 'text-[6.5pt]')}`}>राशि (₹)</span>
               </th>
             </tr>
             {/* Row 2: Subheaders for Station (From / To) */}
-            <tr className={`bg-gray-150 text-center font-bold leading-tight ${fh('text-[7.5pt]', 'text-[6.3pt]')}`}>
-              <th className="border border-black p-0.5">से / From</th>
-              <th className="border border-black p-0.5">तक / To</th>
+            <tr className={`bg-gray-150 text-center font-bold leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`}>
+              <th className="border border-black p-0.5">
+                From / <span className={`block ${fh('text-[8pt]', 'text-[6.5pt]')}`}>से</span>
+              </th>
+              <th className="border border-black p-0.5">
+                To / <span className={`block ${fh('text-[8pt]', 'text-[6.5pt]')}`}>तक</span>
+              </th>
             </tr>
             {/* Row 3: Column Numbers 1 to 11 */}
-            <tr className={`bg-gray-100 text-center font-mono text-gray-650 ${fh('text-[7.5pt]', 'text-[6.2pt]')}`}>
+            <tr className={`bg-gray-100 text-center font-mono text-gray-650 ${fh('text-[8pt]', 'text-[6.5pt]')}`}>
               <td className="border border-black p-0.5">1</td>
               <td className="border border-black p-0.5">2</td>
               <td className="border border-black p-0.5">3</td>
@@ -1651,14 +2337,65 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
           </thead>
           <tbody>
             {tableRows.map((row, i) => {
-              let pctDisplay = `${(row.dayPct * 100).toFixed(0)}%`;
-              if (row.isFreeMessingTraining) {
-                pctDisplay = "Training (20%)";
-              } else if (row.isBreakdownDuty) {
-                pctDisplay = "Breakdown (100%)";
-              } else if (row.beyond8Km === false) {
-                pctDisplay = "Within 8km (0%)";
+              if (row.isTripHeader) {
+                return (
+                  <React.Fragment key={`trip-hdr-${row.tripId}-${row.tripNo}`}>
+                    {i > 0 && (
+                      <tr className="select-none" style={{ height: '14px', border: 'none' }}>
+                        <td colSpan={11} className="p-0 bg-transparent" style={{ height: '14px', border: 'none' }}></td>
+                      </tr>
+                    )}
+                    <tr className="bg-indigo-50/20 text-indigo-950 font-sans font-bold text-left border border-black">
+                      <td colSpan={11} className="border border-black px-2 py-1 tracking-wide text-[8.5pt]">
+                        <div className="flex items-center gap-1.5 justify-start">
+                          <span className="font-extrabold text-indigo-950 uppercase tracking-wider">🌟 TRIP #{row.tripNo}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  </React.Fragment>
+                );
               }
+
+              const cleanTrainNo = (val: string) => {
+                if (!val) return "";
+                const match = val.match(/\b\d{5}\b/);
+                if (match) {
+                  return match[0];
+                }
+                let clean = val;
+                if (clean.includes('/')) {
+                  clean = clean.split('/')[0];
+                }
+                if (clean.includes('-')) {
+                  clean = clean.split('-')[0];
+                }
+                if (clean.includes('(')) {
+                  clean = clean.split('(')[0];
+                }
+                return clean.trim();
+              };
+
+              const getDayEffectivePct = (r: any) => {
+                if (r.beyond8Km === false) return 0;
+                if (r.isFreeMessingTraining) return 20;
+                if (r.isBreakdownDuty) return 100;
+                
+                const rawPctVal = r.dayPct * 100;
+                if (rawPctVal <= 0) return 0;
+                if (rawPctVal <= 30) return 30;
+                if (rawPctVal <= 70) return 70;
+                return 100;
+              };
+
+              const getRowTotalPct = (r: any) => {
+                if (r.isGroupedStay && r.groupedDays) {
+                  return r.groupedDays.reduce((sum: number, d: any) => sum + getDayEffectivePct(d), 0);
+                }
+                return getDayEffectivePct(r);
+              };
+
+              const rowTotalPct = getRowTotalPct(row);
+              let pctDisplay = `${rowTotalPct}%`;
 
               const dayStartMs = new Date(`${row.dateStr}T00:00:00`).getTime();
               const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
@@ -1667,17 +2404,121 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
               const journeySegs = row.daySegments.filter((seg: any) => seg.type === 'journey');
               const subRowCount = Math.max(1, journeySegs.length);
 
-              // Dynamic text scaling helpers for cells
-              const c75 = fh('text-[9.5pt]', 'text-[7.2pt]');
-              const c80 = fh('text-[10.5pt]', 'text-[7.5pt]');
-              const c60 = fh('text-[8.0pt]', 'text-[6pt]');
-              const c65 = fh('text-[8.5pt]', 'text-[6.3pt]');
+              // Dynamic text scaling helpers for cells - optimized for space saving
+              const c75 = fh('text-[8.5pt] c75-scaled', 'text-[6.8pt] c75-scaled');
+              const c80 = fh('text-[9.5pt] c80-scaled', 'text-[7.2pt] c80-scaled');
+              const c60 = fh('text-[7.5pt] c60-scaled', 'text-[5.8pt] c60-scaled');
+              const c65 = fh('text-[8.0pt] c65-scaled', 'text-[6.2pt] c65-scaled');
+
+              if (journeySegs.length === 0) {
+                const staySeg = row.daySegments.find((s: any) => s.type === 'stay');
+                const stayStation = staySeg?.station || "HQ";
+                const resolvedStay = findStation(stayStation);
+                const stayStationName = resolvedStay ? `${resolvedStay.name} (${resolvedStay.code})` : stayStation;
+                
+                // Helper to format stay details with date & time
+                const formatStayPeriod = (start: any, end: any) => {
+                  if (!start || !end) return "";
+                  const sD = new Date(start);
+                  const eD = new Date(end);
+                  if (isNaN(sD.getTime()) || isNaN(eD.getTime())) return "";
+                  
+                  const sDay = String(sD.getDate()).padStart(2, '0');
+                  const sMon = String(sD.getMonth() + 1).padStart(2, '0');
+                  const sYear = sD.getFullYear();
+                  const sHour = String(sD.getHours()).padStart(2, '0');
+                  const sMin = String(sD.getMinutes()).padStart(2, '0');
+                  
+                  const eDay = String(eD.getDate()).padStart(2, '0');
+                  const eMon = String(eD.getMonth() + 1).padStart(2, '0');
+                  const eYear = eD.getFullYear();
+                  const eHour = String(eD.getHours()).padStart(2, '0');
+                  const eMin = String(eD.getMinutes()).padStart(2, '0');
+                  
+                  return `(From: ${sDay}-${sMon}-${sYear} ${sHour}:${sMin} to ${eDay}-${eMon}-${eYear} ${eHour}:${eMin})`;
+                };
+                
+                const stayPeriodStr = staySeg ? formatStayPeriod(staySeg.start, staySeg.end) : "";
+
+                return (
+                  <React.Fragment key={row.dateStr}>
+                    <tr 
+                      className={`leading-tight text-center align-middle hover:bg-slate-50/10 text-gray-900 border border-black ${c80}`}
+                    >
+                      {/* 1. Month & Date */}
+                      <td 
+                        className={`border border-black p-0 py-0.5 font-mono text-center font-bold bg-slate-50/5 whitespace-nowrap align-middle ${c75}`}
+                      >
+                        {row.formattedDate.includes(" to ") ? (
+                           <div className="flex flex-col items-center justify-center leading-tight py-0.5">
+                             <span className="text-slate-950 block font-bold">{row.formattedDate.split(" to ")[0]}</span>
+                             <span className={`text-gray-550 font-bold block my-0.5 leading-none ${c60}`}>to</span>
+                             <span className="text-slate-950 block font-bold">{row.formattedDate.split(" to ")[1]}</span>
+                           </div>
+                        ) : (
+                          row.formattedDate
+                        )}
+                      </td>
+
+                      {/* 2 to 7. Merged Stay Details */}
+                      <td 
+                        colSpan={6} 
+                        className={`border border-black p-0 py-1 text-center font-sans font-bold bg-slate-50/5 text-slate-800 ${c75}`}
+                      >
+                        🏨 Stay at {stayStationName} {stayPeriodStr && <span className="text-slate-600 font-mono text-[90%] ml-1.5 font-normal">{stayPeriodStr}</span>}
+                      </td>
+
+                      {/* 8. Journey/Stay/Hrs */}
+                      <td 
+                        className="border border-black p-0 py-0 text-center align-middle font-medium bg-slate-50/5 leading-none"
+                      >
+                        <div className="flex flex-col gap-0 w-full items-center justify-center leading-tight">
+                          <span className="text-black font-semibold font-mono">
+                            {row.isGroupedStay ? `${row.stayDaysCount} days` : (() => {
+                              const totMin = Math.round(row.dayHrs * 60);
+                              const h = Math.floor(totMin / 60);
+                              const m = totMin % 60;
+                              return `${h} h:${String(m).padStart(2, '0')}m`;
+                            })()}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* 9. Object of journey */}
+                      {purposeRowSpans[i] > 0 && (
+                        <td 
+                          rowSpan={purposeRowSpans[i]} 
+                          className={`border border-black p-0 py-0.5 text-center font-sans align-middle break-words ${c75}`}
+                        >
+                          {row.purpose}
+                        </td>
+                      )}
+
+                      {/* 10. Rate */}
+                      <td 
+                        className="border border-black p-0 py-0.5 text-center align-middle font-serif bg-slate-50/5"
+                      >
+                        <div className={`font-extrabold text-indigo-950 leading-tight ${c75}`}>{pctDisplay}</div>
+                      </td>
+
+                      {/* 11. Claimed Amt */}
+                      <td 
+                        className="border border-black p-0 py-0.5 text-center font-bold font-mono bg-slate-50/15 align-middle"
+                      >
+                        <div className="leading-tight text-center w-full">
+                          <div className={`text-slate-950 font-black ${c80}`}>₹{row.dayTotalClaimed}</div>
+                        </div>
+                      </td>
+                    </tr>
+                  </React.Fragment>
+                );
+              }
 
               return (
                 <React.Fragment key={row.dateStr}>
                   {Array.from({ length: subRowCount }).map((_, idx) => {
                     const isFirst = idx === 0;
-                    const seg = journeySegs[idx]; // Might be undefined if journeySegs.length is 0
+                    const seg = journeySegs[idx];
 
                     return (
                       <tr 
@@ -1699,11 +2540,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                           {!seg ? (
                             <span className="text-gray-400 font-normal">-</span>
                           ) : (
-                            <div className="leading-tight text-center">
-                              <span className="text-gray-950 block font-extrabold">{seg.trainNo}</span>
-                              {seg.leg.trainName && (
-                                <span className={`text-gray-500 font-normal block leading-none mt-0.5 ${c60}`}>
-                                  {seg.leg.trainName}
+                            <div className="leading-tight text-center px-1">
+                              <span className="text-gray-950 block font-extrabold">{cleanTrainNo(seg.trainNo)}</span>
+                              {seg.leg?.trainName && seg.leg.trainName !== seg.trainNo && (
+                                <span className="text-slate-650 block text-[8.5pt] md:text-[6.2pt] font-semibold leading-tight mt-0.5 max-w-[125px] mx-auto break-words">
+                                  {seg.leg.trainName.replace(/\(\d+\)/g, "").trim()}
                                 </span>
                               )}
                             </div>
@@ -1749,9 +2590,17 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                           ) : (
                             (() => {
                               const deportsToday = seg.leg.depDate === row.dateStr;
+                              const resolvedFrom = findStation(seg.from);
                               return deportsToday ? (
-                                <div className="leading-none text-center">
-                                  <span className="font-extrabold text-slate-950">{seg.from}</span>
+                                <div className="leading-tight text-center px-1">
+                                  <span className="font-extrabold text-slate-950">
+                                    {resolvedFrom ? resolvedFrom.name : seg.from}
+                                  </span>
+                                  {resolvedFrom && resolvedFrom.code !== resolvedFrom.name && (
+                                    <span className="text-slate-500 font-mono text-[9px] font-bold block leading-none mt-0.5">
+                                      ({resolvedFrom.code})
+                                    </span>
+                                  )}
                                   {seg.from !== "NA" && seg.beyond8Km === false && (
                                     <span className={`text-rose-800 font-bold block leading-none mt-0.5 ${c60}`}>
                                       (HQ 8km)
@@ -1772,8 +2621,18 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                           ) : (
                             (() => {
                               const arrivesToday = seg.leg.arrDate === row.dateStr;
+                              const resolvedTo = findStation(seg.to);
                               return arrivesToday ? (
-                                <span className="font-extrabold text-slate-950 leading-none">{seg.to}</span>
+                                <div className="leading-tight text-center px-1">
+                                  <span className="font-extrabold text-slate-950">
+                                    {resolvedTo ? resolvedTo.name : seg.to}
+                                  </span>
+                                  {resolvedTo && resolvedTo.code !== resolvedTo.name && (
+                                    <span className="text-slate-500 font-mono text-[9px] font-bold block leading-none mt-0.5">
+                                      ({resolvedTo.code})
+                                    </span>
+                                  )}
+                                </div>
                               ) : (
                                 <span className={`text-gray-400 font-normal ${c75}`}>NA</span>
                               );
@@ -1819,38 +2678,25 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                         {isFirst && (
                           <td 
                             rowSpan={subRowCount} 
-                            className="border border-black p-0 py-0 text-center align-middle font-medium bg-slate-50/5 leading-none"
+                            className="border border-black p-0 py-0.5 text-center align-middle font-medium bg-slate-50/5 leading-none"
                           >
                             <div className="flex flex-col gap-0 w-full items-center justify-center leading-tight">
-                              {row.daySegments.map((s: any, idxSeg: number) => {
-                                const isJourney = s.type === 'journey';
-                                if (isJourney) {
-                                  return (
-                                    <div key={idxSeg} className={`w-full text-center py-0.5 text-black border-b border-black/[0.04] last:border-b-0 ${fh('text-[8.5pt]', 'text-[6.5pt]')}`}>
-                                      <span className="text-black font-extrabold uppercase">
-                                        Jny: <span className="font-mono font-black">{formatDurationLabelShort(s.hoursOnDay)}</span>
-                                      </span>
-                                    </div>
-                                  );
-                                } else {
-                                  const timeRangeShort = s.hoursOnDay === 24 
-                                    ? "24h" 
-                                    : `${formatLocalTime(s.overlapStartMs)}-${formatLocalTime(s.overlapEndMs)} (${formatDurationLabelShort(s.hoursOnDay)})`;
-                                  return (
-                                    <div key={idxSeg} className={`w-full text-center py-0.5 text-slate-800 font-semibold px-0.5 border-b border-black/[0.04] last:border-b-0 ${fh('text-[8.5pt]', 'text-[6.5pt]')}`}>
-                                      Stay: {s.station} ({timeRangeShort})
-                                    </div>
-                                  );
-                                }
-                              })}
+                              <span className="text-black font-semibold font-mono font-bold">
+                                {row.isGroupedStay ? `${row.stayDaysCount} days` : (() => {
+                                  const totMin = Math.round(row.dayHrs * 60);
+                                  const h = Math.floor(totMin / 60);
+                                  const m = totMin % 60;
+                                  return `${h} h:${String(m).padStart(2, '0')}m`;
+                                })()}
+                              </span>
                             </div>
                           </td>
                         )}
                         
                         {/* 9. Object of journey */}
-                        {isFirst && (
+                        {isFirst && purposeRowSpans[i] > 0 && (
                           <td 
-                            rowSpan={subRowCount} 
+                            rowSpan={purposeRowSpans[i]} 
                             className={`border border-black p-0 py-0.5 text-center font-sans align-middle break-words ${c75}`}
                           >
                             {row.purpose}
@@ -1864,9 +2710,6 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                             className="border border-black p-0 py-0.5 text-center align-middle font-serif bg-slate-50/5"
                           >
                             <div className={`font-extrabold text-indigo-950 leading-tight ${c75}`}>{pctDisplay}</div>
-                            <div className={`text-gray-600 font-mono leading-none mt-1 ${c60}`}>
-                              ({formatDurationLabel(row.dayHrs)})
-                            </div>
                           </td>
                         )}
                         
@@ -1894,11 +2737,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
             })}
             
             {/* The single summary row for total claimed amt */}
-            <tr className="bg-gray-150 font-bold">
-              <td colSpan={10} className={`border border-black py-0.5 px-2 text-right uppercase ${fh('text-[10.5pt]', 'text-[8.5pt]')}`}>
-                TOTAL CLAIMED TA AMOUNT (दावा राशि कुल योग):
+            <tr className={`bg-gray-150 font-bold ${fh('text-[10pt]', 'text-[8.5pt]')}`}>
+              <td colSpan={10} className={`border border-black py-0.5 px-2 text-right uppercase ${fh('text-[9.5pt]', 'text-[8.2pt]')}`}>
+                TOTAL CLAIMED TA AMOUNT:
               </td>
-              <td className={`border border-black py-0.5 px-2 text-right text-indigo-800 font-extrabold font-mono ${fh('text-[12.5pt]', 'text-[9.5pt]')}`}>
+              <td className={`border border-black py-0.5 px-2 text-right text-indigo-800 font-extrabold font-mono ${fh('text-[11pt]', 'text-[9.5pt]')}`}>
                 ₹{totalAmount}
               </td>
             </tr>
@@ -1907,24 +2750,24 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
 
         {showSummaryTable && (
           <div className="mt-5 mb-5 font-serif">
-            <table className={`w-full border-collapse border border-black text-left ${fh('text-[9.5pt]', 'text-[8.2pt]')}`}>
+            <table className={`w-full border-collapse border border-black text-left ${fh('text-[9pt]', 'text-[8.2pt]')}`}>
               <thead>
                 <tr className="bg-gray-100 text-center">
-                  <th colSpan={3} className={`border border-black py-0.5 px-1.5 font-bold tracking-wider uppercase ${fh('text-[10.5pt]', 'text-[9.2pt]')}`}>
-                    SUMMARY (सारांश)
+                  <th colSpan={3} className={`border border-black py-1 px-1.5 font-bold tracking-wider uppercase ${fh('text-[10pt]', 'text-[9pt]')}`}>
+                    SUMMARY
                   </th>
                 </tr>
-                <tr className={`bg-gray-50 text-center font-bold ${fh('text-[9pt]', 'text-[8.0pt]')}`}>
-                  <th className="border border-black py-0.5 px-1 w-[25%] font-serif">Percentage (प्रतिशत)</th>
-                  <th className="border border-black py-0.5 px-1 w-[30%] font-serif">No. of total days (कुल दिनों की संख्या)</th>
-                  <th className="border border-black py-0.5 px-1.5 w-[45%] font-serif text-left pl-4">Rate of TA X Days = Amount (दर X दिन = कुल राशि)</th>
+                <tr className={`bg-gray-50 text-center font-bold ${fh('text-[9pt]', 'text-[8pt]')}`}>
+                  <th className="border border-black py-1 px-1 w-[25%] font-serif">Percentage</th>
+                  <th className="border border-black py-1 px-1 w-[30%] font-serif">No. of total days</th>
+                  <th className="border border-black py-1 px-1.5 w-[45%] font-serif text-left pl-4">Rate of TA X Days = Amount</th>
                 </tr>
               </thead>
               <tbody>
                 <tr className="text-center">
-                  <td className="border border-black py-0.5 px-1 font-bold bg-gray-50/20 font-serif">30%</td>
-                  <td className="border border-black py-0.5 px-1 font-mono">{count30 > 0 ? count30 : "—"}</td>
-                  <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4">
+                  <td className="border border-black py-1 px-1 font-bold bg-gray-50/20 font-serif">30%</td>
+                  <td className="border border-black py-1 px-1 font-mono">{count30 > 0 ? count30 : "—"}</td>
+                  <td className="border border-black py-1 px-1.5 text-left font-mono pl-4">
                     {count30 > 0 ? (
                       <span>Rs. {Math.round(totalDailyRate * 0.30)} × {count30} = Rs. {amt30}</span>
                     ) : (
@@ -1933,9 +2776,9 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   </td>
                 </tr>
                 <tr className="text-center">
-                  <td className="border border-black py-0.5 px-1 font-bold bg-gray-50/20 font-serif">70%</td>
-                  <td className="border border-black py-0.5 px-1 font-mono">{count70 > 0 ? count70 : "—"}</td>
-                  <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4">
+                  <td className="border border-black py-1 px-1 font-bold bg-gray-50/20 font-serif">70%</td>
+                  <td className="border border-black py-1 px-1 font-mono">{count70 > 0 ? count70 : "—"}</td>
+                  <td className="border border-black py-1 px-1.5 text-left font-mono pl-4">
                     {count70 > 0 ? (
                       <span>Rs. {Math.round(totalDailyRate * 0.70)} × {count70} = Rs. {amt70}</span>
                     ) : (
@@ -1944,9 +2787,9 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   </td>
                 </tr>
                 <tr className="text-center">
-                  <td className="border border-black py-0.5 px-1 font-bold bg-gray-50/20 font-serif">100%</td>
-                  <td className="border border-black py-0.5 px-1 font-mono">{count100 > 0 ? count100.toFixed(1) : "—"}</td>
-                  <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4">
+                  <td className="border border-black py-1 px-1 font-bold bg-gray-50/20 font-serif">100%</td>
+                  <td className="border border-black py-1 px-1 font-mono">{count100 > 0 ? count100.toFixed(1) : "—"}</td>
+                  <td className="border border-black py-1 px-1.5 text-left font-mono pl-4">
                     {count100 > 0 ? (
                       <span>Rs. {Math.round(totalDailyRate * 1.00)} × {count100.toFixed(1)} = Rs. {amt100}</span>
                     ) : (
@@ -1955,18 +2798,18 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   </td>
                 </tr>
                 <tr>
-                  <td colSpan={2} className={`border border-black py-0.5 px-2 font-bold text-right uppercase bg-gray-50/35 font-serif ${fh('text-[9pt]', 'text-[8.2pt]')}`}>
-                    Total Contingent Amount (कुल फुटकर व्यय)
+                  <td colSpan={2} className={`border border-black py-1 px-2 font-bold text-right uppercase bg-gray-50/35 font-serif ${fh('text-[9pt]', 'text-[8pt]')}`}>
+                    Total Contingent Amount
                   </td>
-                  <td className="border border-black py-0.5 px-1.5 text-left font-mono pl-4 font-bold text-emerald-800">
+                  <td className={`border border-black py-1 px-1.5 text-left font-mono pl-4 font-bold text-emerald-800 ${fh('text-[9.5pt]', 'text-[8.5pt]')}`}>
                     Rs. {(totalMileage || 0) + totalContingentAmount}
                   </td>
                 </tr>
-                <tr className={`bg-gray-100 font-bold ${fh('text-[10pt]', 'text-[9pt]')}`}>
-                  <td colSpan={2} className="border border-black py-0.5 px-2 text-right uppercase tracking-wider font-serif">
-                    Total Amount Rs. (कुल दावा राशि)
+                <tr className={`bg-gray-100 font-bold ${fh('text-[10pt]', 'text-[8.5pt]')}`}>
+                  <td colSpan={2} className="border border-black py-1 px-2 text-right uppercase tracking-wider font-serif">
+                    Total Amount (Rs.)
                   </td>
-                  <td className={`border border-black py-0.5 px-1.5 text-left font-mono pl-4 text-indigo-900 font-extrabold ${fh('text-[10.5pt]', 'text-[9.5pt]')}`}>
+                  <td className={`border border-black py-1 px-1.5 text-left font-mono pl-4 text-indigo-900 font-extrabold ${fh('text-[10.5pt]', 'text-[9.5pt]')}`}>
                     Rs. {totalAmount}
                   </td>
                 </tr>
@@ -1978,32 +2821,32 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
         {/* CONTINGENT DYNAMIC BREAKDOWN TABLE */}
         {storeConfig.enableContingentSection !== "false" && contingentItems && contingentItems.length > 0 && (
           <div className="mt-4 mb-4 font-serif">
-            <table className={`w-full border-collapse border border-black text-left ${fh('text-[9pt]', 'text-[7.8pt]')}`}>
+            <table className={`w-full border-collapse border border-black text-left ${fh('text-[9pt]', 'text-[8.2pt]')}`}>
               <thead>
                 <tr className="bg-gray-105 bg-gray-100 text-center">
-                  <th colSpan={3} className={`border border-black py-0.5 px-1.5 font-bold tracking-wider uppercase font-serif ${fh('text-[9.5pt]', 'text-[8.5pt]')}`}>
-                    CONTINGENT EXPENSES DETAILED BREAKDOWN (फुटकर व्यय का पूर्ण विवरण)
+                  <th colSpan={3} className={`border border-black py-1 px-1.5 font-bold tracking-wider uppercase font-serif ${fh('text-[10pt]', 'text-[9pt]')}`}>
+                    CONTINGENT EXPENSES DETAILED BREAKDOWN
                   </th>
                 </tr>
-                <tr className={`bg-gray-50 text-center font-bold ${fh('text-[8.5pt]', 'text-[7.8pt]')}`}>
-                  <th className="border border-black py-0.5 px-1 w-[10%] text-center font-serif">S.No.</th>
-                  <th className="border border-black py-0.5 px-1.5 w-[70%] font-serif pl-3">Particulars & Remarks / व्यय का विवरण</th>
-                  <th className="border border-black py-0.5 px-1 w-[20%] text-right pr-4 font-serif">Amount (राशि ₹)</th>
+                <tr className={`bg-gray-50 text-center font-bold ${fh('text-[9pt]', 'text-[8pt]')}`}>
+                  <th className="border border-black py-1 px-1 w-[10%] text-center font-serif">S.No.</th>
+                  <th className="border border-black py-1 px-1.5 w-[70%] font-serif pl-3 text-left">Particulars & Remarks</th>
+                  <th className="border border-black py-1 px-1 w-[20%] text-right pr-4 font-serif">Amount (Rs.)</th>
                 </tr>
               </thead>
               <tbody>
                 {contingentItems.map((item, idx) => (
                   <tr key={item.id || idx}>
-                    <td className="border border-black py-0.5 px-1 text-center font-mono">{idx + 1}</td>
-                    <td className={`border border-black py-0.5 px-1.5 pl-3 font-sans font-semibold text-gray-800 ${fh('text-[8.5pt]', 'text-[7.8pt]')}`}>{item.remarks}</td>
-                    <td className="border border-black py-0.5 px-1 text-right pr-4 font-mono font-bold">Rs. {item.amount || 0}</td>
+                    <td className="border border-black py-1 px-1 text-center font-mono">{idx + 1}</td>
+                    <td className={`border border-black py-1 px-1.5 pl-3 font-sans font-semibold text-gray-800 ${fh('text-[9pt]', 'text-[8pt]')}`}>{item.remarks}</td>
+                    <td className="border border-black py-1 px-1 text-right pr-4 font-mono font-bold">Rs. {item.amount || 0}</td>
                   </tr>
                 ))}
-                <tr className={`bg-gray-50/50 font-extrabold ${fh('text-[9.5pt]', 'text-[8.5pt]')}`}>
-                  <td colSpan={2} className="border border-black py-0.5 px-2 text-right uppercase tracking-wider font-serif">
-                    Total Contingent Amount Added (कुल जोड़ा गया फुटकर व्यय):
+                <tr className={`bg-gray-50/50 font-extrabold ${fh('text-[9pt]', 'text-[8.2pt]')}`}>
+                  <td colSpan={2} className="border border-black py-1 px-2 text-right uppercase tracking-wider font-serif">
+                    Total Contingent Amount Added:
                   </td>
-                  <td className={`border border-black py-0.5 px-2 text-right pr-4 font-mono text-emerald-800 ${fh('text-[10pt]', 'text-[9pt]')}`}>
+                  <td className={`border border-black py-1 px-2 text-right pr-4 font-mono text-emerald-800 ${fh('text-[10pt]', 'text-[8.5pt]')}`}>
                     Rs. {totalContingentAmount}
                   </td>
                 </tr>
@@ -2013,14 +2856,14 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
         )}
 
         {/* Declarations (Matching PNG exactly) */}
-        <div className={`text-justify space-y-1 font-serif mt-1 ${fh('text-[9.5pt]', 'text-[8.2pt]')}`}>
-          <ol className="list-decimal pl-5 space-y-0.5 block leading-tight">
-            <li>The TA claimed by me has not been claimed before and will not be claimed hereafter (मेरे द्वारा जिस यात्रा भत्ता का दावा किया गया है वह पहले नहीं किया गया है)।</li>
+        <div className={`text-justify space-y-1 font-serif mt-2 ${fh('text-[8.5pt]', 'text-[7.2pt]')}`}>
+          <ol className={`list-decimal pl-5 space-y-1 block leading-tight ${fh('text-[8.5pt]', 'text-[7.2pt]')}`}>
+            <li>The TA claimed by me has not been claimed before and will not be claimed hereafter / <span>मेरे द्वारा दावा किया गया यात्रा भत्ता पहले दावा नहीं किया गया है और इसके बाद भी दावा नहीं किया जाएगा।</span></li>
             {showNoFreePassDeclaration && (
-              <li>No free railway pass or other free mode of transit was checked for this duration (इस अवधि के दौरान किसी भी निःशुल्क रेलवे पास आदि का उपयोग नहीं किया गया था)।</li>
+              <li>No free railway pass or other free mode of transit was checked for this duration / <span>इस अवधि के दौरान कोई मुफ्त रेलवे पास या अन्य मुफ्त पारगमन साधन का उपयोग नहीं किया गया था।</span></li>
             )}
-            <li>Cheapest mode of conveyance was utilized (यात्रा के लिए सबसे सस्ते साधन का उपयोग किया गया था)।</li>
-            <li>The journey performed by road for which conveyance has been claimed was over 1.6 km (सड़क मार्ग से की गई यात्रा जिसके लिए वाहन भत्ता का दावा किया गया है वह 1.6 किमी से अधिक थी)।</li>
+            <li>Cheapest mode of conveyance was utilized / <span>सबसे सस्ते परिवहन साधन का उपयोग किया गया था।</span></li>
+            <li>The journey performed by road for which conveyance has been claimed was over 1.6 km / <span>सड़क मार्ग से की गई यात्रा जिसके लिए वाहन भत्ता मांगा गया है, वह 1.6 किमी से अधिक थी।</span></li>
           </ol>
         </div>
 
@@ -2043,25 +2886,27 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                 <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
               </div>
               <div className="mb-1 w-44 mx-auto h-6"></div>
-              <p className={`font-semibold text-gray-800 text-center font-serif ${fh('text-[9.5pt]', 'text-[8.2pt]')}`}>Signature of Claiming TA</p>
-              <p className={`text-gray-500 text-center italic font-serif ${fh('text-[8pt]', 'text-[7.2pt]')}`}>(दावा करने वाले के हस्ताक्षर)</p>
+              <p className={`font-semibold text-gray-800 text-center font-serif leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`}>
+                Signature of Claiming TA
+                <span className="block mt-0.5">दावाकर्ता के हस्ताक्षर</span>
+              </p>
             </div>
           </div>
         )}
 
         {/* Headquarter absence certification section (Spans full page width, matching PNG) */}
-        <div className={`border-t border-b border-black py-0.5 mt-0.5 text-justify font-serif leading-tight ${fh('text-[9.2pt]', 'text-[8.0pt]')}`}>
+        <div className={`border-t border-b border-black py-1 mt-1 text-justify font-serif leading-tight ${fh('text-[8.5pt]', 'text-[7.2pt]')}`}>
           <p>
-            I hereby certify that Shri/Smt/Kumari <span className="font-bold underline px-1 text-indigo-950 uppercase">{employeeName || "______________________________"}</span> was absent on duty from his/her headquarters station during the period charged for in the bill on Railway business and that the officer performed the journey by Rail/Sea/Air/Road and was allowed/not allowed free Pass of locomotion at the expense of Government local fund of Indian State.
+            I hereby certify that Shri/Smt/Kumari <span className="font-bold underline px-1 text-indigo-950">{employeeName || "______________________________"}</span> was absent on duty from his/her headquarters station during the period charged for in the bill on Railway business and that the officer performed the journey by Rail/Sea/Air/Road and was allowed/not allowed free Pass of locomotion at the expense of Government local fund of Indian State.
           </p>
-          <p className="italic text-gray-650 mt-0.5 block leading-tight text-[8.2pt]">
-            (प्रमाणित किया जाता है कि श्री/श्रीमती/कुमारी रेल कार्यवश अपने मुख्यालय रेलवे स्टेशन से अनुपस्थित थे तथा उन्होंने यात्रा रेल/समुद्र/हवाई मार्ग/सड़क मार्ग से की है और उन्हें सरकारी स्थानीय निधि के व्यय पर यात्रा का निःशुल्क पास स्वीकृत किया गया/नहीं किया गया था।)
+          <p className="mt-1 border-t border-dotted border-gray-300 pt-1">
+            मैं प्रमाणित करता हूँ कि श्री/श्रीमती/कुमारी <span className="font-bold underline px-1 text-indigo-950">{employeeName || "______________________________"}</span> अपने मुख्यालय स्टेशन से रेलवे व्यवसाय पर ड्यूटी से अनुपस्थित थे और उन्होंने रेल/समुद्र/हवा/सड़क द्वारा यात्रा की।
           </p>
         </div>
 
         {/* Counter Signed & Controlling Officer signatures layout arranged exactly per PNG user request */}
         {(showCounterSig || showHeadOfficeSig || showControllingOfficerSig) && (
-          <div className="mt-3 space-y-3 font-serif text-[10.5pt] tracking-normal leading-normal text-black relative w-full printable-signatures-block min-h-[140px]">
+          <div className={`mt-3 space-y-3 font-serif tracking-normal leading-normal text-black relative w-full printable-signatures-block min-h-[140px] ${fh('text-[8.5pt]', 'text-[7.5pt]')}`}>
             {/* Absolute centered stamp/seal with 50% transparency between these signature blocks */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-10 opacity-50 flex items-center justify-center scale-110">
               <RenderPrintOverlaySeal seal={printSettings.seal} customSealText={printSettings.customSealText} sealImageData={printSettings.sealImageData} />
@@ -2086,10 +2931,12 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
             {/* Row 1: Counter Signed on Left */}
             {showCounterSig && (
               <div className="flex justify-start text-black">
-                <div className="w-[200px] text-left">
+                <div className="w-[280px] text-left">
                   <div className="h-6"></div> {/* Space for actual physical sign */}
-                  <p className="font-bold whitespace-nowrap leading-tight">Counter Signed</p>
-                  <p className="text-[7.8pt] text-gray-600 font-semibold italic leading-none mt-0.5">(प्रति-हस्ताक्षरित)</p>
+                  <p className={`font-bold leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`}>
+                    Counter Signed
+                    <span className="block mt-0.5">प्रतिहस्ताक्षरित</span>
+                  </p>
                 </div>
               </div>
             )}
@@ -2097,10 +2944,12 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
             {/* Row 2: Head of Office in the middle (vertically), but aligned on the Right hand side */}
             {showHeadOfficeSig && (
               <div className="flex justify-end text-black">
-                <div className="w-[280px] text-right">
+                <div className="w-[450px] text-right">
                   <div className="h-6"></div> {/* Space for actual physical sign */}
-                  <p className="font-bold whitespace-nowrap leading-tight">Signature of Supervisor/In-charge</p>
-                  <p className="text-[7.8pt] text-gray-600 font-semibold italic leading-none mt-0.5">(पर्यवेक्षक/प्रभारी के हस्ताक्षर)</p>
+                  <p className={`font-bold leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`}>
+                    Signature of Supervisor/In-charge
+                    <span className="block mt-0.5">पर्यवेक्षक/प्रभारी के हस्ताक्षर</span>
+                  </p>
                 </div>
               </div>
             )}
@@ -2108,12 +2957,12 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
             {/* Row 3: Controlling Officer on the Left */}
             {showControllingOfficerSig && (
               <div className="flex justify-start items-end text-black">
-                <div className="w-[200px] text-left">
+                <div className="w-[280px] text-left">
                   <div className="h-6"></div> {/* Space for actual physical sign */}
-                  <p className="font-bold whitespace-nowrap leading-tight">
-                    <span className="font-bold">Controlling Officer</span>
+                  <p className={`font-bold leading-tight ${fh('text-[9pt]', 'text-[7.5pt]')}`}>
+                    Controlling Officer
+                    <span className="block mt-0.5">नियंत्रण अधिकारी</span>
                   </p>
-                  <p className="text-[7.8pt] text-gray-600 font-semibold italic leading-none mt-1">(नियंत्रण अधिकारी के हस्ताक्षर)</p>
                 </div>
               </div>
             )}
@@ -2122,13 +2971,12 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
 
         {/* Dynamic System Timestamp & System Generated Circular Stamp Metadata */}
         {storeConfig.enablePrintMetadata !== "false" && (
-          <div className="mt-4 pt-2 border-t border-dashed border-gray-400 flex justify-end items-center text-[7.5pt] font-mono text-gray-500 px-1 py-1">
-            <div className="text-right flex flex-col items-end leading-tight text-[7pt]">
+          <div className={`mt-4 pt-2 border-t border-dashed border-gray-400 flex justify-end items-center font-mono text-gray-500 px-1 py-1 ${fh('text-[8.5pt]', 'text-[7.2pt]')}`}>
+            <div className={`text-right flex flex-col items-end leading-tight ${fh('text-[8.5pt]', 'text-[7.2pt]')}`}>
               <span>Dynamic Auth Code: NFR-PERS-TA-{empNo || 'DRAFT'}-{Date.now().toString().slice(-6)}</span>
-              <span className="text-gray-400 italic font-sans">Authentic Verification Secured</span>
-              <span className="text-slate-850 font-bold mt-0.5 font-mono">
+              <span className={`text-slate-850 font-bold mt-0.5 font-mono ${fh('text-[8.5pt]', 'text-[7.2pt]')}`}>
                 Time: {new Date().toLocaleTimeString('en-IN', {
-                  hour12: false,
+                  hour12: true,
                   hour: '2-digit',
                   minute: '2-digit',
                   second: '2-digit'
@@ -2160,16 +3008,16 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                 navigate(-1);
               }
             }}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-350 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black shadow-md transition-all active:scale-95 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 border border-slate-355 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black shadow-md transition-all active:scale-95 cursor-pointer"
           >
-            ← Back / वापस
+            ← Back
           </button>
           
           <button
             onClick={() => onToggleSidebars?.(!showSidebars)}
             className="flex items-center gap-2 px-4 py-2 border border-slate-300 hover:border-indigo-500 bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-700 rounded-xl text-xs font-black shadow-sm transition-all cursor-pointer"
           >
-            📋 {showSidebars ? "Hide Menu / मेनू छुपाएं" : "Show Options Menu / विकल्प मेनू दिखाएं"}
+            📋 {showSidebars ? "Hide Menu" : "Show Options Menu"}
           </button>
         </div>
 
@@ -2201,9 +3049,6 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
               <h3 className="font-extrabold text-slate-900 text-sm">
                 Create New TA Claim Sheet
               </h3>
-              <p className="text-[11px] text-slate-500 mt-1 font-medium">
-                नया यात्रा भत्ता दावा प्रपत्र तैयार करें
-              </p>
               <p className="text-[10px] text-slate-400 mt-2 max-w-xs leading-normal">
                 Starts with a clean form conforming to 7th PC rules, allowing manual entry or instant station kilometrage checks.
               </p>
@@ -2242,7 +3087,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
               <div>
                 <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-1.5">
                   <span className="w-1.5 h-3.5 bg-indigo-600 rounded"></span>
-                  Select Saved TA Claim to Edit / सहेजे गए दावे चुनें
+                  Select Saved TA Claim to Edit
                 </h3>
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   Click on any employee record below to open and review.
@@ -2335,7 +3180,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 border border-transparent transition-all cursor-pointer mr-1.5 active:scale-95"
               title="Return to claims list dashboard"
             >
-              ← Back to List / वापस सूची में
+              ← Back to List
             </button>
             <button
               type="button"
@@ -2346,7 +3191,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               }`}
             >
-              <Edit3 className="w-3.5 h-3.5" /> 📝 Entry Form (दावा प्रविष्टि)
+              <Edit3 className="w-3.5 h-3.5" /> 📝 Entry Form
             </button>
             <button
               type="button"
@@ -2357,7 +3202,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               }`}
             >
-              <Eye className="w-3.5 h-3.5" /> 👁️ Print Preview (प्रिंट प्रीव्यू)
+              <Eye className="w-3.5 h-3.5" /> 👁️ Print Preview
             </button>
           </div>
 
@@ -2371,7 +3216,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-350 hover:text-slate-900"
                   : "bg-gradient-to-r from-emerald-500 via-indigo-600 to-indigo-700 hover:brightness-110 text-white border-transparent shadow-lg shadow-indigo-600/20 active:translate-y-[1px] animate-pulse"
               }`}
-              title={isSidebarsShown ? "Hide sidebars / पूर्ण स्क्रीन" : "Show side options / विकल्प सूची दिखाएं"}
+              title={isSidebarsShown ? "Hide sidebars" : "Show side options"}
             >
               {isSidebarsShown ? (
                 <>
@@ -2381,7 +3226,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
               ) : (
                 <>
                   <ChevronsLeftRight className="w-5 h-5 text-yellow-100 animate-bounce" />
-                  <span className="text-white font-extrabold tracking-wide">↔️ Show Options / विकल्प दिखाएं</span>
+                  <span className="text-white font-extrabold tracking-wide">↔️ Show Options</span>
                 </>
               )}
             </button>
@@ -2397,14 +3242,14 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
         </div>
 
         {/* Real-time Customizer Settings */}
-        {isSidebarsShown && <PrintCustomizer settings={printSettings} onChange={setPrintSettings} />}
+        {isSidebarsShown && <PrintCustomizer settings={printSettings} onChange={setPrintSettings} isAdmin={isAdmin} />}
 
         {/* Real-time Signature Box Selectors */}
         {isSidebarsShown && (
           <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-4 font-sans text-slate-850 animate-fadeIn animate-duration-200">
             <h5 className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 mb-3 flex items-center gap-1.5">
               <span className="w-1.5 h-3.5 bg-indigo-600 rounded"></span>
-              Signature & Table Visibility Config / हस्ताक्षर एवं तालिका दृश्यता चयन
+              Signature & Table Visibility Config
             </h5>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <label className="flex items-center gap-2 text-xs bg-slate-50 border border-gray-200 hover:border-indigo-500 rounded-lg p-2.5 cursor-pointer select-none transition-all">
@@ -2413,10 +3258,10 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   checked={showClaimantSig}
                   onChange={(e) => setShowClaimantSig(e.target.checked)}
                   className="w-4 h-4 rounded border-gray-300 bg-white text-indigo-650 focus:ring-indigo-500 accent-indigo-650 cursor-pointer"
+                  id="claimantSigCheckbox"
                 />
                 <div className="flex flex-col cursor-pointer">
                   <span className="font-bold text-slate-800">Claimant Signature</span>
-                  <span className="text-[9px] text-slate-500">दावेदार के हस्ताक्षर</span>
                 </div>
               </label>
 
@@ -2426,10 +3271,10 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   checked={showCounterSig}
                   onChange={(e) => setShowCounterSig(e.target.checked)}
                   className="w-4 h-4 rounded border-gray-300 bg-white text-indigo-650 focus:ring-indigo-500 accent-indigo-650 cursor-pointer"
+                  id="counterSigCheckbox"
                 />
                 <div className="flex flex-col cursor-pointer">
                   <span className="font-bold text-slate-800">Counter Signed</span>
-                  <span className="text-[9px] text-slate-500">प्रतिहस्ताक्षरित</span>
                 </div>
               </label>
 
@@ -2439,10 +3284,10 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   checked={showHeadOfficeSig}
                   onChange={(e) => setShowHeadOfficeSig(e.target.checked)}
                   className="w-4 h-4 rounded border-gray-300 bg-white text-indigo-650 focus:ring-indigo-500 accent-indigo-650 cursor-pointer"
+                  id="headOfficeSigCheckbox"
                 />
                 <div className="flex flex-col cursor-pointer">
                   <span className="font-bold text-slate-800">Head of Office</span>
-                  <span className="text-[9px] text-slate-500">कार्यालय प्रमुख के हस्ताक्षर</span>
                 </div>
               </label>
 
@@ -2452,10 +3297,10 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   checked={showControllingOfficerSig}
                   onChange={(e) => setShowControllingOfficerSig(e.target.checked)}
                   className="w-4 h-4 rounded border-gray-300 bg-white text-indigo-650 focus:ring-indigo-500 accent-indigo-650 cursor-pointer"
+                  id="controllingOfficerSigCheckbox"
                 />
                 <div className="flex flex-col cursor-pointer">
                   <span className="font-bold text-slate-800">Controlling Officer</span>
-                  <span className="text-[9px] text-slate-500">नियंत्रण अधिकारी</span>
                 </div>
               </label>
 
@@ -2465,10 +3310,10 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   checked={showSummaryTable}
                   onChange={(e) => setShowSummaryTable(e.target.checked)}
                   className="w-4 h-4 rounded border-gray-300 bg-white text-indigo-650 focus:ring-indigo-500 accent-indigo-650 cursor-pointer"
+                  id="summaryTableCheckbox"
                 />
                 <div className="flex flex-col cursor-pointer">
-                  <span className="font-bold text-indigo-900">Show Summary (सारांश)</span>
-                  <span className="text-[9px] text-indigo-700">सारांश सारणी दिखाएं</span>
+                  <span className="font-bold text-indigo-900">Show Summary</span>
                 </div>
               </label>
 
@@ -2478,10 +3323,10 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   checked={showNoFreePassDeclaration}
                   onChange={(e) => setShowNoFreePassDeclaration(e.target.checked)}
                   className="w-4 h-4 rounded border-gray-300 bg-white text-amber-600 focus:ring-amber-500 accent-amber-600 cursor-pointer"
+                  id="noFreePassCheckbox"
                 />
                 <div className="flex flex-col cursor-pointer">
                   <span className="font-bold text-amber-900">Declaration 2 (No Free Pass)</span>
-                  <span className="text-[9px] text-amber-700">घोषणा 2 (पास का अप्रयोग)</span>
                 </div>
               </label>
             </div>
@@ -2504,6 +3349,25 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   Configure personnel parameters, journey logs, intermediate halt durations, and instantly compute exact Travelling Allowance rates with fully compliant enterprise formats.
                 </p>
               </div>
+
+              {editingClaimId && (
+                <div className="bg-indigo-50 border border-indigo-200 text-indigo-850 rounded-xl p-3.5 mb-4 flex justify-between items-center text-xs shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black">🔧 Mode: Editing Claim</span>
+                    <span>(Record ID: <span className="font-mono font-bold text-indigo-900 bg-indigo-100 px-1.5 py-0.5 rounded">{editingClaimId}</span>)</span>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      resetForm();
+                      toast.info("Cleared editing mode. Now drafting a new claim.");
+                    }}
+                    className="text-indigo-700 hover:text-indigo-900 font-extrabold underline cursor-pointer bg-white border border-indigo-200 px-2.5 py-1 rounded-lg transition-all"
+                  >
+                    Clear Edit Mode (Create New)
+                  </button>
+                </div>
+              )}
 
               <form onSubmit={handleSaveClaim} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5">
                 <div className="space-y-1">
@@ -2564,7 +3428,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Division * / मंडल</label>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Division *</label>
                   <select 
                     required
                     value={division} 
@@ -2579,7 +3443,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Department * / विभाग</label>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Department *</label>
                   <select 
                     required
                     value={department} 
@@ -2594,7 +3458,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Claim Month * / महीना</label>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Claim Month *</label>
                   <select 
                     required
                     value={claimMonth} 
@@ -2609,7 +3473,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Claim Year * / वर्ष</label>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Claim Year *</label>
                   <select 
                     required
                     value={claimYear} 
@@ -2624,7 +3488,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Bill Unit * / बिल यूनिट</label>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Bill Unit *</label>
                   <input 
                     type="text" 
                     required
@@ -2635,128 +3499,25 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   />
                 </div>
 
-                <div className="space-y-1 sm:col-span-2 md:col-span-3">
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Purpose of Journey * / यात्रा का उद्देश्य</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={globalPurpose} 
-                    onChange={(e) => {
-                      setGlobalPurpose(e.target.value);
-                      // Sync with legs to be absolutely safe
-                      setJourneyLegs(prev => prev.map(leg => ({ ...leg, purpose: e.target.value })));
-                    }}
-                    placeholder="e.g. Inspecting SSE Track registers / Attendance in Audit Meeting" 
-                    className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm" 
-                  />
-                </div>
+
 
                 <div className="space-y-1 md:col-span-2">
-                  <label className="block text-[10px] font-bold text-amber-700 uppercase tracking-wider">TA Calculation Rule / टीए गणना नियम</label>
+                  <label className="block text-[10px] font-bold text-amber-700 uppercase tracking-wider">TA Calculation Rule</label>
                   <select 
                     value={calculationMode} 
                     onChange={(e) => setCalculationMode(e.target.value as 'calendar_day' | 'continuous')}
                     className="w-full text-[13px] font-semibold bg-white border border-amber-500 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer shadow-sm font-bold"
                   >
-                    <option value="calendar_day">🗓️ Calendar Day Basis (Midnight to Midnight) - Official Railway Rule</option>
+                    <option value="calendar_day">🗓️ Calendar Day Basis (Midnight to Midnight) - Railway Rule</option>
                     <option value="continuous">⏱️ Continuous Tour Duration basis (12-Hour Slots)</option>
                   </select>
                   <p className="text-[9.5px] text-amber-800 mt-1 leading-normal font-medium">
                     {calculationMode === 'calendar_day' ? 
-                      "✓ Official Indian Railways Rule: Tour is split by date boundaries. Overlap hours under each date: < 6 hrs = 30%, 6 to 12 hrs = 70%, > 12 hrs = 100% Daily Allowance." : 
+                      "✓ Indian Railways Rule: Tour is split by date boundaries. Overlap hours under each date: < 6 hrs = 30%, 6 to 12 hrs = 70%, > 12 hrs = 100% Daily Allowance." : 
                       "✓ Ongoing Continuous Tour: Total elapsed hours divided by 12-hour intervals."}
                   </p>
                 </div>
               </form>
-
-              {/* Initial Stay Sub-Section */}
-              <div className="mt-4 pt-4 border-t border-slate-150">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input 
-                    type="checkbox"
-                    checked={startWithStay}
-                    onChange={(e) => setStartWithStay(e.target.checked)}
-                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
-                  />
-                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                    🏨 Tour Starts with an Initial Station Stay / प्रथम ठहरने (Stay) से शुरुआत करें
-                  </span>
-                </label>
-                <p className="text-[10px] text-slate-500 ml-6 mt-0.5 leading-normal">
-                  Toggle this on if the official tour began with a stay or on-duty period at a specific station before any travel / journey up commenced. (जैसे: यात्रा के बिना सीधे किसी स्टेशन पर प्रवास या ड्यूटी से शुरुआत)
-                </p>
-
-                {startWithStay && (
-                  <div className="mt-3 ml-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 p-3 bg-indigo-50/40 border border-indigo-100 rounded-xl">
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Stay Station Code * / स्टेशन कोड</label>
-                      <input 
-                        type="text" 
-                        required={startWithStay}
-                        value={initialStayStation} 
-                        onChange={(e) => setInitialStayStation(e.target.value.toUpperCase())}
-                        placeholder="e.g. KIR, HWH, NDLS" 
-                        className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 uppercase" 
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">From Date * / तारीख से</label>
-                      <input 
-                        type="date" 
-                        required={startWithStay}
-                        value={initialStayStartDate} 
-                        onChange={(e) => setInitialStayStartDate(e.target.value)}
-                        className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500" 
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">From Time * / समय से</label>
-                      <input 
-                        type="time" 
-                        required={startWithStay}
-                        value={initialStayStartTime} 
-                        onChange={(e) => setInitialStayStartTime(e.target.value)}
-                        className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500" 
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Until Date * / तारीख तक</label>
-                      <input 
-                        type="date" 
-                        required={startWithStay}
-                        value={initialStayEndDate} 
-                        onChange={(e) => setInitialStayEndDate(e.target.value)}
-                        className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500" 
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Until Time * / समय तक</label>
-                      <input 
-                        type="time" 
-                        required={startWithStay}
-                        value={initialStayEndTime} 
-                        onChange={(e) => setInitialStayEndTime(e.target.value)}
-                        className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500" 
-                      />
-                    </div>
-
-                    <div className="space-y-1 sm:col-span-2 md:col-span-3">
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">Purpose / ठहराव का उद्देश्य</label>
-                      <input 
-                        type="text" 
-                        value={initialStayPurpose} 
-                        onChange={(e) => setInitialStayPurpose(e.target.value)}
-                        placeholder="e.g. Stationary Halt / Attendance at Audit" 
-                        className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500" 
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
 
         {/* Journey Log Leg Table */}
@@ -2765,44 +3526,374 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
             <div>
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
                 <span className="w-1.5 h-3 bg-indigo-600 rounded-sm"></span>
-                Journey Logs & Stops / यात्रा विवरण
+                Journey Logs & Stops
               </h3>
               <p className="text-[10px] text-slate-500 font-medium">Add segments for your departure and arrival legs to determine duty periods.</p>
             </div>
-            <button
-              type="button"
-              onClick={addLeg}
-              className="flex items-center gap-1 bg-indigo-650 hover:bg-indigo-700 bg-indigo-600 text-white font-bold text-[11px] px-3.5 py-1.5 rounded-lg mr-2 transition-all shadow-sm active:scale-95 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" /> Add Journey Leg
-            </button>
+            <div className="flex gap-2 mr-2">
+              <button
+                type="button"
+                onClick={addNewTrip}
+                className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-3.5 py-1.5 rounded-lg transition-all shadow-sm active:scale-95 cursor-pointer"
+                title="Start a fresh trip from your HQ/Home Station"
+              >
+                <PlusCircle className="w-4 h-4" /> Add Other Trip
+              </button>
+            </div>
           </div>
 
           <div className={`space-y-4 pr-1 ${isSidebarsShown ? "flex-1 overflow-y-auto" : "h-auto"}`}>
-            {processedLegs.map((leg, index) => {
-              const hours = leg.hours;
-              const filteredStations = stationSearch.trim() === ""
-                ? [
-                    { code: "BSP", name: "Bilaspur Jn", hindiName: "बिलासपुर" },
-                    { code: "R", name: "Raipur Jn", hindiName: "रायपुर" },
-                    { code: "DURG", name: "Durg Jn", hindiName: "दुर्ग" },
-                    { code: "G", name: "Gondia Jn", hindiName: "गोंदिया" },
-                    { code: "NGP", name: "Nagpur Jn", hindiName: "नागपुर" },
-                    { code: "NDLS", name: "New Delhi", hindiName: "नई दिल्ली" },
-                    { code: "HWH", name: "Howrah Jn", hindiName: "हावड़ा" },
-                    { code: "PNBE", name: "Patna Jn", hindiName: "पटना जं." }
-                  ]
-                : INDIAN_STATIONS.filter(item => {
-                    const s = stationSearch.toLowerCase().trim();
-                    return (
-                      item.code.toLowerCase().includes(s) ||
-                      item.name.toLowerCase().includes(s) ||
-                      item.hindiName.toLowerCase().includes(s)
-                    );
-                  }).slice(0, 8);
-              return (
-                <React.Fragment key={leg.id}>
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 relative transition-all duration-205">
+            {(() => {
+              const processedTripsGrouped: { tripId: string; legs: any[] }[] = [];
+              processedLegs.forEach(leg => {
+                const tId = leg.tripId || "trip-1";
+                let group = processedTripsGrouped.find(g => g.tripId === tId);
+                if (!group) {
+                  group = { tripId: tId, legs: [] };
+                  processedTripsGrouped.push(group);
+                }
+                group.legs.push(leg);
+              });
+
+              return processedTripsGrouped.flatMap((tripGroup, tripIdx) => {
+                const tripNo = tripIdx + 1;
+                const tripLegs = tripGroup.legs;
+                return tripLegs.map((leg, legIdx) => {
+                  const index = processedLegs.findIndex(l => l.id === leg.id);
+                  const showTripHeader = legIdx === 0;
+                  const hours = leg.hours;
+                const filteredStations = stationSearch.trim() === ""
+                  ? [
+                      { code: "BSP", name: "Bilaspur Jn", hindiName: "बिलासपुर" },
+                      { code: "R", name: "Raipur Jn", hindiName: "रायपुर" },
+                      { code: "DURG", name: "Durg Jn", hindiName: "दुर्ग" },
+                      { code: "G", name: "Gondia Jn", hindiName: "गोंदिया" },
+                      { code: "NGP", name: "Nagpur Jn", hindiName: "नागपुर" },
+                      { code: "NDLS", name: "New Delhi", hindiName: "नई दिल्ली" },
+                      { code: "HWH", name: "Howrah Jn", hindiName: "हावड़ा" },
+                      { code: "PNBE", name: "Patna Jn", hindiName: "पटना जं." }
+                    ]
+                  : INDIAN_STATIONS.filter(item => {
+                      const s = stationSearch.toLowerCase().trim();
+                      return (
+                        item.code.toLowerCase().includes(s) ||
+                        item.name.toLowerCase().includes(s) ||
+                        item.hindiName.toLowerCase().includes(s)
+                      );
+                    }).slice(0, 8);
+                return (
+                  <React.Fragment key={leg.id}>
+                    {showTripHeader && (
+                      <div className="space-y-3 mt-4 first:mt-0">
+                        <div className="flex items-center gap-2 py-2 border-b border-dashed border-emerald-200">
+                          <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-800 font-extrabold text-[11px] uppercase tracking-wider px-3 py-1 rounded-full border border-emerald-200/60 shadow-sm">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            ✈️ Trip #{tripNo}
+                          </span>
+                          <div className="h-px bg-gradient-to-r from-emerald-100 to-transparent flex-1"></div>
+                        </div>
+
+                        {/* Trip-Specific Initial Stay Sub-Section */}
+                        {(() => {
+                          const currentTripStay = tripStays.find(ts => ts.tripId === tripGroup.tripId) || {
+                            tripId: tripGroup.tripId,
+                            startWithStay: false,
+                            stayType: 'before' as const,
+                            initialStayStation: "",
+                            initialStayStartDate: "",
+                            initialStayStartTime: "",
+                            initialStayEndDate: "",
+                            initialStayEndTime: "",
+                            initialStayPurpose: ""
+                          };
+                          return (
+                            <div className="p-4 bg-indigo-50/30 border border-indigo-100 rounded-xl space-y-3">
+                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input 
+                                  type="checkbox"
+                                  checked={currentTripStay.startWithStay}
+                                  onChange={(e) => {
+                                    updateTripStayField(tripGroup.tripId, 'startWithStay', e.target.checked);
+                                    if (e.target.checked && !currentTripStay.stayType) {
+                                      updateTripStayField(tripGroup.tripId, 'stayType', 'before');
+                                    }
+                                  }}
+                                  className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                                  id={`stayCheck-${tripNo}`}
+                                />
+                                <span className="text-[10.5px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                                  🏨 Add a Stay/Halt to this Trip?
+                                </span>
+                              </label>
+                              <p className="text-[10px] text-slate-500 ml-6 leading-normal">
+                                Toggle this on if this trip has a stationary stay or on-duty period at a specific outstation (either before your travel starts, or after your travel ends).
+                              </p>
+
+                              {currentTripStay.startWithStay && (
+                                <div className="mt-2 ml-6 space-y-3">
+                                  <div className="bg-white border border-indigo-100/85 p-3 rounded-lg space-y-2 shadow-sm max-w-xl">
+                                    <label className="block text-[9.5px] font-bold text-indigo-950 uppercase tracking-wide">
+                                      Where should this Stay be placed? *
+                                    </label>
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                      <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-750">
+                                        <input
+                                          type="radio"
+                                          name={`stayType-${tripGroup.tripId}`}
+                                          value="before"
+                                          checked={!currentTripStay.stayType || currentTripStay.stayType === 'before'}
+                                          onChange={() => updateTripStayField(tripGroup.tripId, 'stayType', 'before')}
+                                          className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                        />
+                                        <span>Before travel begins</span>
+                                      </label>
+                                      <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-750">
+                                        <input
+                                          type="radio"
+                                          name={`stayType-${tripGroup.tripId}`}
+                                          value="after"
+                                          checked={currentTripStay.stayType === 'after'}
+                                          onChange={() => updateTripStayField(tripGroup.tripId, 'stayType', 'after')}
+                                          className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                        />
+                                        <span>After travel ends</span>
+                                      </label>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                    <div className="space-y-1">
+                                      <label className="block text-[9px] font-bold text-slate-600 uppercase">Stay Station Code *</label>
+                                      <input 
+                                        type="text" 
+                                        required={currentTripStay.startWithStay}
+                                        value={currentTripStay.initialStayStation} 
+                                        onChange={(e) => updateTripStayField(tripGroup.tripId, 'initialStayStation', e.target.value.toUpperCase())}
+                                        placeholder="e.g. KIR, HWH" 
+                                        className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 uppercase" 
+                                      />
+                                    </div>
+
+                                    <div className="space-y-1">
+                                      <label className="block text-[9px] font-bold text-slate-600 uppercase">From Date *</label>
+                                      <input 
+                                        type="date" 
+                                        required={currentTripStay.startWithStay}
+                                        value={currentTripStay.initialStayStartDate} 
+                                        onChange={(e) => updateTripStayField(tripGroup.tripId, 'initialStayStartDate', e.target.value)}
+                                        className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800" 
+                                      />
+                                    </div>
+
+                                    <div className="space-y-1">
+                                      <label className="block text-[9px] font-bold text-slate-600 uppercase">From Time *</label>
+                                      <TimePickerInput 
+                                        id={`stayFromTime-${tripGroup.tripId}`}
+                                        required={currentTripStay.startWithStay}
+                                        value={currentTripStay.initialStayStartTime} 
+                                        onChange={(val) => updateTripStayField(tripGroup.tripId, 'initialStayStartTime', val)}
+                                        className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-lg pl-2.5 pr-8 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm cursor-pointer"
+                                      />
+                                    </div>
+
+                                    <div className="space-y-1">
+                                      <label className="block text-[9px] font-bold text-slate-600 uppercase">To Date *</label>
+                                      <input 
+                                        type="date" 
+                                        required={currentTripStay.startWithStay}
+                                        value={currentTripStay.initialStayEndDate} 
+                                        onChange={(e) => updateTripStayField(tripGroup.tripId, 'initialStayEndDate', e.target.value)}
+                                        className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800" 
+                                      />
+                                    </div>
+
+                                    <div className="space-y-1">
+                                      <label className="block text-[9px] font-bold text-slate-600 uppercase">To Time *</label>
+                                      <TimePickerInput 
+                                        id={`stayToTime-${tripGroup.tripId}`}
+                                        required={currentTripStay.startWithStay}
+                                        value={currentTripStay.initialStayEndTime} 
+                                        onChange={(val) => updateTripStayField(tripGroup.tripId, 'initialStayEndTime', val)}
+                                        className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-lg pl-2.5 pr-8 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm cursor-pointer"
+                                      />
+                                    </div>
+
+                                    <div className="space-y-1 sm:col-span-2 md:col-span-3">
+                                      <label className="block text-[9px] font-bold text-slate-600 uppercase">Object/Purpose of Stay</label>
+                                      <input 
+                                        type="text" 
+                                        value={currentTripStay.initialStayPurpose || ""} 
+                                        onChange={(e) => updateTripStayField(tripGroup.tripId, 'initialStayPurpose', e.target.value)}
+                                        placeholder="e.g. Outstation duty, night halt before train" 
+                                        className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800" 
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* Gap/Overlap interactive warning and auto-align widget */}
+                                  {(() => {
+                                    const firstLeg = tripLegs[0];
+                                    const lastLeg = tripLegs[tripLegs.length - 1];
+                                    const isStayBefore = !currentTripStay.stayType || currentTripStay.stayType === 'before';
+
+                                    if (isStayBefore) {
+                                      if (currentTripStay.initialStayEndDate && currentTripStay.initialStayEndTime && firstLeg?.depDate && firstLeg?.depTime) {
+                                        const stayEndDt = new Date(`${currentTripStay.initialStayEndDate}T${currentTripStay.initialStayEndTime}`);
+                                        const legStartDt = new Date(`${firstLeg.depDate}T${firstLeg.depTime}`);
+                                        const diffMs = legStartDt.getTime() - stayEndDt.getTime();
+                                        if (!isNaN(diffMs)) {
+                                          const diffHrs = diffMs / (1000 * 60 * 60);
+                                          if (diffHrs > 0.01) {
+                                            return (
+                                              <div className="mt-3 bg-amber-50 border border-amber-200 p-3.5 rounded-xl text-left text-slate-800 space-y-2 max-w-xl shadow-sm animate-fadeIn">
+                                                <div className="flex items-start gap-2">
+                                                  <span className="text-amber-600 text-sm mt-0.5">⚠️</span>
+                                                  <div className="space-y-1 text-slate-800">
+                                                    <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wide block">
+                                                      Time Gap Detected ({diffHrs.toFixed(1)} Hours)
+                                                    </span>
+                                                    <p className="text-[11px] leading-relaxed text-slate-700">
+                                                      There is a gap of <strong>{diffHrs.toFixed(1)} hours</strong> between your Stay end time (<strong>{currentTripStay.initialStayEndDate} {currentTripStay.initialStayEndTime}</strong>) and travel departure (<strong>{firstLeg.depDate} {firstLeg.depTime}</strong>).
+                                                    </p>
+                                                    <p className="text-[10px] text-amber-800 font-medium bg-amber-100/50 px-2 py-1 rounded border border-amber-250">
+                                                      ✓ Under Railway Rules: This gap is counted as <strong>Transit/Waiting Halt time</strong> so your Traveling Allowance remains fully continuous and unreduced.
+                                                    </p>
+                                                  </div>
+                                                </div>
+                                                <div className="flex gap-2 pl-6 pt-1">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      updateTripStayFields(tripGroup.tripId, {
+                                                        initialStayEndDate: firstLeg.depDate,
+                                                        initialStayEndTime: firstLeg.depTime
+                                                      });
+                                                    }}
+                                                    className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold px-3 py-1.5 rounded shadow active:scale-95 transition-all cursor-pointer uppercase tracking-wider animate-fadeIn"
+                                                  >
+                                                    ⚡ Auto-Align: Extend Stay to departure ({firstLeg.depTime})
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            );
+                                          } else if (diffHrs < -0.01) {
+                                            return (
+                                              <div className="mt-3 bg-red-50 border border-red-200 p-3.5 rounded-xl text-left text-slate-800 space-y-2 max-w-xl shadow-sm animate-fadeIn">
+                                                <div className="flex items-start gap-2">
+                                                  <span className="text-red-600 text-sm mt-0.5">❌</span>
+                                                  <div className="space-y-1">
+                                                    <span className="text-[11px] font-bold text-red-900 uppercase tracking-wide block">
+                                                      Overlap Error ({Math.abs(diffHrs).toFixed(1)} Hours)
+                                                    </span>
+                                                    <p className="text-[11px] leading-relaxed text-slate-700">
+                                                      Your Stay ends at <strong>{currentTripStay.initialStayEndDate} {currentTripStay.initialStayEndTime}</strong>, which overlaps with your journey starting at <strong>{firstLeg.depDate} {firstLeg.depTime}</strong>.
+                                                    </p>
+                                                  </div>
+                                                </div>
+                                                <div className="flex gap-2 pl-6 pt-1">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      updateTripStayFields(tripGroup.tripId, {
+                                                        initialStayEndDate: firstLeg.depDate,
+                                                        initialStayEndTime: firstLeg.depTime
+                                                      });
+                                                    }}
+                                                    className="bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold px-3 py-1.5 rounded shadow active:scale-95 transition-all cursor-pointer uppercase tracking-wider animate-fadeIn"
+                                                  >
+                                                    ⚡ Fix Overlap: End Stay at departure ({firstLeg.depTime})
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            );
+                                          }
+                                        }
+                                      }
+                                    } else {
+                                      // Stay type is after
+                                      if (currentTripStay.initialStayStartDate && currentTripStay.initialStayStartTime && lastLeg?.arrDate && lastLeg?.arrTime) {
+                                        const lastLegArrDt = new Date(`${lastLeg.arrDate}T${lastLeg.arrTime}`);
+                                        const stayStartDt = new Date(`${currentTripStay.initialStayStartDate}T${currentTripStay.initialStayStartTime}`);
+                                        const diffMs = stayStartDt.getTime() - lastLegArrDt.getTime();
+                                        if (!isNaN(diffMs)) {
+                                          const diffHrs = diffMs / (1000 * 60 * 60);
+                                          if (diffHrs > 0.01) {
+                                            return (
+                                              <div className="mt-3 bg-amber-50 border border-amber-200 p-3.5 rounded-xl text-left text-slate-800 space-y-2 max-w-xl shadow-sm animate-fadeIn">
+                                                <div className="flex items-start gap-2">
+                                                  <span className="text-amber-600 text-sm mt-0.5">⚠️</span>
+                                                  <div className="space-y-1">
+                                                    <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wide block">
+                                                      Time Gap Detected ({diffHrs.toFixed(1)} Hours)
+                                                    </span>
+                                                    <p className="text-[11px] leading-relaxed text-slate-700">
+                                                      There is a gap of <strong>{diffHrs.toFixed(1)} hours</strong> between your journey arrival (<strong>{lastLeg.arrDate} {lastLeg.arrTime}</strong>) and Stay start time (<strong>{currentTripStay.initialStayStartDate} {currentTripStay.initialStayStartTime}</strong>).
+                                                    </p>
+                                                    <p className="text-[10px] text-amber-850 font-medium bg-amber-100/50 px-2 py-1 rounded border border-amber-200 leading-normal">
+                                                      ✓ Under Railway Rules: This gap is counted as <strong>Transit/Waiting Halt time</strong> so your Traveling Allowance remains fully continuous and unreduced.
+                                                    </p>
+                                                  </div>
+                                                </div>
+                                                <div className="flex gap-2 pl-6 pt-1">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      updateTripStayFields(tripGroup.tripId, {
+                                                        initialStayStartDate: lastLeg.arrDate,
+                                                        initialStayStartTime: lastLeg.arrTime
+                                                      });
+                                                    }}
+                                                    className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold px-3 py-1.5 rounded shadow active:scale-95 transition-all cursor-pointer uppercase tracking-wider animate-fadeIn"
+                                                  >
+                                                    ⚡ Auto-Align: Start Stay immediately at arrival ({lastLeg.arrTime})
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            );
+                                          } else if (diffHrs < -0.01) {
+                                            return (
+                                              <div className="mt-3 bg-red-50 border border-red-200 p-3.5 rounded-xl text-left text-slate-800 space-y-2 max-w-xl shadow-sm animate-fadeIn">
+                                                <div className="flex items-start gap-2">
+                                                  <span className="text-red-600 text-sm mt-0.5">❌</span>
+                                                  <div className="space-y-1">
+                                                    <span className="text-[11px] font-bold text-red-900 uppercase tracking-wide block">
+                                                      Overlap Error ({Math.abs(diffHrs).toFixed(1)} Hours)
+                                                    </span>
+                                                    <p className="text-[11px] leading-relaxed text-slate-700">
+                                                      Your Stay starts at <strong>{currentTripStay.initialStayStartDate} {currentTripStay.initialStayStartTime}</strong>, which overlaps with your journey ending at <strong>{lastLeg.arrDate} {lastLeg.arrTime}</strong>.
+                                                    </p>
+                                                  </div>
+                                                </div>
+                                                <div className="flex gap-2 pl-6 pt-1">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      updateTripStayFields(tripGroup.tripId, {
+                                                        initialStayStartDate: lastLeg.arrDate,
+                                                        initialStayStartTime: lastLeg.arrTime
+                                                      });
+                                                    }}
+                                                    className="bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold px-3 py-1.5 rounded shadow active:scale-95 transition-all cursor-pointer uppercase tracking-wider animate-fadeIn"
+                                                  >
+                                                    ⚡ Fix Overlap: Start Stay at arrival ({lastLeg.arrTime})
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            );
+                                          }
+                                        }
+                                      }
+                                    }
+                                    return null;
+                                  })()}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 relative transition-all duration-205">
                     <div className="absolute top-2 right-2 flex items-center gap-2">
                       <span className="text-[11px] font-bold text-indigo-700 px-2 py-0.5 bg-indigo-50 border border-indigo-200 rounded">
                         Leg #{index + 1}
@@ -2821,7 +3912,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                       <div className="space-y-1 relative text-left">
                         <label className="block text-[10px] font-bold text-slate-600 uppercase flex items-center gap-1 select-none">
-                          🚉 Station From / से
+                          🚉 Station From
                         </label>
                         <input 
                           type="text" 
@@ -2844,6 +3935,22 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                           placeholder="Type or search station..." 
                           className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 placeholder-slate-400 transition-all shadow-sm" 
                         />
+                        {leg.stationFrom && (() => {
+                          const station = findStation(leg.stationFrom);
+                          return station ? (
+                            <div className="mt-1 text-[11px] text-indigo-700 font-semibold flex items-center gap-1 bg-indigo-50 border border-indigo-150 px-2 py-0.5 rounded max-w-full truncate">
+                              <span>🚉</span>
+                              <span className="font-bold text-[11px]">{station.name}</span>
+                              {station.hindiName && station.hindiName !== station.name && (
+                                <span className="text-slate-500 font-normal text-[10px]">({station.hindiName})</span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="mt-1 text-[10px] text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded">
+                              ⚠️ Code not mapped offline. Use online search below.
+                            </div>
+                          );
+                        })()}
                         {activeAutocomplete?.legId === leg.id && activeAutocomplete?.field === 'stationFrom' && (
                           <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-300 rounded-xl shadow-2xl z-50 max-h-68 overflow-y-auto overflow-x-hidden py-1 text-xs select-none">
                             <div className="px-2.5 py-1 text-[9px] font-bold text-slate-500 bg-slate-50 border-b border-slate-200 sticky top-0 flex justify-between">
@@ -2893,7 +4000,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                       </div>
                       <div className="space-y-1 relative text-left">
                         <label className="block text-[10px] font-bold text-slate-600 uppercase flex items-center gap-1 select-none">
-                          🚉 Station To / तक
+                          🚉 Station To
                         </label>
                         <input 
                           type="text" 
@@ -2916,6 +4023,22 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                           placeholder="Type or search station..." 
                           className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 placeholder-slate-400 transition-all shadow-sm" 
                         />
+                        {leg.stationTo && (() => {
+                          const station = findStation(leg.stationTo);
+                          return station ? (
+                            <div className="mt-1 text-[11px] text-indigo-700 font-semibold flex items-center gap-1 bg-indigo-50 border border-indigo-150 px-2 py-0.5 rounded max-w-full truncate">
+                              <span>🚉</span>
+                              <span className="font-bold text-[11px]">{station.name}</span>
+                              {station.hindiName && station.hindiName !== station.name && (
+                                <span className="text-slate-500 font-normal text-[10px]">({station.hindiName})</span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="mt-1 text-[10px] text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded">
+                              ⚠️ Code not mapped offline. Use online search below.
+                            </div>
+                          );
+                        })()}
                         {activeAutocomplete?.legId === leg.id && activeAutocomplete?.field === 'stationTo' && (
                           <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-300 rounded-xl shadow-2xl z-50 max-h-68 overflow-y-auto overflow-x-hidden py-1 text-xs select-none">
                             <div className="px-2.5 py-1 text-[9px] font-bold text-slate-500 bg-slate-50 border-b border-slate-200 sticky top-0 flex justify-between">
@@ -2971,9 +4094,9 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                           onChange={(e) => updateLegField(leg.id, 'mode', e.target.value)}
                           className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-850 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm"
                         >
-                          <option value="Train">Train (ट्रेन)</option>
-                          <option value="Road">By Road (सड़क मार्ग)</option>
-                          <option value="Air">Air (हवाई जहाज)</option>
+                          <option value="Train">Train</option>
+                          <option value="Road">By Road</option>
+                          <option value="Air">Air</option>
                         </select>
                       </div>
                       <div className="space-y-1">
@@ -3004,8 +4127,22 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                             onChange={(e) => {
                               const val = e.target.value;
                               updateLegField(leg.id, 'trainNoOrVehNo', val);
-                              if (/^\d{5}$/.test(val.trim())) {
-                                handleLookupTrain(leg.id, val.trim());
+                              const cleanVal = val.trim();
+                              
+                              // Real-time offline match inside onChange
+                              const matchedLocal = customTrains.find(
+                                t => t.trainNo === cleanVal || t.trainName.toLowerCase() === cleanVal.toLowerCase()
+                              );
+                              if (matchedLocal) {
+                                updateLegField(leg.id, 'trainName', matchedLocal.trainName);
+                                if (matchedLocal.routeVia) {
+                                  updateLegField(leg.id, 'trainRouteVia', matchedLocal.routeVia);
+                                }
+                                if (matchedLocal.routeDistanceKm) {
+                                  updateLegField(leg.id, 'roadDistanceKm', matchedLocal.routeDistanceKm);
+                                }
+                              } else if (/^\d{5}$/.test(cleanVal)) {
+                                handleLookupTrain(leg.id, cleanVal);
                               }
                             }}
                             className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 placeholder-slate-400 transition-all shadow-sm" 
@@ -3025,11 +4162,22 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                             </div>
                           )}
                         </div>
-                        {leg.mode === 'Train' && leg.trainName && (
-                          <div className="mt-1 text-[10px] text-emerald-700 flex items-center gap-1 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded animate-fade-in font-medium">
-                            <span>🚆</span>
-                            <span className="font-bold truncate">{leg.trainName}</span>
-                          </div>
+                        {leg.mode === 'Train' && (
+                          (() => {
+                            const matchedTrain = customTrains.find(t => t.trainNo === leg.trainNoOrVehNo.trim());
+                            const displayName = leg.trainName || matchedTrain?.trainName;
+                            const displayKm = leg.roadDistanceKm || matchedTrain?.routeDistanceKm;
+                            
+                            return displayName ? (
+                              <div className="mt-1 text-[11px] text-emerald-700 font-semibold flex items-center gap-1 bg-emerald-50 border border-emerald-150 px-2 py-0.5 rounded animate-fade-in truncate">
+                                <span>🚆</span>
+                                <span className="font-bold">{displayName}</span>
+                                {displayKm ? (
+                                  <span className="text-emerald-600 font-mono text-[10px]">({displayKm} KM)</span>
+                                ) : null}
+                              </div>
+                            ) : null;
+                          })()
                         )}
                       </div>
                     </div>
@@ -3057,29 +4205,12 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                         <label className="block text-[10px] font-bold text-slate-600 uppercase select-none">
                           Departure Time (Left)
                         </label>
-                        <input 
+                        <TimePickerInput 
                           id={`depTime-${leg.id}`}
-                          type="time" 
                           required
                           value={leg.depTime} 
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const __oldVal = leg.depTime; updateLegField(leg.id, 'depTime', val); if (!(val && val.length === 5 && __oldVal && __oldVal.length === 5 && __oldVal.split(':')[1] !== val.split(':')[1])) { return; };
-                            if (val && val.length === 5) {
-                              const inputEl = e.target;
-                              setTimeout(() => {
-                                if (document.activeElement === inputEl) {
-                                  inputEl.blur();
-                                }
-                              }, 500);
-                            }
-                          }}
-                          onClick={(e) => {
-                            try {
-                              (e.target as any).showPicker();
-                            } catch (_) {}
-                          }}
-                          className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 [color-scheme:light] cursor-pointer shadow-sm" 
+                          onChange={(val) => updateLegField(leg.id, 'depTime', val)}
+                          className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg pl-3 pr-8 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm cursor-pointer"
                         />
                       </div>
                       <div className="space-y-1">
@@ -3104,31 +4235,28 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                         <label className="block text-[10px] font-bold text-slate-600 uppercase select-none">
                           Arrival Time (Arrived)
                         </label>
-                        <input 
+                        <TimePickerInput 
                           id={`arrTime-${leg.id}`}
-                          type="time" 
                           required
                           value={leg.arrTime} 
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const __oldVal = leg.arrTime; updateLegField(leg.id, 'arrTime', val); if (!(val && val.length === 5 && __oldVal && __oldVal.length === 5 && __oldVal.split(':')[1] !== val.split(':')[1])) { return; };
-                            if (val && val.length === 5) {
-                              const inputEl = e.target;
-                              setTimeout(() => {
-                                if (document.activeElement === inputEl) {
-                                  inputEl.blur();
-                                }
-                              }, 500);
-                            }
-                          }}
-                          onClick={(e) => {
-                            try {
-                              (e.target as any).showPicker();
-                            } catch (_) {}
-                          }}
-                          className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 [color-scheme:light] cursor-pointer shadow-sm" 
+                          onChange={(val) => updateLegField(leg.id, 'arrTime', val)}
+                          className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg pl-3 pr-8 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm cursor-pointer"
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-650 uppercase">
+                        Object of Journey *
+                      </label>
+                      <input 
+                        type="text" 
+                        required
+                        value={leg.purpose || ""} 
+                        onChange={(e) => updateLegField(leg.id, 'purpose', e.target.value)}
+                        placeholder="e.g. Inspecting SSE Track registers / Attendance in Audit Meeting" 
+                        className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 placeholder-slate-400 transition-all shadow-sm" 
+                      />
                     </div>
 
                     {/* BY ROAD SPECIFIC SUBSYSTEM PANEL */}
@@ -3168,7 +4296,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-slate-700">
                             <Coins className="w-3.5 h-3.5 text-indigo-650" />
-                            <span>Track Distance / यात्रा की दूरी (KM)</span>
+                            <span>Track Distance (KM)</span>
                           </div>
                           {leg.mode === 'Train' && leg.trainRouteVia && (
                             <div className="text-[10px] text-emerald-705 text-emerald-800 font-medium flex items-center gap-1">
@@ -3317,7 +4445,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                           )}
                         </div>
                         <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-250 font-mono">
-                          Halt Allowance (विराम भत्ता): ₹{leg.haltDaContributed}
+                          Halt Allowance: ₹{leg.haltDaContributed}
                         </span>
                       </div>
 
@@ -3327,26 +4455,26 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="block text-[9.5px] font-bold text-slate-600 uppercase mb-1">Halt Location Option / स्थान चयन</label>
+                          <label className="block text-[9.5px] font-bold text-slate-600 uppercase mb-1">Halt Location Option</label>
                           <select
                             value={leg.haltSpentAt || 'destination'}
                             onChange={(e) => updateLegField(leg.id, 'haltSpentAt', e.target.value)}
                             className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer"
                           >
-                            <option value="destination">Stay at "{leg.stationTo || 'Station'}" / रुकना (Official Duty के तहत)</option>
-                            <option value="manual">Enter manually... / अन्य प्रविष्टि (विवरण मैन्युअल दर्ज करें)</option>
+                            <option value="destination">Stay at "{leg.stationTo || 'Station'}" (On Duty)</option>
+                            <option value="manual">Enter manually...</option>
                           </select>
                         </div>
 
                         {leg.haltSpentAt === 'manual' && (
                           <div className="space-y-1">
-                            <label className="block text-[9.5px] font-bold text-slate-600 uppercase mb-1">Custom Stoppage Description / विराम का कारण</label>
+                            <label className="block text-[9.5px] font-bold text-slate-600 uppercase mb-1">Custom Stoppage Description</label>
                             <input
                               type="text"
                               required
                               value={leg.haltManualText || ''}
                               onChange={(e) => updateLegField(leg.id, 'haltManualText', e.target.value)}
-                              placeholder="e.g. Connected train waiting at DRM office / यार्ड निरीक्षण"
+                              placeholder="e.g. Connected train waiting at DRM office"
                               className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
                             />
                           </div>
@@ -3354,97 +4482,99 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                       </div>
                     </div>
                   )}
-                </React.Fragment>
-              );
-            })}
-          </div>
 
-          {/* DYNAMIC CONTINGENT EXPENSES SECTIONS */}
-          {storeConfig.enableContingentSection !== "false" && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4 shadow-sm">
-              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                <div>
-                  <h3 className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-                    🪙 Custom Contingent Expenses (फुटकर व्यय का विवरण)
-                  </h3>
-                  <p className="text-[10px] text-slate-600 leading-normal">Add dynamic contingency costs. Provide clear remarks stating what & where it was spent.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setContingentItems([
-                      ...contingentItems,
-                      { id: `cnt-${Date.now()}`, amount: 0, remarks: "" }
-                    ]);
-                  }}
-                  className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[10px] px-2.5 py-1 rounded transition-all shadow active:scale-95"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Contingent Cost
-                </button>
-              </div>
-
-              {contingentItems.length === 0 ? (
-                <div className="text-center py-4 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-500 italic">
-                  No custom contingent costs added yet. Click "Add Contingent Cost" to add items like luggage carrying cost, coolie charges, bus/taxi fare details, auto parking, etc.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {contingentItems.map((item, idx) => (
-                    <div key={item.id} className="flex gap-3 items-end bg-white p-2.5 rounded-lg border border-slate-205 shadow-sm">
-                      <div className="flex-1 text-left space-y-1">
-                        <label className="block text-[9px] font-bold text-slate-500 uppercase">
-                          Item #{idx + 1} Particulars & Remarks (व्यय का विवरण / कहाँ और किस चीज़ में खर्च हुआ)
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={item.remarks}
-                          onChange={(e) => {
-                            const updated = contingentItems.map(c => c.id === item.id ? { ...c, remarks: e.target.value } : c);
-                            setContingentItems(updated);
-                          }}
-                          placeholder="e.g. Spent Rs 50 on coolie charges at Katihar Station / Auto fare from HQ to DRM Office"
-                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        />
-                      </div>
-                      <div className="w-32 text-left space-y-1">
-                        <label className="block text-[9px] font-bold text-slate-500 uppercase">
-                          Amount (राशि ₹)
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          min="0"
-                          value={item.amount || ""}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            const updated = contingentItems.map(c => c.id === item.id ? { ...c, amount: val } : c);
-                            setContingentItems(updated);
-                          }}
-                          placeholder="Amount in Rs."
-                          className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 font-mono placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        />
-                      </div>
+                  {legIdx === tripLegs.length - 1 && (
+                    <div className="space-y-4 w-full">
                       <button
                         type="button"
-                        onClick={() => {
-                          setContingentItems(contingentItems.filter(c => c.id !== item.id));
-                        }}
-                        className="text-rose-600 hover:text-rose-750 p-2 rounded hover:bg-rose-50 transition-colors shrink-0 mb-0.5"
-                        title="Delete expense item"
+                        onClick={() => addLegToTrip(tripGroup.tripId)}
+                        className="flex items-center justify-center gap-1.5 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 font-extrabold text-[11px] py-2.5 rounded-xl border border-indigo-200 transition-all shadow-sm active:scale-95 cursor-pointer w-full mt-3"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Plus className="w-4 h-4" /> Add Journey Leg to Trip #{tripNo}
                       </button>
-                    </div>
-                  ))}
 
-                  <div className="flex justify-end pr-2 text-xs font-mono text-slate-600">
-                    Total Added Contingent: <strong className="text-emerald-700 ml-1 font-bold">₹{totalContingentAmount}</strong>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+
+
+                      {/* Trip-Specific Contingent Section */}
+                      {storeConfig.enableContingentSection !== "false" && (
+                        <div className="p-4 bg-emerald-50/20 border border-emerald-100 rounded-xl space-y-3">
+                          <div className="flex justify-between items-center">
+                            <h4 className="text-[10.5px] font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                              🪙 Contingent Expenses for Trip #{tripNo}
+                            </h4>
+                            <button
+                              type="button"
+                              onClick={() => addContingentItemToTrip(tripGroup.tripId)}
+                              className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-2.5 py-1 rounded transition-all shadow cursor-pointer"
+                            >
+                              <Plus className="w-3 h-3" /> Add Contingent Cost
+                            </button>
+                          </div>
+
+                          {contingentItems.filter(item => (item.tripId || "trip-1") === tripGroup.tripId).length === 0 ? (
+                            <p className="text-[10px] text-slate-500 italic leading-normal">
+                              No contingent expenses added for Trip #{tripNo} yet.
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              {contingentItems.filter(item => (item.tripId || "trip-1") === tripGroup.tripId).map((item, itemIdx) => (
+                                <div key={item.id} className="flex gap-2 items-end bg-white p-2 border border-slate-200 rounded-lg shadow-sm">
+                                  <div className="flex-1 text-left">
+                                    <label className="block text-[8.5px] font-bold text-slate-500 uppercase">
+                                      Particulars & Remarks
+                                    </label>
+                                    <input
+                                      type="text"
+                                      required
+                                      value={item.remarks}
+                                      onChange={(e) => {
+                                        setContingentItems(prev => prev.map(c => c.id === item.id ? { ...c, remarks: e.target.value } : c));
+                                      }}
+                                      placeholder="e.g. Spent Rs 50 on coolie charges"
+                                      className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800"
+                                    />
+                                  </div>
+                                  <div className="w-24 text-left">
+                                    <label className="block text-[8.5px] font-bold text-slate-500 uppercase">
+                                      Amount (₹)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      required
+                                      min="0"
+                                      value={item.amount || ""}
+                                      onChange={(e) => {
+                                        const val = parseFloat(e.target.value) || 0;
+                                        setContingentItems(prev => prev.map(c => c.id === item.id ? { ...c, amount: val } : c));
+                                      }}
+                                      placeholder="Amount"
+                                      className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 font-mono"
+                                    />
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setContingentItems(prev => prev.filter(c => c.id !== item.id));
+                                    }}
+                                    className="text-rose-600 hover:text-rose-750 p-1.5 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                                    title="Delete contingent cost"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            });
+          });
+        })()}
+        </div>
 
           {/* Declaration and Action buttons */}
           <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl space-y-3 shrink-0 shadow-sm">
@@ -3466,7 +4596,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                 Total hours of absence: <span className="text-slate-900 font-extrabold">{totalAbsenceHrs.toFixed(1)} Hrs</span>, 
                 Aggregate Sum Rate: <span className="text-emerald-700 font-extrabold text-sm ml-1">₹{totalAmount.toFixed(2)}</span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 font-sans">
                 <button
                   type="button"
                   onClick={resetForm}
@@ -3474,12 +4604,22 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                 >
                   <RotateCcw className="w-4 h-4" /> Clear
                 </button>
+                {editingClaimId && isAdmin && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteClaim}
+                    className="flex items-center gap-1 bg-rose-650 hover:bg-rose-750 text-white px-4 py-2 rounded-lg text-xs font-extrabold font-sans cursor-pointer transition-all shadow"
+                  >
+                    <Trash2 className="w-4 h-4" /> Delete Claim
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleSaveClaim}
                   className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-750 text-white px-4 py-2 rounded-lg text-xs font-extrabold font-sans cursor-pointer transition-all shadow"
                 >
-                  <CheckSquare className="w-4 h-4" /> Save Record
+                  <CheckSquare className="w-4 h-4" /> 
+                  {editingClaimId ? (isAdmin ? "Update Record (Admin)" : "Update Record") : "Save Record"}
                 </button>
                 <button
                   type="button"
@@ -3497,7 +4637,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
           <div className="bg-[#121c32]/55 border border-[#1e2a47] rounded-2xl p-2 md:p-6 shadow-2xl flex flex-col items-center justify-start overflow-auto">
             <div className="text-center mb-4 flex flex-col sm:flex-row items-center gap-3 bg-slate-900/60 p-2 rounded-xl border border-slate-800">
               <span className="text-xs bg-indigo-950/80 border border-indigo-800 text-indigo-400 py-1.5 px-4 rounded-lg font-mono font-bold tracking-wider">
-                A4 Sheet Preview (ए4 शीट पूर्वावलोकन)
+                A4 Sheet Preview
               </span>
               
               <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-lg p-1">
@@ -3522,11 +4662,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                 onClick={handlePrint}
                 className="flex items-center gap-2 bg-emerald-650 hover:bg-emerald-700 bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow cursor-pointer uppercase tracking-wider"
               >
-                <Printer className="w-4 h-4" /> Print TA Bill (प्रिंट)
+                <Printer className="w-4 h-4" /> Print TA Bill
               </button>
             </div>
             <div className="w-full overflow-x-auto flex justify-start lg:justify-center p-1 md:p-4">
-              <div className={`bg-white text-black pl-[8mm] pr-[8mm] pt-[15mm] pb-[15mm] font-serif leading-relaxed text-[13pt] shadow-[0_0_30px_rgba(0,0,0,0.6)] border border-gray-300 rounded shrink-0 my-2 select-text ${isLandscape ? 'w-[297mm] min-h-[210mm]' : 'w-[210mm] min-h-[297mm]'}`}>
+              <div className={`bg-white text-black pl-[8mm] pr-[8mm] pt-[4mm] pb-[8mm] font-serif leading-relaxed text-[13pt] shadow-[0_0_30px_rgba(0,0,0,0.6)] border border-gray-300 rounded shrink-0 my-2 select-text ${isLandscape ? 'w-[297mm] min-h-[210mm]' : 'w-[210mm] min-h-[297mm]'}`}>
                 {renderPrintSheetContent()}
               </div>
             </div>
@@ -3541,7 +4681,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
           <div className="bg-[#0e1628]/95 border border-[#1e2a47] rounded-2xl p-4 flex flex-col gap-2 shrink-0">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-[#223354] pb-2 flex items-center gap-1.5 shrink-0">
               <Calendar className="w-4 h-4 text-violet-400" />
-              Recent TA Claims / जमा रिकॉर्ड
+              Recent TA Claims
             </h3>
 
             <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
@@ -3578,11 +4718,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
             </div>
           </div>
 
-          {/* STATION & CODE DIRECTORY / स्टेशन डायरेक्टरी */}
+          {/* STATION & CODE DIRECTORY */}
           <div className="bg-[#0e1628]/95 border border-[#1e2a47] rounded-xl p-4 flex flex-col gap-3 shrink-0 text-left">
             <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest border-b border-[#223354] pb-2 flex items-center justify-between gap-1 shrink-0">
               <span className="flex items-center gap-1.5 font-bold">
-                🚉 Station Directory / स्टेशन डायरेक्टरी
+                🚉 Station Directory
               </span>
               <span className="text-[9px] bg-violet-900/40 text-violet-300 px-1.5 py-0.5 rounded font-bold border border-violet-850/40 font-mono">
                 {INDIAN_STATIONS.length} Loaded
@@ -3593,7 +4733,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
             <div className="space-y-2">
               <input
                 type="text"
-                placeholder="🔍 Search stations / स्टेशन खोजें..."
+                placeholder="🔍 Search stations..."
                 value={stationQuerySearch}
                 onChange={(e) => setStationQuerySearch(e.target.value)}
                 className="w-full text-[11px] bg-slate-950 border border-slate-850 rounded px-2 py-1 text-white placeholder-slate-650 focus:outline-none focus:border-violet-500 font-sans"
@@ -3630,7 +4770,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
             {/* Quick Add Form */}
             <div className="bg-slate-950/40 border border-slate-900 rounded-lg p-2.5 space-y-2">
               <div className="text-[10px] font-extrabold text-violet-400 uppercase tracking-wider flex justify-between">
-                <span>➕ Add Custom Station / स्टेशन जोड़ें</span>
+                <span>➕ Add Custom Station</span>
               </div>
               <div className="grid grid-cols-3 gap-1.5">
                 <input
@@ -3694,7 +4834,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                     </button>
                   </div>
                   <textarea
-                    placeholder="E.g.&#10;BSP Bilaspur Jn (बिलासपुर)&#10;NDLS New Delhi (नई दिल्ली)&#10;HWH Howrah Jn"
+                    placeholder="E.g.&#10;BSP Bilaspur Jn&#10;NDLS New Delhi&#10;HWH Howrah Jn"
                     value={bulkStationText}
                     onChange={(e) => setBulkStationText(e.target.value)}
                     rows={4}
@@ -3716,7 +4856,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
           <div className="bg-gradient-to-b from-[#14203a] to-[#0e1628] border border-[#1f2f53] rounded-2xl p-4 text-left space-y-3 shrink-0 shadow-lg">
             <h3 className="text-[11px] font-extrabold text-violet-400 uppercase tracking-widest border-b border-[#223354] pb-1.5 flex items-center gap-1.5">
               <Info className="w-4 h-4 text-violet-400" />
-              Official TA Rules Reference / यात्रा भत्ता नियम
+              TA Rules Reference
             </h3>
 
             <div className="space-y-3 text-xs">

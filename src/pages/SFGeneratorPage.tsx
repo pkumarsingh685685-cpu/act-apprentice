@@ -81,8 +81,19 @@ export default function SFGeneratorPage() {
     navigate({ search: qParams.toString() }, { replace: true });
   };
 
+  const [activeTab, setActiveTab] = useState<string>("");
+
+  const selectSF = (sf: string) => {
+    const qParams = new URLSearchParams(location.search);
+    if (sf) {
+      qParams.set('sf', sf);
+    } else {
+      qParams.delete('sf');
+    }
+    navigate({ search: qParams.toString() }, { replace: true });
+  };
+
   const selectMainTab = (tab: "DAR_SECTION" | "PDF_STAMP" | "INBOX" | "OFFICE_LINKS" | "WORK_ALLOTMENT" | "OFFICE_ORDERS" | "CLAIM_TA" | "") => {
-    setActiveTab(""); // Reset active form tab so prompt is shown
     if (tab === "INBOX") {
       setMainTab("DAR_SECTION");
       selectDarSubTab("INBOX");
@@ -99,6 +110,7 @@ export default function SFGeneratorPage() {
       qParams.delete('tab');
     }
     qParams.delete('sub');
+    qParams.delete('sf');
     navigate({ search: qParams.toString() }, { replace: true });
   };
 
@@ -106,6 +118,8 @@ export default function SFGeneratorPage() {
     const qParams = new URLSearchParams(location.search);
     const tabParam = qParams.get('tab') as any;
     const subParam = qParams.get('sub') as any;
+    const sfParam = qParams.get('sf') as any;
+
     if (tabParam) {
       if (tabParam === "TYPE_OF_STANDARD_FORM" || tabParam === "DAR_POSITION") {
         setMainTab("DAR_SECTION");
@@ -129,11 +143,15 @@ export default function SFGeneratorPage() {
     } else {
       setMainTab("");
       setDarSubTab("TYPES_OF_SF");
+    }
+
+    if (sfParam) {
+      setActiveTab(sfParam);
+    } else {
       setActiveTab("");
     }
   }, [location.search]);
 
-  const [activeTab, setActiveTab] = useState<string>("");
   const [infoModalSf, setInfoModalSf] = useState<string | null>(null);
   
   // Active/full-screen states for different modules
@@ -402,7 +420,7 @@ export default function SFGeneratorPage() {
             <button
               onClick={() => {
                 if (activeTab) {
-                  setActiveTab("");
+                  selectSF("");
                 } else if (mainTab !== "") {
                   selectMainTab("");
                 } else {
@@ -602,7 +620,7 @@ export default function SFGeneratorPage() {
                       return (
                         <div
                           key={sf}
-                          onClick={() => setActiveTab(sf)}
+                          onClick={() => selectSF(sf)}
                           className={`relative flex items-center justify-center h-16 md:h-20 px-4 rounded-xl cursor-pointer select-none transition-all duration-300 group ${
                             isActive
                               ? "bg-white/20 border-2 border-white/60 text-white font-black shadow-[0_0_24px_rgba(196,181,253,0.95),0_3px_0_rgba(0,0,0,0.3),inset_0_1.5px_2px_rgba(255,255,255,0.7)] translate-y-[2px]"
@@ -715,10 +733,10 @@ export default function SFGeneratorPage() {
                     Access Guidelines & Instructions:
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    This encrypted office connector links to Katihar Division's official registry page. Ensure you are authorized with local active directory credentials before launching.
+                    This encrypted office connector links to Katihar Division's registry page. Ensure you are authorized with local active directory credentials before launching.
                   </p>
                   <p className="text-[11px] text-slate-400 leading-relaxed pt-1 border-t border-slate-800 font-medium">
-                    हिन्दी निर्देश: यह लिंक आपको कटिहार मंडल के आधिकारिक पोर्टल पर रीडायरेक्ट करेगा। जारी रखने के लिए नीचे दिए गए बटन पर क्लिक करें।
+                    हिन्दी निर्देश: यह लिंक आपको कटिहार मंडल के पोर्टल पर रीडायरेक्ट करेगा। जारी रखने के लिए नीचे दिए गए बटन पर क्लिक करें।
                   </p>
                 </div>
 
@@ -841,7 +859,7 @@ export default function SFGeneratorPage() {
                 </button>
                 <span className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-widest font-mono">
                   <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
-                  Official Document Securely Routed
+                  Document Securely Routed
                 </span>
               </div>
 
@@ -878,7 +896,7 @@ export default function SFGeneratorPage() {
                     This document provides standard procedural guidelines regarding apprentice allotment and disciplinary models. Verify files and stamp correctly on matching records.
                   </p>
                   <p className="text-[11px] text-slate-400 leading-relaxed pt-1 border-t border-slate-800 font-medium">
-                    हिन्दी निर्देश: यह आधिकारिक रेलवे बोर्ड परिपत्र / कार्यालय आदेश है। संबंधित फ़ाइल को खोलने या सहेजने के लिए नीचे दिए गए बटन का उपयोग करें।
+                    हिन्दी निर्देश: यह रेलवे बोर्ड परिपत्र / कार्यालय आदेश है। संबंधित फ़ाइल को खोलने या सहेजने के लिए नीचे दिए गए बटन का उपयोग करें।
                   </p>
                 </div>
 
@@ -916,7 +934,7 @@ export default function SFGeneratorPage() {
                   {t("nav_circulars") || "Office Orders"} / कार्यालय आदेश
                 </h2>
                 <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider">
-                  Official circulars, notifications, and orders regarding DAR procedure and apprentice cells
+                  Circulars, notifications, and orders regarding DAR procedure and apprentice cells
                 </p>
               </div>
               

@@ -346,7 +346,7 @@ export default function CandidateLogin() {
                       </div>
                       <h4 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-blue-700 transition-colors">Candidate Details</h4>
                       <p className="text-gray-600 text-xs">
-                        View your personal information, employment data, and official records seamlessly.
+                        View your personal information, employment data, and status records seamlessly.
                       </p>
                     </div>
 

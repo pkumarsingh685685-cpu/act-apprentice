@@ -329,7 +329,7 @@ export function SF3Generator({ onBack }: { onBack?: () => void } = {}) {
                   Standard Form No.3
                 </h2>
                 <div className="text-[11.5pt] text-black mt-2 leading-relaxed max-w-xl mx-auto italic font-medium">
-                  (Standard form of certificate to be furnished by suspended official under rule 2043(2) R-II)
+                  (Standard form of certificate to be furnished by suspended employee under rule 2043(2) R-II)
                 </div>
               </div>
 

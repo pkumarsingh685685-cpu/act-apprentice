@@ -138,6 +138,110 @@ export function ApoAllotmentManager() {
   }, []);
 
   // Fetch all department customizations in real-time
+  // Panel state variables for dashboard layout dimensions & grid matrices
+  const [leftGridData, setLeftGridData] = useState<string[][]>([
+    ["APO-1 (Praveen Karn)", "APO-2 (Lalit Kumar)"],
+    ["APO-2 (Lalit Kumar)", "APO-3 (Santosh Dutta)"],
+    ["APO-3 (Santosh Dutta)", "APO-1 (Praveen Karn)"],
+    ["All APOs Absent", "SPO / Sr. DPO Desk"]
+  ]);
+  const [rightGridData, setRightGridData] = useState<string[][]>([
+    ["1", "Overall Administration & Policy Decisions"],
+    ["2", "Gazetted Officers & Union Negotiations"],
+    ["3", "Inter-Divisional Postings & Transfers"],
+    ["4", "Welfare Policy, Budget Control & Audit"]
+  ]);
+  const [leftMinHeight, setLeftMinHeight] = useState<number>(140);
+  const [srDpoMinHeight, setSrDpoMinHeight] = useState<number>(110);
+  const [rightMinHeight, setRightMinHeight] = useState<number>(140);
+  const [leftColSpan, setLeftColSpan] = useState<number>(1);
+  const [srDpoColSpan, setSrDpoColSpan] = useState<number>(2);
+  const [rightColSpan, setRightColSpan] = useState<number>(1);
+
+  // New customizable title, note, and size states
+  const [srDpoNote, setSrDpoNote] = useState<string>("");
+  const [srDpoTitleText, setSrDpoTitleText] = useState<string>("📋 SR. DPO KEY WORKS & FUNCTIONS");
+  const [srDpoTitleSize, setSrDpoTitleSize] = useState<number>(9);
+
+  // Fetch panel layout and grid data from Firestore in real-time
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "settings", "apo_dashboard_panels"), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.leftGridStr) {
+          try {
+            const parsed = JSON.parse(data.leftGridStr);
+            if (Array.isArray(parsed)) {
+              setLeftGridData(parsed);
+            }
+          } catch (e) {
+            console.error("Failed to parse leftGridStr:", e);
+          }
+        } else if (data.leftGrid && Array.isArray(data.leftGrid)) {
+          setLeftGridData(data.leftGrid);
+        }
+        
+        if (data.rightGridStr) {
+          try {
+            const parsed = JSON.parse(data.rightGridStr);
+            if (Array.isArray(parsed)) {
+              setRightGridData(parsed);
+            }
+          } catch (e) {
+            console.error("Failed to parse rightGridStr:", e);
+          }
+        }
+
+        if (data.leftMinHeight !== undefined) setLeftMinHeight(Number(data.leftMinHeight));
+        if (data.srDpoMinHeight !== undefined) setSrDpoMinHeight(Number(data.srDpoMinHeight));
+        if (data.rightMinHeight !== undefined) setRightMinHeight(Number(data.rightMinHeight));
+        if (data.leftColSpan !== undefined) setLeftColSpan(Number(data.leftColSpan));
+        if (data.srDpoColSpan !== undefined) setSrDpoColSpan(Number(data.srDpoColSpan));
+        if (data.rightColSpan !== undefined) setRightColSpan(Number(data.rightColSpan));
+        if (data.srDpoNote !== undefined) setSrDpoNote(data.srDpoNote);
+        if (data.srDpoTitleText !== undefined) setSrDpoTitleText(data.srDpoTitleText);
+        if (data.srDpoTitleSize !== undefined) setSrDpoTitleSize(Number(data.srDpoTitleSize));
+      }
+    }, (err) => {
+      console.error("Error loading apo dashboard panels in manager:", err);
+    });
+    return () => unsub();
+  }, []);
+
+  const savePanelsData = async (
+    newLeftGrid: string[][], 
+    newRightGrid: string[][],
+    customLeftHeight = leftMinHeight,
+    customSrHeight = srDpoMinHeight,
+    customRightHeight = rightMinHeight,
+    customLeftCol = leftColSpan,
+    customSrCol = srDpoColSpan,
+    customRightCol = rightColSpan,
+    customSrDpoNote = srDpoNote,
+    customSrDpoTitleText = srDpoTitleText,
+    customSrDpoTitleSize = srDpoTitleSize
+  ) => {
+    try {
+      await setDoc(doc(db, "settings", "apo_dashboard_panels"), {
+        leftGridStr: JSON.stringify(newLeftGrid),
+        rightGridStr: JSON.stringify(newRightGrid),
+        leftMinHeight: Number(customLeftHeight),
+        srDpoMinHeight: Number(customSrHeight),
+        rightMinHeight: Number(customRightHeight),
+        leftColSpan: Number(customLeftCol),
+        srDpoColSpan: Number(customSrCol),
+        rightColSpan: Number(customRightCol),
+        srDpoNote: String(customSrDpoNote),
+        srDpoTitleText: String(customSrDpoTitleText),
+        srDpoTitleSize: Number(customSrDpoTitleSize),
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (err) {
+      console.error("Failed to save panels data in manager:", err);
+      toast.error("Failed to save layout adjustments to server");
+    }
+  };
+
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "settings"), (snap) => {
       const customizations: Record<string, any> = {};
@@ -678,117 +782,383 @@ export function ApoAllotmentManager() {
           </div>
 
           <div className="md:col-span-2 border-t border-slate-100 pt-3">
-            <h4 className="text-xs font-black text-rose-600 uppercase tracking-wider mb-2">
-              📂 Official Work Allotment Document (आधिकारिक कार्य आवंटन पीडीएफ)
+            <h4 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-2">
+              📂 Offline Work Allotment PDF Document (कार्य आवंटन पीडीएफ दस्तावेज)
             </h4>
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-              Work Allotment PDF Link (ऑफ़लाइन कार्य आवंटन पीडीएफ लिंक)
-            </label>
-            <input
-              type="text"
-              value={apoWorkAllotmentPdfUrl}
-              onChange={(e) => setApoWorkAllotmentPdfUrl(e.target.value)}
-              placeholder="e.g. https://example.com/allotment.pdf"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-            />
-            <p className="text-[10px] text-slate-500 mt-1">
-              Add the URL link to the official offline PDF here. A download button will appear on the public page for staff to access the official document.
-            </p>
+            <div className="grid grid-cols-1 gap-2">
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                Work Allotment PDF Link (ऑफ़लाइन कार्य आवंटन पीडीएफ लिंक)
+              </label>
+              <input
+                type="text"
+                value={apoWorkAllotmentPdfUrl}
+                onChange={(e) => setApoWorkAllotmentPdfUrl(e.target.value)}
+                placeholder="e.g. https://example.com/allotment.pdf"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+              />
+              <p className="text-[10px] text-slate-500">
+                Add the URL link to the offline PDF here.
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Dynamic Link Officer Arrangement Sequence Map */}
-      <div className="bg-[#050f24] border border-slate-800/80 rounded-2xl p-5 shadow-lg space-y-4 text-left">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-violet-600/10 border border-violet-600/20 flex items-center justify-center text-violet-400">
-              <RefreshCw size={20} />
+      {/* 📊 Dashboard Layout & Grid Matrices Controls */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6 text-left">
+        <div className="border-b pb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-violet-600/10 border border-violet-600/20 flex items-center justify-center text-violet-700">
+              <Layers size={20} />
             </div>
             <div>
-              <h3 className="font-extrabold text-slate-100 text-sm tracking-wide uppercase">
-                🔄 Routine Link Officer Sequence Map (लिंक व्यवस्था अनुक्रम)
+              <h3 className="font-extrabold text-slate-800 text-sm tracking-wide uppercase">
+                📊 Front-End Dashboard Sizing & Grid Controls (कार्यालय डैशबोर्ड आकार और ग्रिड नियंत्रण)
               </h3>
-              <p className="text-xs text-slate-400">
-                Configure who looks after which APO's files and departments when they are absent/on leave. Select directly from the dropdown.
+              <p className="text-xs text-slate-500">
+                Adjust box heights, column span configurations, and update the left/right charge link grids shown on the main dashboard.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {(() => {
-            const apoList = apoWorkAllotments.length > 0 ? apoWorkAllotments : [
-              { id: "fallback-apo1", name: "SHRI PRAVEEN KUMAR KARN", designation: "APO/I/KIR" },
-              { id: "fallback-apo2", name: "Shri Lalit Kumar", designation: "APO 11" },
-              { id: "fallback-apo3", name: "Shri Santosh Kumar Dutta", designation: "APO-II" }
-            ];
-
-            return apoList.map((apo) => {
-              const current1st = config[`link_1st_${apo.id}`] || "";
-              const current2nd = config[`link_2nd_${apo.id}`] || "";
-
-              // Exclude current apo from alternate options
-              const alternateOptions = apoList.filter(a => a.id !== apo.id);
-
-              return (
-                <div key={apo.id} className="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl shadow-xs space-y-3">
-                  <div className="border-b border-slate-800 pb-2">
-                    <span className="text-[10px] font-black text-rose-400 bg-rose-950/40 border border-rose-500/20 px-2 py-0.5 rounded uppercase">
-                      IF ABSENT
-                    </span>
-                    <h4 className="font-extrabold text-slate-100 text-sm mt-1 truncate">
-                      {apo.name}
-                    </h4>
-                    <p className="text-xs text-indigo-400 font-bold uppercase tracking-wider">
-                      {apo.designation}
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                        1st Alternate Link Officer
-                      </label>
-                      <select
-                        value={current1st}
-                        onChange={(e) => updateConfig(`link_1st_${apo.id}`, e.target.value)}
-                        className="w-full px-2.5 py-1.5 border border-slate-700 rounded-lg text-xs bg-slate-950 text-slate-200 font-medium focus:ring-2 focus:ring-violet-500 focus:outline-none"
-                      >
-                        <option value="">-- Default / Cyclic --</option>
-                        {alternateOptions.map((opt) => (
-                          <option key={opt.id} value={opt.id}>
-                            {opt.designation} ({opt.name})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                        2nd Alternate Link Officer
-                      </label>
-                      <select
-                        value={current2nd}
-                        onChange={(e) => updateConfig(`link_2nd_${apo.id}`, e.target.value)}
-                        className="w-full px-2.5 py-1.5 border border-slate-700 rounded-lg text-xs bg-slate-950 text-slate-200 font-medium focus:ring-2 focus:ring-violet-500 focus:outline-none"
-                      >
-                        <option value="">-- Default / Cyclic --</option>
-                        {alternateOptions.map((opt) => (
-                          <option key={opt.id} value={opt.id}>
-                            {opt.designation} ({opt.name})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+        {/* Sliders for Sizing & Heights */}
+        <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-5 space-y-4">
+          <h4 className="text-xs font-black text-indigo-700 uppercase tracking-wider mb-2">
+            📐 Dimensional Sizing & Layout Weights (डैशबोर्ड बॉक्स ऊंचाई और लेआउट चौड़ाई)
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Left Box Height Slider */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-bold text-slate-700">
+                <span>Left Panel Min Height</span>
+                <span className="text-indigo-600">{leftMinHeight}px</span>
+              </div>
+              <input
+                type="range"
+                min="5"
+                max="100"
+                value={leftMinHeight}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setLeftMinHeight(val);
+                  savePanelsData(leftGridData, rightGridData, val, srDpoMinHeight, rightMinHeight, leftColSpan, srDpoColSpan, rightColSpan);
+                }}
+                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+              <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                <span>Min: 5px</span>
+                <span>Max: 100px</span>
+              </div>
+              {/* Left Box Col Span */}
+              <div className="pt-2">
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Left Panel Column Weight</label>
+                <input
+                  type="number"
+                  min="0.1"
+                  max="2.5"
+                  step="0.1"
+                  value={leftColSpan}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setLeftColSpan(val);
+                    savePanelsData(leftGridData, rightGridData, leftMinHeight, srDpoMinHeight, rightMinHeight, val, srDpoColSpan, rightColSpan);
+                  }}
+                  className="w-full px-2.5 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-indigo-500 font-bold"
+                />
+                <div className="flex justify-between text-[8px] text-slate-400 font-mono mt-0.5">
+                  <span>Min: 0.1</span>
+                  <span>Max: 2.5</span>
                 </div>
-              );
-            });
-          })()}
+              </div>
+            </div>
+
+            {/* Sr DPO Box Height Slider */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-bold text-slate-700">
+                <span>Sr. DPO Panel Min Height</span>
+                <span className="text-rose-600">{srDpoMinHeight}px</span>
+              </div>
+              <input
+                type="range"
+                min="5"
+                max="100"
+                value={srDpoMinHeight}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setSrDpoMinHeight(val);
+                  savePanelsData(leftGridData, rightGridData, leftMinHeight, val, rightMinHeight, leftColSpan, srDpoColSpan, rightColSpan);
+                }}
+                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-rose-600"
+              />
+              <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                <span>Min: 5px</span>
+                <span>Max: 100px</span>
+              </div>
+              {/* Sr DPO Box Col Span */}
+              <div className="pt-2">
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Middle Panel Column Weight</label>
+                <input
+                  type="number"
+                  min="0.1"
+                  max="2.5"
+                  step="0.1"
+                  value={srDpoColSpan}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setSrDpoColSpan(val);
+                    savePanelsData(leftGridData, rightGridData, leftMinHeight, srDpoMinHeight, rightMinHeight, leftColSpan, val, rightColSpan);
+                  }}
+                  className="w-full px-2.5 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-indigo-500 font-bold"
+                />
+                <div className="flex justify-between text-[8px] text-slate-400 font-mono mt-0.5">
+                  <span>Min: 0.1</span>
+                  <span>Max: 2.5</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Box Height Slider */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-bold text-slate-700">
+                <span>Right Panel Min Height</span>
+                <span className="text-emerald-600">{rightMinHeight}px</span>
+              </div>
+              <input
+                type="range"
+                min="5"
+                max="100"
+                value={rightMinHeight}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setRightMinHeight(val);
+                  savePanelsData(leftGridData, rightGridData, leftMinHeight, srDpoMinHeight, val, leftColSpan, srDpoColSpan, rightColSpan);
+                }}
+                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+              />
+              <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                <span>Min: 5px</span>
+                <span>Max: 100px</span>
+              </div>
+              {/* Right Box Col Span */}
+              <div className="pt-2">
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Right Panel Column Weight</label>
+                <input
+                  type="number"
+                  min="0.1"
+                  max="2.5"
+                  step="0.1"
+                  value={rightColSpan}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setRightColSpan(val);
+                    savePanelsData(leftGridData, rightGridData, leftMinHeight, srDpoMinHeight, rightMinHeight, leftColSpan, srDpoColSpan, val);
+                  }}
+                  className="w-full px-2.5 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-indigo-500 font-bold"
+                />
+                <div className="flex justify-between text-[8px] text-slate-400 font-mono mt-0.5">
+                  <span>Min: 0.1</span>
+                  <span>Max: 2.5</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Custom Header & Footer Note Configuration */}
+        <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-5 space-y-4">
+          <h4 className="text-xs font-black text-violet-700 uppercase tracking-wider mb-2">
+            ✍️ Sr. DPO Works Panel Header & Notes (मुख्य कार्य सूची शीर्षक और टिप्पणी नियंत्रण)
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                Sr. DPO Works Title Text (शीर्षक शब्द)
+              </label>
+              <input
+                type="text"
+                value={srDpoTitleText}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSrDpoTitleText(val);
+                  savePanelsData(leftGridData, rightGridData, leftMinHeight, srDpoMinHeight, rightMinHeight, leftColSpan, srDpoColSpan, rightColSpan, srDpoNote, val, srDpoTitleSize);
+                }}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500"
+                placeholder="e.g. 📋 SR. DPO KEY WORKS & FUNCTIONS"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                Title Font Size (8px - 24px)
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="8"
+                  max="24"
+                  value={srDpoTitleSize}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setSrDpoTitleSize(val);
+                    savePanelsData(leftGridData, rightGridData, leftMinHeight, srDpoMinHeight, rightMinHeight, leftColSpan, srDpoColSpan, rightColSpan, srDpoNote, srDpoTitleText, val);
+                  }}
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-violet-600"
+                />
+                <span className="text-xs font-bold text-violet-700 font-mono shrink-0">{srDpoTitleSize}px</span>
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                Special Footnote row inside Key Works Table (मुख्य कार्य सूची तालिका के नीचे नोट)
+              </label>
+              <textarea
+                rows={2}
+                value={srDpoNote}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSrDpoNote(val);
+                  savePanelsData(leftGridData, rightGridData, leftMinHeight, srDpoMinHeight, rightMinHeight, leftColSpan, srDpoColSpan, rightColSpan, val, srDpoTitleText, srDpoTitleSize);
+                }}
+                className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white font-semibold text-slate-700 focus:ring-1 focus:ring-indigo-500"
+                placeholder="Type note to append to the bottom of key works table..."
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Grids Management Tables */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Grid (APO Absence Link Charge) */}
+          <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-5 space-y-4">
+            <h4 className="text-xs font-black text-amber-600 uppercase tracking-wider mb-2">
+              🔗 Left Grid: Absence Link Charge Matrix (एपीओ अनुपस्थिति चार्ज ग्रिड तालिका)
+            </h4>
+            <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-200">
+                    <th className="px-3 py-2 font-bold text-slate-600 border-r border-slate-200 text-center w-1/2">ABSENT APO POST</th>
+                    <th className="px-3 py-2 font-bold text-slate-600 text-center w-1/2">CHARGE TO ASSIGN</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leftGridData.map((row, rIdx) => (
+                    <tr key={rIdx} className="border-b border-slate-150 last:border-0">
+                      {row.map((cell, cIdx) => (
+                        <td key={cIdx} className={`p-1 ${cIdx === 0 ? "border-r border-slate-200" : ""}`}>
+                          <input
+                            type="text"
+                            value={cell}
+                            onChange={(e) => {
+                              const updated = [...leftGridData];
+                              updated[rIdx][cIdx] = e.target.value;
+                              setLeftGridData(updated);
+                            }}
+                            onBlur={() => savePanelsData(leftGridData, rightGridData)}
+                            placeholder="Type value..."
+                            className="w-full bg-transparent text-center font-semibold text-slate-700 focus:outline-none focus:bg-slate-100 rounded px-1 py-1"
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = [...leftGridData, ["", ""]];
+                  setLeftGridData(updated);
+                  savePanelsData(updated, rightGridData);
+                }}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded flex items-center gap-1 transition-all cursor-pointer"
+              >
+                <Plus size={12} /> Add Row
+              </button>
+              {leftGridData.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = leftGridData.slice(0, -1);
+                    setLeftGridData(updated);
+                    savePanelsData(updated, rightGridData);
+                  }}
+                  className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded flex items-center gap-1 transition-all cursor-pointer"
+                >
+                  <Trash2 size={12} /> Delete Row
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Right Grid (Sr DPO Key Works) */}
+          <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-5 space-y-4">
+            <h4 className="text-xs font-black text-emerald-700 uppercase tracking-wider mb-2">
+              📝 Right Grid: Sr. DPO Key Works List (वरिष्ठ मंडल कार्मिक अधिकारी मुख्य कार्य सूची)
+            </h4>
+            <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-200">
+                    <th className="px-3 py-2 font-bold text-slate-600 border-r border-slate-200 text-center w-[20%]">S.No.</th>
+                    <th className="px-3 py-2 font-bold text-slate-600 text-center w-[80%]">WORK ALLOTMENT DESCRIPTION</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rightGridData.map((row, rIdx) => (
+                    <tr key={rIdx} className="border-b border-slate-150 last:border-0">
+                      {row.map((cell, cIdx) => (
+                        <td key={cIdx} className={`p-1 ${cIdx === 0 ? "border-r border-slate-200" : ""}`}>
+                          <input
+                            type="text"
+                            value={cell}
+                            onChange={(e) => {
+                              const updated = [...rightGridData];
+                              updated[rIdx][cIdx] = e.target.value;
+                              setRightGridData(updated);
+                            }}
+                            onBlur={() => savePanelsData(leftGridData, rightGridData)}
+                            placeholder="Type value..."
+                            className="w-full bg-transparent text-center font-semibold text-slate-700 focus:outline-none focus:bg-slate-100 rounded px-1 py-1"
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = [...rightGridData, [String(rightGridData.length + 1), ""]];
+                  setRightGridData(updated);
+                  savePanelsData(leftGridData, updated);
+                }}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded flex items-center gap-1 transition-all cursor-pointer"
+              >
+                <Plus size={12} /> Add Row
+              </button>
+              {rightGridData.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = rightGridData.slice(0, -1);
+                    setRightGridData(updated);
+                    savePanelsData(leftGridData, updated);
+                  }}
+                  className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded flex items-center gap-1 transition-all cursor-pointer"
+                >
+                  <Trash2 size={12} /> Delete Row
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

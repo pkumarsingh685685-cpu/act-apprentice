@@ -12,14 +12,16 @@ export interface PrintSettings {
   sigScale?: number;
   sigXOffset?: number;
   sigYOffset?: number;
+  tableFontSizeScale?: number;
 }
 
 interface PrintCustomizerProps {
   settings: PrintSettings;
   onChange: (updated: PrintSettings) => void;
+  isAdmin?: boolean;
 }
 
-export function PrintCustomizer({ settings, onChange }: PrintCustomizerProps) {
+export function PrintCustomizer({ settings, onChange, isAdmin = false }: PrintCustomizerProps) {
   const [showConfig, setShowConfig] = useState(false);
 
   const updateSetting = <K extends keyof PrintSettings>(key: K, value: PrintSettings[K]) => {
@@ -113,11 +115,11 @@ export function PrintCustomizer({ settings, onChange }: PrintCustomizerProps) {
             )}
           </div>
 
-          {/* Section 2: Official Seals */}
+          {/* Section 2: Seals */}
           <div className="space-y-3">
             <h5 className="text-[11px] font-black text-gray-800 uppercase tracking-wider flex items-center gap-1">
               <Award className="w-3.5 h-3.5 text-blue-500" />
-              Official Stamp / Seal
+              Stamp / Seal
             </h5>
             <div className="grid grid-cols-1 gap-1.5">
               {[
@@ -301,6 +303,43 @@ export function PrintCustomizer({ settings, onChange }: PrintCustomizerProps) {
               </div>
             )}
           </div>
+
+          {/* Admin Row The Font Size Customizer */}
+          {isAdmin && (
+            <div className="col-span-full mt-2 pt-4 border-t border-dashed border-gray-200">
+              <h5 className="text-[11px] font-black text-indigo-800 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                <span>🔧 ADMIN PRINT CONTROLS</span>
+                <span className="text-[9px] bg-indigo-150 text-indigo-700 px-1.5 py-0.5 rounded font-black">AUTHORIZED</span>
+              </h5>
+              <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-700 mb-1">
+                    <span>TA Table Rows Font Size:</span>
+                    <span className="font-mono text-indigo-700 font-extrabold bg-indigo-100 px-2 py-0.5 rounded text-xs">
+                      {settings.tableFontSizeScale ?? 100}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="50"
+                    max="150"
+                    step="5"
+                    value={settings.tableFontSizeScale ?? 100}
+                    onChange={(e) => updateSetting("tableFontSizeScale", Number(e.target.value))}
+                    className="w-full accent-indigo-700 h-1.5 bg-gray-200 rounded-lg cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[8.5px] text-gray-500 font-mono mt-1">
+                    <span>50% (Smaller)</span>
+                    <span>100% (Normal)</span>
+                    <span>150% (Larger)</span>
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-600 leading-normal flex items-center bg-white border border-slate-100 rounded-lg p-2.5">
+                  🛡️ <strong className="ml-1 text-slate-800">Admin Tip:</strong> Drag the slider above to increase or decrease the font size of all Travelling Allowance journey rows in the PDF instantly. This resolves table overflowing across pages!
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
       )}

@@ -10,6 +10,7 @@ const navKeys = [
   { key: "nav_apprentice_notification", path: "/notifications" },
   { key: "nav_merit_panel", path: "/merit" },
   { key: "nav_results", path: "/results" },
+  { key: "nav_pnr_status", path: "/pnr" },
 ];
 
 const rightNavKeys = [

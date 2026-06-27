@@ -80,7 +80,7 @@ const DEFAULT_DAR_TREE: Record<string, DecisionPopupNode> = {
     ]
   },
   sf1_reviewed: {
-    question: "What is the official decision of the Suspension Review Board?",
+    question: "What is the formal decision of the Suspension Review Board?",
     options: [
       {
         text: "Extend Suspension (Up to further 180 days)",
@@ -212,7 +212,7 @@ const DEFAULT_DAR_TREE: Record<string, DecisionPopupNode> = {
   },
   sf5_no_defense: {
     question: "Establish Ex-Parte Inquiry Board",
-    advice: "Since no defense statement is submitted, Disciplinary Authority should issue standard SF-7 appointing an Inquiry Officer with directive to conduct hearings. Ensure notices of each hearing date are served at official residential address with proof of delivery.",
+    advice: "Since no defense statement is submitted, Disciplinary Authority should issue standard SF-7 appointing an Inquiry Officer with directive to conduct hearings. Ensure notices of each hearing date are served at registered residential address with proof of delivery.",
     options: [
       {
         text: "Proceed to Active Inquiry",
@@ -504,7 +504,7 @@ export const DarProcedureHub: React.FC = () => {
             <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest font-mono">Safety Presets</span>
             <h4 className="text-xs font-bold text-white uppercase tracking-wider">Reset and Restore</h4>
             <p className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
-              Easily reset any erroneous configuration changes back to the official RS (D&A) Rules standard baseline instantly.
+              Easily reset any erroneous configuration changes back to the standard RS (D&A) Rules baseline instantly.
             </p>
           </div>
         </div>

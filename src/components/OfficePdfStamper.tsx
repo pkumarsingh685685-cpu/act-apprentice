@@ -946,7 +946,7 @@ export function OfficePdfStamper({ onActiveStateChange }: OfficePdfStamperProps 
             return remaining.length > 0 ? remaining[0].id : "";
           });
         }
-        toast.success("Official stamp deleted from browser storage.");
+        toast.success("Stamp deleted from browser storage.");
       } else {
         // Delete from Cloud Firestore
         await deleteDoc(doc(db, "sec_office_stamps", stampId));
@@ -971,7 +971,7 @@ export function OfficePdfStamper({ onActiveStateChange }: OfficePdfStamperProps 
           console.warn("Audit logger delete skipped:", logErr);
         }
 
-        toast.success("Official stamp deleted from Cloud repository.");
+        toast.success("Stamp deleted from Cloud repository.");
       }
     } catch (err) {
       console.error("Deletion error:", err);
@@ -1276,7 +1276,7 @@ export function OfficePdfStamper({ onActiveStateChange }: OfficePdfStamperProps 
                           type="button"
                           onClick={() => setStampIdToDelete(stamp.id)}
                           className="p-1.5 text-slate-500 hover:text-red-500 hover:bg-rose-50 rounded transition-colors shrink-0 cursor-pointer"
-                          title="Purge official stamp permanent cache template"
+                          title="Purge stamp permanent cache template"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1506,7 +1506,7 @@ export function OfficePdfStamper({ onActiveStateChange }: OfficePdfStamperProps 
                         {[
                           { name: "Royal Indigo", value: "#2563eb" },
                           { name: "Military Blue", value: "#1e40af" },
-                          { name: "Official Blue", value: "#1d4ed8" },
+                          { name: "Standard Blue", value: "#1d4ed8" },
                           { name: "Urgent Red", value: "#dc2626" },
                           { name: "Approved Green", value: "#16a34a" },
                           { name: "Classic Purple", value: "#7c3aed" },

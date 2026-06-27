@@ -103,8 +103,8 @@ export default function AdminDashboard() {
       icon: Settings, 
       category: "System Settings",
       categoryHi: "सिस्टम सेटिंग्स",
-      desc: "Update helpline numbers, official contact email, and critical marquee alert text.",
-      descHi: "हेल्पलाइन नंबर, आधिकारिक संपर्क ईमेल और महत्वपूर्ण स्क्रॉल संदेशों को बदलें।"
+      desc: "Update helpline numbers, contact email, and critical marquee alert text.",
+      descHi: "हेल्पलाइन नंबर, संपर्क ईमेल और महत्वपूर्ण स्क्रॉल संदेशों को बदलें।"
     },
     { 
       id: "translations", 
@@ -143,7 +143,7 @@ export default function AdminDashboard() {
       icon: FileSignature, 
       category: "System Settings",
       categoryHi: "सिस्टम सेटिंग्स",
-      desc: "Upload external files to visually position and apply official round seals, approval stamps and watermarks.",
+      desc: "Upload external files to visually position and apply round seals, approval stamps and watermarks.",
       descHi: "कार्यालय उपयोग हेतु फाइलों पर डिजिटल गोल मुहर, स्वीकृत हस्ताक्षर और वाटरमार्क लगाकर डाउनलोड करें।"
     },
     { 
@@ -154,7 +154,7 @@ export default function AdminDashboard() {
       category: "UI Graphics & Media",
       categoryHi: "ग्राफिक्स और मीडिया",
       desc: "Update banner titles, organization labels, and main board headings of the website.",
-      descHi: "वेबसाइट के शीर्षकों, बैनर शीर्षकों और आधिकारिक विभागों के नाम को बदलें।"
+      descHi: "वेबसाइट के शीर्षकों, बैनर शीर्षकों और विभागों के नाम को बदलें।"
     },
     { 
       id: "audio", 
@@ -223,8 +223,8 @@ export default function AdminDashboard() {
       icon: FileText, 
       category: "Documents & Notices",
       categoryHi: "दस्तावेज और नोटिस",
-      desc: "Upload official PDF circulars, notifications, and core categorizations.",
-      descHi: "कार्यालय के आधिकारिक परिपत्र, आदेशों और दस्तावेजों की पीडीएफ अपलोड करें।"
+      desc: "Upload PDF circulars, notifications, and core categorizations.",
+      descHi: "कार्यालय के परिपत्र, आदेशों और दस्तावेजों की पीडीएफ अपलोड करें।"
     },
     { 
       id: "notifications", 
@@ -289,12 +289,12 @@ export default function AdminDashboard() {
     { 
       id: "links", 
       name: "Railways Main Links", 
-      nameHi: "रेलवे आधिकारिक कड़ियां",
+      nameHi: "रेलवे कड़ियां",
       icon: Settings, 
       category: "Departmental Portals",
       categoryHi: "विभागीय पोर्टल",
       desc: "Update key internet links pointing to external Indian Railways systems.",
-      descHi: "भारतीय रेलवे की अन्य आधिकारिक वेबसाइटों की मुख्य लिंक्स प्रबंधित करें।"
+      descHi: "भारतीय रेलवे की अन्य वेबसाइटों की मुख्य लिंक्स प्रबंधित करें।"
     },
     { 
       id: "externalLinks", 
@@ -705,8 +705,8 @@ export default function AdminDashboard() {
                       </h2>
                       <p className="text-slate-400 text-sm max-w-2xl mt-1 font-medium">
                         {currentLang === 'hi' 
-                          ? 'आधिकारिक सूचनाओं, रेल डेटा शीट, द्विभाषी अनुवादों, इंटरैक्टिव मानचित्रों और उम्मीदवार डेटाबेस को वास्तविक समय में एक्सेस, अपडेट और प्रबंधित करें।'
-                          : 'Access, update, and manage official notifications, railway data sheets, bilingual translations, interactive coordinate maps, and apprentice databases in real-time.'}
+                          ? 'सूचनाओं, रेल डेटा शीट, द्विभाषी अनुवादों, इंटरैक्टिव मानचित्रों और उम्मीदवार डेटाबेस को वास्तविक समय में एक्सेस, अपडेट और प्रबंधित करें।'
+                          : 'Access, update, and manage notifications, railway data sheets, bilingual translations, interactive coordinate maps, and apprentice databases in real-time.'}
                       </p>
                     </div>
                     {lastLoginTime && (
@@ -2048,7 +2048,7 @@ function SettingsForm() {
                 <option value="false">❌ Disabled - Normal printing without footer system stamp (निष्क्रिय)</option>
               </select>
               <p className="text-[11px] text-slate-500 mt-1">
-                Appends "Auto-generated via Official NFR Portals" along with the precise date & time of creation onto printed pages.
+                Appends "Auto-generated via NFR Portals" along with the precise date & time of creation onto printed pages.
               </p>
             </div>
           </div>

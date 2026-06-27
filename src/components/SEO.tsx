@@ -8,76 +8,109 @@ interface PageMeta {
 
 const META_MAP: Record<string, PageMeta> = {
   "/": {
-    title: "ACT Apprentice Cell Katihar | Northeast Frontier Railway",
-    description: "Official ACT Apprentice Cell Katihar portal for apprentice notifications, merit panel, results, circulars and railway apprentice updates.",
+    title: "Act Apprentice Cell Katihar | Northeast Frontier Railway",
+    description: "Act Apprentice Cell Katihar portal for apprentice notifications, merit panel, results, circulars and railway apprentice updates.",
   },
   "/about": {
-    title: "About Us | ACT Apprentice Cell Katihar",
-    description: "Learn about the ACT Apprentice Cell at Katihar Division of Northeast Frontier Railway, our mission, objectives, and historical background.",
+    title: "About Us | Act Apprentice Cell Katihar",
+    description: "Learn about the Act Apprentice Cell at Katihar Division of Northeast Frontier Railway, our mission, objectives, and historical background.",
   },
   "/notice-board": {
-    title: "Notice Board | ACT Apprentice Cell Katihar",
-    description: "Stay updated with the latest circulars, notices, and operational announcements from ACT Apprentice Cell Katihar.",
+    title: "Notice Board | Act Apprentice Cell Katihar",
+    description: "Stay updated with the latest circulars, notices, and operational announcements from Act Apprentice Cell Katihar.",
   },
   "/notifications": {
-    title: "Apprentice Notifications | ACT Apprentice Cell Katihar",
-    description: "Access current and upcoming ACT apprentice recruitment notifications, eligibility guidelines, and application forms.",
+    title: "Apprentice Notifications | Act Apprentice Cell Katihar",
+    description: "Access current and upcoming Act apprentice recruitment notifications, eligibility guidelines, and application forms.",
   },
   "/sf-generator": {
-    title: "Disciplinary SF Forms Generator | ACT Apprentice Cell Katihar",
-    description: "Official utility portal for generating Standard Forms (SF-5, SF-11) for administrative and disciplinary procedures in Indian Railways.",
+    title: "Disciplinary SF Forms Generator | Act Apprentice Cell Katihar",
+    description: "Utility portal for generating Standard Forms (SF-5, SF-11) for administrative and disciplinary procedures in Indian Railways.",
   },
   "/results": {
-    title: "Merit Panels & Results | ACT Apprentice Cell Katihar",
+    title: "Merit Panels & Results | Act Apprentice Cell Katihar",
     description: "View and download selection results, merit panel listings, document verification schedules, and cut-off marks.",
   },
   "/dar-circulars": {
-    title: "D&AR Circulars & Guidelines | ACT Apprentice Cell Katihar",
+    title: "D&AR Circulars & Guidelines | Act Apprentice Cell Katihar",
     description: "D&AR (Discipline and Appeal Rules) manuals, reference circulars, and procedural guidelines for employees and candidates.",
   },
   "/act-circulars": {
-    title: "ACT Apprentice Act Circulars | ACT Apprentice Cell Katihar",
+    title: "Act Apprentice Act Circulars | Act Apprentice Cell Katihar",
     description: "Browse and download statutory notifications, provisions, and circulars concerning the Apprentice Act, 1961.",
   },
   "/contact": {
-    title: "Contact & Support | ACT Apprentice Cell Katihar",
+    title: "Contact & Support | Act Apprentice Cell Katihar",
     description: "Get in touch with the Northeast Frontier Railway Administration, DRM Office (P) Katihar, and Apprentice Cell representatives.",
   },
   "/candidate-login": {
-    title: "Candidate Login Portal | ACT Apprentice Cell Katihar",
+    title: "Candidate Login Portal | Act Apprentice Cell Katihar",
     description: "Access your candidate dashboard, track application status, view allocated training slots, and upload documents.",
   },
   "/ai-search": {
-    title: "Smart AI Search Assistant | ACT Apprentice Cell Katihar",
+    title: "Smart AI Search Assistant | Act Apprentice Cell Katihar",
     description: "Get helpful assistance using artificial intelligence for searching circulars, forms, names, trades, and notification statuses.",
   },
   "/links": {
-    title: "Important Web Links | ACT Apprentice Cell Katihar",
-    description: "Directories and portal link redirects to Ministry of Railways, NFR Web, RRC, and official apprentice registration sites.",
+    title: "Important Web Links | Act Apprentice Cell Katihar",
+    description: "Directories and portal link redirects to Ministry of Railways, NFR Web, RRC, and apprentice registration sites.",
   },
   "/internal-links": {
-    title: "Administrative Internal Links | ACT Apprentice Cell Katihar",
+    title: "Administrative Internal Links | Act Apprentice Cell Katihar",
     description: "Secured administrative links and internal department resource portals for DRM Office staff.",
   },
   "/admin": {
-    title: "Admin Access Portal | ACT Apprentice Cell Katihar",
+    title: "Admin Access Portal | Act Apprentice Cell Katihar",
     description: "Authorized administrative personnel login for content modification, settings, and database management.",
   },
   "/admin/dashboard": {
-    title: "Admin Control Center | ACT Apprentice Cell Katihar",
+    title: "Admin Control Center | Act Apprentice Cell Katihar",
     description: "Secure management dashboard for publishing notifications, managing merit lists, updating settings, and tracking analytics.",
   }
 };
 
 export function SEO() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
 
   useEffect(() => {
     // Find matching meta or use default home layout matching
-    const currentMeta = META_MAP[pathname] || META_MAP["/"];
+    const currentMeta = { ...(META_MAP[pathname] || META_MAP["/"]) };
+
+    // Dynamically customize title based on tab or active form (SF parameter)
+    const qParams = new URLSearchParams(search);
+    const tabParam = qParams.get('tab');
+    const subParam = qParams.get('sub');
+    const sfParam = qParams.get('sf');
+
+    let dynamicTitle = currentMeta.title;
+
+    if (pathname === "/sf-generator") {
+      if (tabParam === "CLAIM_TA") {
+        dynamicTitle = "TA Claim | Act Apprentice Cell Katihar";
+      } else if (tabParam === "PDF_STAMP") {
+        dynamicTitle = "PDF Stamp | Act Apprentice Cell Katihar";
+      } else if (tabParam === "WORK_ALLOTMENT") {
+        dynamicTitle = "APO Work Allotment | Act Apprentice Cell Katihar";
+      } else if (tabParam === "OFFICE_ORDERS") {
+        dynamicTitle = "Office Orders & Circulars | Act Apprentice Cell Katihar";
+      } else if (tabParam === "DAR_SECTION" || !tabParam) {
+        if (sfParam) {
+          const formattedSf = sfParam.replace('-', ' ');
+          dynamicTitle = `${formattedSf} | Act Apprentice Cell Katihar`;
+        } else if (subParam === "HQ_MATERIAL") {
+          dynamicTitle = "HQ Material | Act Apprentice Cell Katihar";
+        } else if (subParam === "INBOX") {
+          dynamicTitle = "Inbox | Act Apprentice Cell Katihar";
+        } else if (subParam === "DAR_POSITION") {
+          dynamicTitle = "DAR Position | Act Apprentice Cell Katihar";
+        } else {
+          dynamicTitle = "Disciplinary SF Forms Generator | Act Apprentice Cell Katihar";
+        }
+      }
+    }
 
     // 1. Update Title
-    document.title = currentMeta.title;
+    document.title = dynamicTitle;
 
     // 2. Update meta description
     let metaDescription = document.querySelector('meta[name="description"]');
@@ -92,7 +125,7 @@ export function SEO() {
 
     // 3. Update Canonical URL
     const canonicalBase = "https://commanding-encoder-qfbwx.web.app";
-    const canonicalUrl = `${canonicalBase}${pathname === "/" ? "" : pathname}`;
+    const canonicalUrl = `${canonicalBase}${pathname === "/" ? "" : pathname}${search}`;
     let canonicalLink = document.querySelector('link[id="canonical-link"]') || document.querySelector('link[rel="canonical"]');
     if (canonicalLink) {
       canonicalLink.setAttribute("href", canonicalUrl);
@@ -106,7 +139,7 @@ export function SEO() {
 
     // 4. Update Open Graph tags
     const ogTitle = document.querySelector('meta[property="og:title"]');
-    if (ogTitle) ogTitle.setAttribute("content", currentMeta.title);
+    if (ogTitle) ogTitle.setAttribute("content", dynamicTitle);
 
     const ogDescription = document.querySelector('meta[property="og:description"]');
     if (ogDescription) ogDescription.setAttribute("content", currentMeta.description);
@@ -116,7 +149,7 @@ export function SEO() {
 
     // 5. Update Twitter tags
     const twitterTitle = document.querySelector('meta[name="twitter:title"]');
-    if (twitterTitle) twitterTitle.setAttribute("content", currentMeta.title);
+    if (twitterTitle) twitterTitle.setAttribute("content", dynamicTitle);
 
     const twitterDescription = document.querySelector('meta[name="twitter:description"]');
     if (twitterDescription) twitterDescription.setAttribute("content", currentMeta.description);
@@ -126,7 +159,7 @@ export function SEO() {
 
     // Scroll to top on navigation (crucial for SEO crawling indexation)
     window.scrollTo({ top: 0, behavior: "instant" });
-  }, [pathname]);
+  }, [pathname, search]);
 
   return null;
 }

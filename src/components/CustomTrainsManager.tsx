@@ -219,7 +219,7 @@ export function CustomTrainsManager() {
             Custom Train Database Manager (ट्रेन डेटाबेस प्रबंधक)
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Upload custom Indian Railways train numbers and names. These will instantly match during TA Claim journey entries and fetch official name details.
+            Upload custom Indian Railways train numbers and names. These will instantly match during TA Claim journey entries and fetch name details.
           </p>
         </div>
       </div>

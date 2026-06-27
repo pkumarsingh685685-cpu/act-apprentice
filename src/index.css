@@ -133,7 +133,7 @@ body {
 
 @media print {
   @page {
-    margin: 20mm 35mm; /* 20mm top/bottom, 35mm left/right for official letter look */
+    margin: 20mm 35mm; /* 20mm top/bottom, 35mm left/right for letter look */
   }
   body.printing-mode {
     background-color: white !important;
