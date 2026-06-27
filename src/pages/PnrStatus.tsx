@@ -58,6 +58,13 @@ export default function PnrStatus() {
         body: JSON.stringify({ pnr: cleanPnr })
       });
 
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const textResponse = await response.text();
+        console.warn("Expected JSON, but received:", textResponse.substring(0, 100));
+        throw new Error("Server is reloading or initializing services. Please refresh the page or try again in a few seconds.");
+      }
+
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Failed to fetch PNR status.");
