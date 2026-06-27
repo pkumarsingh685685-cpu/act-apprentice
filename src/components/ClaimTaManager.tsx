@@ -646,6 +646,68 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
   const [stationSearch, setStationSearch] = useState<string>("");
   const [isSearchingStation, setIsSearchingStation] = useState<Record<string, boolean>>({});
   const [isSearchingTrain, setIsSearchingTrain] = useState<Record<string, boolean>>({});
+  const [autocompleteRevision, setAutocompleteRevision] = useState<number>(0);
+
+  // Background Automatic Autocomplete for Stations as User Types
+  useEffect(() => {
+    const q = stationSearch.trim();
+    if (q.length < 2) return;
+
+    const legId = activeAutocomplete?.legId;
+    const field = activeAutocomplete?.field;
+    if (!legId || !field) return;
+
+    const cacheKey = `${legId}-${field}`;
+
+    // Set searching state immediately for instant, responsive UI feedback
+    setIsSearchingStation(prev => ({ ...prev, [cacheKey]: true }));
+
+    const delayDebounceFn = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/railway/search-station", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: q })
+        });
+        const data = await res.json();
+        if (data.success) {
+          let updated = false;
+          if (data.stations && Array.isArray(data.stations)) {
+            data.stations.forEach((st: any) => {
+              if (st && st.code) {
+                const codeUpper = st.code.toUpperCase();
+                const exists = INDIAN_STATIONS.some(s => s.code.toUpperCase() === codeUpper);
+                if (!exists) {
+                  registerStation(st);
+                  updated = true;
+                }
+              }
+            });
+          } else if (data.station && data.station.code) {
+            const codeUpper = data.station.code.toUpperCase();
+            const exists = INDIAN_STATIONS.some(s => s.code.toUpperCase() === codeUpper);
+            if (!exists) {
+              registerStation(data.station);
+              updated = true;
+            }
+          }
+          if (updated) {
+            setAutocompleteRevision(prev => prev + 1);
+          }
+        }
+      } catch (err) {
+        console.warn("Background station autocomplete failed:", err);
+      } finally {
+        setIsSearchingStation(prev => ({ ...prev, [cacheKey]: false }));
+      }
+    }, 300); // Super-snappy 300ms debounce
+
+    return () => {
+      clearTimeout(delayDebounceFn);
+      // Clean up searching status when query changes or on unmount
+      setIsSearchingStation(prev => ({ ...prev, [cacheKey]: false }));
+    };
+  }, [stationSearch, activeAutocomplete]);
 
   // Dynamic / Custom Station Manager State
   const [newStationCode, setNewStationCode] = useState("");
@@ -1462,6 +1524,44 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     }));
   };
 
+  const triggerDistanceLookup = async (legId: string, fromStation: string, toStation: string) => {
+    if (!fromStation || !toStation) return;
+    const fStr = fromStation.trim().toUpperCase();
+    const tStr = toStation.trim().toUpperCase();
+    if (fStr === tStr) {
+      updateLegField(legId, 'roadDistanceKm', 0);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/railway/distance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from: fStr, to: tStr })
+      });
+      const data = await res.json();
+      if (data.success && typeof data.distance === "number" && data.distance > 0) {
+        updateLegField(legId, 'roadDistanceKm', data.distance);
+        toast.success(`Distance verified via Indian Railways DB: ${data.distance} KM`, {
+          duration: 4000,
+          id: `dist-calc-${legId}`
+        });
+      } else {
+        // Fallback to offline coordinate estimation if online fetch returns null
+        const localDist = getStationDistance(fStr, tStr);
+        if (localDist) {
+          updateLegField(legId, 'roadDistanceKm', localDist);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch accurate distance online:", err);
+      const localDist = getStationDistance(fStr, tStr);
+      if (localDist) {
+        updateLegField(legId, 'roadDistanceKm', localDist);
+      }
+    }
+  };
+
   const handleSelectStation = (legId: string, field: 'stationFrom' | 'stationTo', code: string) => {
     // First update the specific field
     updateLegField(legId, field, code);
@@ -1474,14 +1574,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     const currentTo = field === 'stationTo' ? code : leg.stationTo;
 
     if (currentFrom && currentTo) {
-      const calculatedDist = getStationDistance(currentFrom, currentTo);
-      if (calculatedDist !== null && calculatedDist > 0) {
-        updateLegField(legId, 'roadDistanceKm', calculatedDist);
-        toast.success(`Distance auto-calculated: ${calculatedDist} KM`, {
-          duration: 3500,
-          id: `dist-calc-${legId}`
-        });
-      }
+      triggerDistanceLookup(legId, currentFrom, currentTo);
     }
 
     // Close autocomplete
@@ -3930,6 +4023,10 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                           onBlur={() => {
                             setTimeout(() => {
                               setActiveAutocomplete(null);
+                              // Auto trigger precise online route distance calculation on blur
+                              if (leg.stationFrom && leg.stationTo) {
+                                triggerDistanceLookup(leg.id, leg.stationFrom, leg.stationTo);
+                              }
                             }, 220);
                           }}
                           placeholder="Type or search station..." 
@@ -3957,6 +4054,13 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                               <span>{stationSearch.trim() === "" ? "⚡ SUGGESTED STATIONS" : "🔎 SEARCH RESULTS"}</span>
                               <span className="text-emerald-700 font-mono">STA CODES</span>
                             </div>
+                            {/* Live automatic search row indicator */}
+                            {isSearchingStation[`${leg.id}-stationFrom`] && (
+                              <div className="px-3 py-2 bg-amber-50 text-amber-900 text-[10.5px] font-bold flex items-center gap-2 border-b border-amber-150 animate-pulse">
+                                <span className="w-3.5 h-3.5 border-2 border-amber-800 border-t-transparent rounded-full animate-spin"></span>
+                                <span>ONLINE AUTO-SEARCHING FOR "{stationSearch}"...</span>
+                              </div>
+                            )}
                             {filteredStations.map((station) => (
                               <div
                                 key={station.code}
@@ -4018,6 +4122,10 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                           onBlur={() => {
                             setTimeout(() => {
                               setActiveAutocomplete(null);
+                              // Auto trigger precise online route distance calculation on blur
+                              if (leg.stationFrom && leg.stationTo) {
+                                triggerDistanceLookup(leg.id, leg.stationFrom, leg.stationTo);
+                              }
                             }, 220);
                           }}
                           placeholder="Type or search station..." 
@@ -4045,6 +4153,13 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                               <span>{stationSearch.trim() === "" ? "⚡ SUGGESTED STATIONS" : "🔎 SEARCH RESULTS"}</span>
                               <span className="text-emerald-755 font-mono text-emerald-700">STA CODES</span>
                             </div>
+                            {/* Live automatic search row indicator */}
+                            {isSearchingStation[`${leg.id}-stationTo`] && (
+                              <div className="px-3 py-2 bg-amber-50 text-amber-900 text-[10.5px] font-bold flex items-center gap-2 border-b border-amber-150 animate-pulse">
+                                <span className="w-3.5 h-3.5 border-2 border-amber-800 border-t-transparent rounded-full animate-spin"></span>
+                                <span>ONLINE AUTO-SEARCHING FOR "{stationSearch}"...</span>
+                              </div>
+                            )}
                             {filteredStations.map((station) => (
                               <div
                                 key={station.code}

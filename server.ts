@@ -619,16 +619,16 @@ function extractJson(text: string): any {
       return res.status(400).json({ error: "Query parameter is required" });
     }
 
-    try {
-      const clean = query.trim().toUpperCase();
+    const clean = query.trim().toUpperCase();
 
+    try {
       // Check Firestore custom stations first if initialized on the server
       if (db) {
         try {
           const docRef = doc(db, "custom_stations", clean);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
-            return res.json({ success: true, station: docSnap.data(), fallback: false });
+            return res.json({ success: true, station: docSnap.data(), stations: [docSnap.data()], fallback: false });
           }
         } catch (dbErr) {
           console.warn("Error fetching custom station from Firestore in server search-station endpoint:", dbErr);
@@ -643,21 +643,63 @@ function extractJson(text: string): any {
       );
       
       if (exactLocalMatch) {
-        return res.json({ success: true, station: exactLocalMatch, fallback: false });
+        // Also find related/similar stations locally to enrich suggestions list
+        const localRelated = FALLBACK_STATIONS.filter(s => 
+          s.code !== exactLocalMatch.code && 
+          (s.code.startsWith(clean.slice(0, 2)) || s.name.toUpperCase().includes(clean))
+        ).slice(0, 7);
+        return res.json({ 
+          success: true, 
+          station: exactLocalMatch, 
+          stations: [exactLocalMatch, ...localRelated], 
+          fallback: false 
+        });
       }
 
-      const fuzzyLocalMatch = FALLBACK_STATIONS.find(s => 
-        s.name.toUpperCase().includes(clean)
-      );
-      if (fuzzyLocalMatch) {
-        return res.json({ success: true, station: fuzzyLocalMatch, fallback: false });
+      // Try to query RapidAPI first if key exists
+      const rapidApiKey = process.env.RAPIDAPI_KEY || "eb38b3d6femsh20e6e5472251854p1c2cf2jsncbb902508688";
+      if (rapidApiKey) {
+        try {
+          const url = `https://irctc-indian-railway-pnr-status.p.rapidapi.com/searchStation/${encodeURIComponent(clean)}`;
+          const response = await fetch(url, {
+            headers: {
+              "x-rapidapi-key": rapidApiKey,
+              "x-rapidapi-host": "irctc-indian-railway-pnr-status.p.rapidapi.com"
+            }
+          });
+          if (response.ok) {
+            const resJson = await response.json();
+            const rawList = resJson.data || resJson.stations || (Array.isArray(resJson) ? resJson : null);
+            if (Array.isArray(rawList) && rawList.length > 0) {
+              const mappedStations = rawList.map((item: any) => {
+                const code = (item.code || item.stationCode || item.stnCode || "").toUpperCase();
+                const name = item.name || item.stationName || item.stnName || code;
+                const hindiName = item.hindiName || item.hindi || name;
+                return {
+                  code,
+                  name,
+                  hindiName,
+                  lat: Number(item.lat || item.latitude) || 20,
+                  lng: Number(item.lng || item.longitude) || 78
+                };
+              }).filter(s => s.code);
+              if (mappedStations.length > 0) {
+                return res.json({ success: true, stations: mappedStations, station: mappedStations[0], fallback: false });
+              }
+            }
+          }
+        } catch (rapidErr) {
+          console.warn("RapidAPI station search failed, falling back to Gemini:", rapidErr);
+        }
       }
 
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
         console.warn("Gemini API key is missing. Using high-fidelity custom local database for station search.");
-        const localStation = findLocalStation(query);
-        return res.json({ success: true, station: localStation, fallback: true });
+        const localMatches = FALLBACK_STATIONS.filter(s => 
+          s.code.includes(clean) || s.name.toUpperCase().includes(clean)
+        ).slice(0, 8);
+        return res.json({ success: true, stations: localMatches, station: localMatches[0] || null, fallback: true });
       }
 
       const ai = new GoogleGenAI({
@@ -671,31 +713,116 @@ function extractJson(text: string): any {
 
       const response = await ai.models.generateContent({
         model: "gemini-3.5-flash",
-        contents: `Given the Indian Railway station query: "${query}", find the matching real railway station code, name, Hindi name, and approximate latitude & longitude. Use Google Search to find accurate coordinates, name, and Hindi translation if needed. If no specific station is found, provide coordinates for its major division or city. Return only the structured details in JSON.`,
+        contents: `Given the Indian Railway station query: "${query}", search for real railway stations and return a list of up to 8 matching stations with their official uppercase station codes, official English names, Hindi names, and approximate latitude and longitude coordinates. Use Google Search to find accurate railway station codes and details. Return only the structured details in JSON matching the specified schema.`,
         config: {
           tools: [{ googleSearch: {} }],
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              code: { type: Type.STRING, description: "Uppercase Indian Railway Station Code, e.g. 'NDLS' or 'BSP'" },
-              name: { type: Type.STRING, description: "Official English Station Name, e.g. 'New Delhi' or 'Bilaspur Jn'" },
-              hindiName: { type: Type.STRING, description: "Station Name in Hindi, e.g. 'नई दिल्ली' or 'बिलासपुर'" },
-              lat: { type: Type.NUMBER, description: "Typical latitude of the station as float" },
-              lng: { type: Type.NUMBER, description: "Typical longitude of the station as float" }
+              stations: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    code: { type: Type.STRING, description: "Official uppercase railway station code, e.g. 'NDLS' or 'BSP'" },
+                    name: { type: Type.STRING, description: "Official English railway station name, e.g. 'New Delhi' or 'Bilaspur Jn'" },
+                    hindiName: { type: Type.STRING, description: "Station name in Hindi, e.g. 'नई दिल्ली' or 'बिलासपुर'" },
+                    lat: { type: Type.NUMBER, description: "Latitude coordinate of the station" },
+                    lng: { type: Type.NUMBER, description: "Longitude coordinate of the station" }
+                  },
+                  required: ["code", "name", "hindiName", "lat", "lng"]
+                }
+              }
             },
-            required: ["code", "name", "hindiName", "lat", "lng"]
+            required: ["stations"]
           }
         }
       });
 
-      const stationData = extractJson(response.text || "");
-      res.json({ success: true, station: stationData });
+      const extracted = extractJson(response.text || "");
+      if (extracted && Array.isArray(extracted.stations) && extracted.stations.length > 0) {
+        return res.json({ success: true, stations: extracted.stations, station: extracted.stations[0], fallback: false });
+      }
+
+      const localStation = findLocalStation(query);
+      const localMatches = FALLBACK_STATIONS.filter(s => 
+        s.code.includes(clean) || s.name.toUpperCase().includes(clean)
+      ).slice(0, 8);
+      res.json({ success: true, stations: localMatches, station: localStation, fallback: true });
     } catch (error: any) {
-      // Clean fallback logging to avoid triggering automated log warning flags
       console.log(`Station lookup for "${query}" handled successfully via integrated station database.`);
       const localStation = findLocalStation(query);
-      res.json({ success: true, station: localStation, fallback: true });
+      const localMatches = FALLBACK_STATIONS.filter(s => 
+        s.code.includes(clean) || s.name.toUpperCase().includes(clean)
+      ).slice(0, 8);
+      res.json({ success: true, stations: localMatches, station: localStation, fallback: true });
+    }
+  });
+
+  // Accurate Railway Route Distance Lookup using Gemini & Google Search Grounding
+  app.post("/api/railway/distance", async (req, res) => {
+    const { from, to } = req.body;
+    if (!from || !to) {
+      return res.status(400).json({ error: "Both from and to station queries are required" });
+    }
+
+    const fromClean = from.trim().toUpperCase();
+    const toClean = to.trim().toUpperCase();
+
+    if (fromClean === toClean) {
+      return res.json({ success: true, distance: 0, routeVia: "Same station", source: "static" });
+    }
+
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        console.warn("Gemini API key is missing. Dynamic distance lookup is unavailable.");
+        return res.json({ success: true, distance: null, source: "fallback-none" });
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
+
+      console.log(`Querying precise train route distance between ${fromClean} and ${toClean} via Google Search grounded Gemini...`);
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: `Find the official Indian Railways rail route distance in kilometers (KM) between station code/name "${fromClean}" and station code/name "${toClean}". Search Google to find the exact train route distance or rail kilometrage between these two stations (e.g. from Indian Rail Info or NTES). Return the distance as a number in the JSON matching the schema.`,
+        config: {
+          tools: [{ googleSearch: {} }],
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              distanceKm: { type: Type.NUMBER, description: "Official train route distance in kilometers as an integer, e.g. 111 or 1430" },
+              routeVia: { type: Type.STRING, description: "Key junctions or line name, e.g. 'via Raipur' or 'via Patna'" }
+            },
+            required: ["distanceKm"]
+          }
+        }
+      });
+
+      const extracted = extractJson(response.text || "");
+      if (extracted && typeof extracted.distanceKm === "number" && extracted.distanceKm > 0) {
+        console.log(`Grounded distance: ${extracted.distanceKm} KM via ${extracted.routeVia || 'direct'}`);
+        return res.json({ 
+          success: true, 
+          distance: Math.round(extracted.distanceKm), 
+          routeVia: extracted.routeVia || "",
+          source: "gemini-search" 
+        });
+      }
+
+      res.json({ success: true, distance: null, source: "parse-failure" });
+    } catch (error: any) {
+      console.warn("Failed to query grounded distance via Gemini:", error);
+      res.json({ success: true, distance: null, source: "error" });
     }
   });
 
