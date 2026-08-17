@@ -5449,7 +5449,7 @@ export default function HqMaterialManager() {
                   }
                   @page {
                     size: A4;
-                    margin: 10mm 6mm 20mm 25mm !important;
+                    margin: 0.75in !important;
                   }
                   #print-area {
                     padding: 0 !important;
@@ -5498,7 +5498,7 @@ export default function HqMaterialManager() {
                     @media print {
                       @page {
                         size: A4 portrait !important;
-                        margin: 10mm 15mm 10mm 15mm !important;
+                        margin: 0.75in !important;
                       }
                       body, #print-area {
                         background: white !important;

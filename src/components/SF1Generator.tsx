@@ -442,13 +442,13 @@ export function SF1Generator({ onBack }: { onBack?: () => void } = {}) {
                 {`
                   @page {
                     size: A4;
-                    margin: 0;
+                    margin: 0.75in !important;
                   }
                   @media print {
                     body {
                       -webkit-print-color-adjust: exact;
                       print-color-adjust: exact;
-                      padding: 18mm;
+                      padding: 2mm 0;
                       box-sizing: border-box;
                     }
                   }

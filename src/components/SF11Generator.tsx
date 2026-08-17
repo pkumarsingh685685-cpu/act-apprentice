@@ -517,7 +517,7 @@ export function SF11Generator({ onBack }: { onBack?: () => void } = {}) {
             {`
               @page {
                 size: A4;
-                margin: 0;
+                margin: 0.75in !important;
               }
               @media print {
                 body {
@@ -529,8 +529,10 @@ export function SF11Generator({ onBack }: { onBack?: () => void } = {}) {
                 }
                 .print-page {
                   box-shadow: none !important;
-                  margin: 0 !important;
-                  padding: 20mm !important;
+                  margin: 0 auto !important;
+                  padding: 0 !important;
+                  width: 100% !important;
+                  max-width: 100% !important;
                   box-sizing: border-box !important;
                 }
               }

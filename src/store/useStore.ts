@@ -115,7 +115,7 @@ export const useStore = create<AppState>()(
         address: "DRM Office, Katihar",
         marqueeText:
           "Welcome to ACT Apprentice Cell. Latest merit panel for 2025 has been published.",
-        contactMobile: "8709796234",
+        contactMobile: "",
         contactEmail: "actadmin.kir@gmail.com",
         contactAddress:
           "DRM Office, Katihar, Bihar 854105, Personnel Branch, Act Apprentice Cell",
@@ -183,11 +183,11 @@ export const useStore = create<AppState>()(
       }),
 
       logos: {
-        railwayLogo: { image: "", enabled: true },
+        railwayLogo: { image: "/logo.png", enabled: true },
         govLogo: { image: "", enabled: true },
         nationalEmblem: { image: "", enabled: true },
         ministryLogo: { image: "", enabled: true },
-        favicon: { image: "", enabled: true },
+        favicon: { image: "/favicon.svg", enabled: true },
         namePlate: { image: "", enabled: true },
       },
       updateLogo: (key, data) => set((state) => {

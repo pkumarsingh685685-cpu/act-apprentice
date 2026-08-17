@@ -531,6 +531,28 @@ export function SF14IIGenerator({ onBack }: { onBack?: () => void } = {}) {
             className="bg-white w-[210mm] min-h-[297mm] shadow-2xl relative box-border p-[25mm] print:shadow-none print_page flex flex-col justify-between"
           >
             <RenderPrintOverlayWatermark watermark={printSettings.watermark} />
+            <style type="text/css" media="print">
+              {`
+                @page {
+                  size: A4;
+                  margin: 0.75in !important;
+                }
+                @media print {
+                  body {
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                  }
+                  .print_page {
+                    padding: 0 !important;
+                    margin: 0 auto !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                    box-shadow: none !important;
+                  }
+                }
+              `}
+            </style>
             {/* Page 1 */}
             <div>
               <div className="text-center font-bold tracking-tight text-base leading-snug">

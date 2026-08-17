@@ -18,9 +18,13 @@ export function Footer() {
           <p className="text-sm leading-relaxed whitespace-pre-wrap">
             {config.contactAddress}
           </p>
-          <div className="mt-4 text-sm">
-            <p><strong>{t('footer_mobile')}</strong> {config.contactMobile}</p>
-            <p><strong>{t('footer_email')}</strong> {config.contactEmail}</p>
+          <div className="mt-4 text-sm space-y-1">
+            {config.contactMobile && config.contactMobile !== "8709796234" && (
+              <p><strong>{t('footer_mobile')}</strong> {config.contactMobile}</p>
+            )}
+            {config.contactEmail && (
+              <p><strong>{t('footer_email')}</strong> {config.contactEmail}</p>
+            )}
           </div>
         </div>
 

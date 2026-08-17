@@ -124,7 +124,9 @@ export function SEO() {
     }
 
     // 3. Update Canonical URL
-    const canonicalBase = "https://commanding-encoder-qfbwx.web.app";
+    const canonicalBase = typeof window !== 'undefined' && window.location.origin.includes('web.app')
+      ? window.location.origin
+      : "https://act-apprentice-64381.web.app";
     const canonicalUrl = `${canonicalBase}${pathname === "/" ? "" : pathname}${search}`;
     let canonicalLink = document.querySelector('link[id="canonical-link"]') || document.querySelector('link[rel="canonical"]');
     if (canonicalLink) {

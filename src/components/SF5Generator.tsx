@@ -835,8 +835,20 @@ export function SF5Generator({ onBack }: { onBack?: () => void } = {}) {
               }
             }
             @media print { 
+              @page {
+                size: A4;
+                margin: 0.75in !important;
+              }
               .page-break { page-break-after: always; display: block; break-after: page; } 
-              .print-page { min-height: 297mm; }
+              .print-page { 
+                min-height: 270mm; 
+                padding: 0 !important;
+                margin: 0 auto !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                box-shadow: none !important;
+              }
               body { -webkit-print-color-adjust: exact; }
             }
           `}</style>

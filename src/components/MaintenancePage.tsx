@@ -86,10 +86,10 @@ export function MaintenancePage() {
         <div className="mt-6 flex flex-col md:flex-row items-center justify-between gap-3 p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-left">
           <div>
             <div className="text-[10px] text-slate-500 uppercase font-black tracking-wider">
-              Helpline / सहायता काउंटर
+              Official Contact / संपर्क
             </div>
             <div className="text-xs font-semibold text-slate-300">
-              Mobile: {config.contactMobile || "8709796234"}
+              {config.contactAddress || "Personnel Branch, DRM Office, Katihar"}
             </div>
           </div>
           <a

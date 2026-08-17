@@ -10,6 +10,7 @@ import { SF14IIGenerator } from '../components/SF14IIGenerator';
 import { FileText, Info, X, Clock, ExternalLink, Inbox as InboxIcon, Link as LinkIcon, Briefcase, FileSpreadsheet, Layers2, ShieldCheck, Stamp, Coins, Download } from 'lucide-react';
 import Inbox from './Inbox';
 import { ClaimTaManager } from '../components/ClaimTaManager';
+import { EqFormGenerator } from '../components/EqFormGenerator';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ApoAllotmentPage from './ApoAllotmentPage';
@@ -60,7 +61,7 @@ export default function SFGeneratorPage() {
   const tabParam = queryParams.get('tab') as any;
   const initialTab = !tabParam ? "" : ((tabParam === "TYPE_OF_STANDARD_FORM" || tabParam === "DAR_POSITION") ? "DAR_SECTION" : tabParam);
 
-  const [mainTab, setMainTab] = useState<"DAR_SECTION" | "PDF_STAMP" | "INBOX" | "OFFICE_LINKS" | "WORK_ALLOTMENT" | "OFFICE_ORDERS" | "CLAIM_TA" | "">(
+  const [mainTab, setMainTab] = useState<"DAR_SECTION" | "PDF_STAMP" | "INBOX" | "OFFICE_LINKS" | "WORK_ALLOTMENT" | "OFFICE_ORDERS" | "CLAIM_TA" | "EQ_FORM" | "">(
     initialTab === "HQ_MATERIAL" || initialTab === "INBOX" ? "DAR_SECTION" : initialTab
   );
   const [darSubTab, setDarSubTab] = useState<"TYPES_OF_SF" | "DAR_POSITION" | "HQ_MATERIAL" | "INBOX">(
@@ -93,7 +94,7 @@ export default function SFGeneratorPage() {
     navigate({ search: qParams.toString() }, { replace: true });
   };
 
-  const selectMainTab = (tab: "DAR_SECTION" | "PDF_STAMP" | "INBOX" | "OFFICE_LINKS" | "WORK_ALLOTMENT" | "OFFICE_ORDERS" | "CLAIM_TA" | "") => {
+  const selectMainTab = (tab: "DAR_SECTION" | "PDF_STAMP" | "INBOX" | "OFFICE_LINKS" | "WORK_ALLOTMENT" | "OFFICE_ORDERS" | "CLAIM_TA" | "EQ_FORM" | "") => {
     if (tab === "INBOX") {
       setMainTab("DAR_SECTION");
       selectDarSubTab("INBOX");
@@ -360,7 +361,8 @@ export default function SFGeneratorPage() {
     { id: "OFFICE_LINKS", label: "Office Links", sub: "Portals", icon: LinkIcon },
     { id: "WORK_ALLOTMENT", label: t("nav_apo_allotment") || "Work Allotment", sub: "Personnel", icon: Briefcase },
     { id: "OFFICE_ORDERS", label: t("nav_circulars") || "Circulars", sub: "Office Orders", icon: FileText },
-    { id: "CLAIM_TA", label: "Claim TA", sub: "Traveling Allowance", icon: Coins }
+    { id: "CLAIM_TA", label: "Claim TA", sub: "Traveling Allowance", icon: Coins },
+    { id: "EQ_FORM", label: "EQ Form", sub: "Emergency Quota", icon: FileText }
   ];
 
   const isSidebarHidden =
@@ -486,10 +488,15 @@ export default function SFGeneratorPage() {
                 inactiveStyle = "bg-slate-950/60 hover:bg-slate-900 border border-slate-800/80 hover:border-fuchsia-500/50 text-slate-350 hover:text-white shadow-[0_2.5px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.03)] hover:shadow-[0_4px_10px_rgba(217,70,239,0.12),0_2.5px_0_0_#581c87,inset_0_1px_1.5px_rgba(255,255,255,0.05)]";
                 neonDotColor = "bg-fuchsia-400";
                 break;
-              default: // CLAIM_TA
+              case "CLAIM_TA":
                 activeStyle = "bg-gradient-to-r from-violet-600 via-purple-600 to-purple-700 text-white border border-purple-500 shadow-[0_4px_12px_rgba(168,85,247,0.3),0_2.5px_0_0_#3b0764,inset_0_1.5px_2px_rgba(255,255,255,0.35)]";
                 inactiveStyle = "bg-slate-950/60 hover:bg-slate-900 border border-slate-800/80 hover:border-purple-500/50 text-slate-350 hover:text-white shadow-[0_2.5px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.03)] hover:shadow-[0_4px_10px_rgba(168,85,247,0.12),0_2.5px_0_0_#3b0764,inset_0_1px_1.5px_rgba(255,255,255,0.05)]";
                 neonDotColor = "bg-purple-400";
+                break;
+              default: // EQ_FORM or others
+                activeStyle = "bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 text-white border border-indigo-500 shadow-[0_4px_12px_rgba(99,102,241,0.3),0_2.5px_0_0_#1e1b4b,inset_0_1.5px_2px_rgba(255,255,255,0.35)]";
+                inactiveStyle = "bg-slate-950/60 hover:bg-slate-900 border border-slate-800/80 hover:border-indigo-500/50 text-slate-350 hover:text-white shadow-[0_2.5px_0_0_#020617,inset_0_1px_1px_rgba(255,255,255,0.03)] hover:shadow-[0_4px_10px_rgba(99,102,241,0.12),0_2.5px_0_0_#1e1b4b,inset_0_1px_1.5px_rgba(255,255,255,0.05)]";
+                neonDotColor = "bg-indigo-400";
                 break;
             }
 
@@ -842,6 +849,12 @@ export default function SFGeneratorPage() {
             onToggleSidebars={setTaShowSidebars} 
             onBackToDashboard={() => selectMainTab("")}
           />
+        </div>
+      )}
+
+      {mainTab === "EQ_FORM" && (
+        <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col relative z-20 w-full h-full min-w-0 overflow-y-auto">
+          <EqFormGenerator onBack={() => selectMainTab("")} />
         </div>
       )}
 

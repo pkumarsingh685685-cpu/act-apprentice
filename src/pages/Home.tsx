@@ -94,8 +94,6 @@ export default function Home() {
   const notifications = useStore((state) => state.notifications);
   const meritPanels = useStore((state) => state.meritPanels);
   const results = useStore((state) => state.results);
-  const darCirculars = useStore((state) => state.darCirculars);
-  const actCirculars = useStore((state) => state.actCirculars);
   const links = useStore((state) => state.links);
   const issuedSFs = useStore((state) => state.issuedSFs) || [];
   
@@ -169,15 +167,6 @@ export default function Home() {
     .slice(0, 7);
 
   const videoConfig = useStore((state) => state.videoConfig);
-
-  // Office Orders logic for new badges (first 10 items)
-  const processedDarCirculars = [...(darCirculars || [])]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .map((item, index) => ({ ...item, isNew: index < 10 }));
-    
-  const processedActCirculars = [...(actCirculars || [])]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .map((item, index) => ({ ...item, isNew: index < 10 }));
 
   const leftColSpan = "lg:col-span-3";
 

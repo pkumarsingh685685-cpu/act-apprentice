@@ -154,29 +154,25 @@ export function Header({
           {/* Left: Railway Logo and Title */}
           <div className="flex items-center gap-3 sm:gap-4 shrink-0 max-w-full overflow-hidden">
             {logos?.railwayLogo?.enabled && (
-               logos.railwayLogo.image ? (
-                <div 
-                  className={`flex items-center justify-center shrink-0 overflow-hidden ${
-                    isHome 
-                      ? 'w-20 h-20 sm:w-28 sm:h-28 md:w-[130px] md:h-[130px]' 
-                      : 'w-12 h-12 sm:w-16 sm:h-16'
-                  }`}
-                >
-                  <img 
-                    src={logos.railwayLogo.image} 
-                    alt="Railway Logo" 
-                    className="object-contain mix-blend-multiply"
-                    style={{ 
-                      height: logos.railwayLogo.customHeight ? `${logos.railwayLogo.customHeight}px` : '100%', 
-                      width: 'auto',
-                      maxHeight: '100%',
-                      maxWidth: '100%'
-                    }}
-                  />
-                </div>
-              ) : (
-                <PlaceholderImage text="Logo" className={`shrink-0 transition-all duration-300 ${isHome ? 'w-20 h-20 sm:w-24 sm:h-24' : 'w-12 h-12 sm:w-16 sm:h-16'}`} />
-              )
+              <div 
+                className={`flex items-center justify-center shrink-0 overflow-hidden ${
+                  isHome 
+                    ? 'w-20 h-20 sm:w-28 sm:h-28 md:w-[130px] md:h-[130px]' 
+                    : 'w-12 h-12 sm:w-16 sm:h-16'
+                }`}
+              >
+                <img 
+                  src={logos.railwayLogo.image || "/logo.png"} 
+                  alt="Act Apprentice Cell Railway Logo" 
+                  className="object-contain mix-blend-multiply"
+                  style={{ 
+                    height: logos.railwayLogo.customHeight ? `${logos.railwayLogo.customHeight}px` : '100%', 
+                    width: 'auto',
+                    maxHeight: '100%',
+                    maxWidth: '100%'
+                  }}
+                />
+              </div>
             )}
             
             <div className="flex flex-col items-center justify-center text-center">

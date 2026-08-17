@@ -5,20 +5,18 @@ import { NewBadge } from "../components/NewBadge";
 
 export default function NoticeBoardPage() {
   const notices = useStore((state) => state.notices);
+  const notifications = useStore((state) => state.notifications);
   const meritPanels = useStore((state) => state.meritPanels);
   const results = useStore((state) => state.results);
-  const darCirculars = useStore((state) => state.darCirculars);
-  const actCirculars = useStore((state) => state.actCirculars);
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  // Combine all items
+  // Combine public items ONLY (Confidential Office Orders are strictly restricted to Office Use Only section)
   const allItems = [
-    ...notices.map((n) => ({ ...n, type: t('doc_type_notice') })),
-    ...meritPanels.map((n) => ({ ...n, type: t('doc_type_merit') })),
-    ...results.map((n) => ({ ...n, type: t('doc_type_result') })),
-    ...darCirculars.map((n) => ({ ...n, type: t('doc_type_dar') })),
-    ...actCirculars.map((n) => ({ ...n, type: t('doc_type_act') })),
+    ...notices.map((n) => ({ ...n, type: t('doc_type_notice') || "Notice" })),
+    ...notifications.map((n) => ({ ...n, type: t('nav_apprentice_notification') || "Notification" })),
+    ...meritPanels.map((n) => ({ ...n, type: t('doc_type_merit') || "Merit Panel" })),
+    ...results.map((n) => ({ ...n, type: t('doc_type_result') || "Result" })),
   ];
 
   // Sort logically (by date descending)

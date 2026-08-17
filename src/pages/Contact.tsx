@@ -80,15 +80,17 @@ export default function Contact() {
               </div>
             </div>
 
-            <div className="flex items-start gap-4">
-              <div className="bg-blue-50 p-3 rounded-full text-blue-600 shrink-0">
-                <Phone className="w-6 h-6" />
+            {config.contactMobile && config.contactMobile !== "8709796234" && (
+              <div className="flex items-start gap-4">
+                <div className="bg-blue-50 p-3 rounded-full text-blue-600 shrink-0">
+                  <Phone className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">{t('contact_mobile')}</h3>
+                  <p className="text-gray-600 text-sm mt-1">{config.contactMobile}</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-medium text-gray-900">{t('contact_mobile')}</h3>
-                <p className="text-gray-600 text-sm mt-1">{config.contactMobile}</p>
-              </div>
-            </div>
+            )}
 
             <div className="flex items-start gap-4">
               <div className="bg-blue-50 p-3 rounded-full text-blue-600 shrink-0">

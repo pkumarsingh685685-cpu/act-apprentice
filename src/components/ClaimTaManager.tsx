@@ -489,7 +489,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
   const [calculationMode, setCalculationMode] = useState<'calendar_day' | 'continuous'>('calendar_day');
   const [isLandscape, setIsLandscape] = useState(true);
   const [hasDeclared, setHasDeclared] = useState(false);
-  const [globalPurpose, setGlobalPurpose] = useState("Duty");
+  const [globalPurpose, setGlobalPurpose] = useState("");
   
   // States for starting the tour with a stationary stay instead of travel
   const [startWithStay, setStartWithStay] = useState(false);
@@ -620,7 +620,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
 
   // Signature selection visibility toggles
   const [showClaimantSig, setShowClaimantSig] = useState(true);
-  const [showCounterSig, setShowCounterSig] = useState(true);
+  const [showCounterSig, setShowCounterSig] = useState(false);
   const [showHeadOfficeSig, setShowHeadOfficeSig] = useState(true);
   const [showControllingOfficerSig, setShowControllingOfficerSig] = useState(true);
   const [showSummaryTable, setShowSummaryTable] = useState(false);
@@ -1128,7 +1128,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
         const totalLegHrs = travelHrs + haltHrs;
         return {
           ...leg,
-          purpose: globalPurpose || leg.purpose || "Duty",
+          purpose: leg.purpose || globalPurpose || "",
           travelHours: travelHrs,
           haltHours: haltHrs,
           hours: totalLegHrs,
@@ -1713,11 +1713,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     setContingentItems(loadedContingent);
     
     setHasDeclared(claim.hasDeclared);
-    setGlobalPurpose(claim.globalPurpose || "Duty");
+    setGlobalPurpose(claim.globalPurpose || "");
     setShowSummaryTable(claim.showSummaryTable !== undefined ? claim.showSummaryTable : false);
     setShowNoFreePassDeclaration(claim.showNoFreePassDeclaration !== undefined ? claim.showNoFreePassDeclaration : false);
     setShowClaimantSig(claim.showClaimantSig !== undefined ? claim.showClaimantSig : true);
-    setShowCounterSig(claim.showCounterSig !== undefined ? claim.showCounterSig : true);
+    setShowCounterSig(claim.showCounterSig !== undefined ? claim.showCounterSig : false);
     setShowHeadOfficeSig(claim.showHeadOfficeSig !== undefined ? claim.showHeadOfficeSig : true);
     setShowControllingOfficerSig(claim.showControllingOfficerSig !== undefined ? claim.showControllingOfficerSig : true);
     setStartWithStay(claim.startWithStay || false);
@@ -1762,11 +1762,11 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     setBillUnit("");
     setCalculationMode('calendar_day');
     setHasDeclared(false);
-    setGlobalPurpose("Duty");
+    setGlobalPurpose("");
     setShowSummaryTable(false);
     setShowNoFreePassDeclaration(false);
     setShowClaimantSig(true);
-    setShowCounterSig(true);
+    setShowCounterSig(false);
     setShowHeadOfficeSig(true);
     setShowControllingOfficerSig(true);
     setStartWithStay(false);
@@ -1789,7 +1789,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
         depTime: "",
         arrDate: "",
         arrTime: "",
-        purpose: "Duty",
+        purpose: "",
         stoppedDurationHrs: 0,
         isBreakdownDuty: false,
         isFreeMessingTraining: false,
@@ -1945,7 +1945,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
             start,
             end,
             station: tripStay.initialStayStation,
-            purpose: tripStay.initialStayPurpose || globalPurpose || 'Duty'
+            purpose: tripStay.initialStayPurpose || globalPurpose || ''
           });
           
           if (tripLegsSorted.length > 0) {
@@ -1959,7 +1959,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   start: end,
                   end: firstLegStart,
                   station: tripStay.initialStayStation,
-                  purpose: firstLeg.purpose || 'Duty'
+                  purpose: firstLeg.purpose || ''
                 });
               }
             }
@@ -2028,7 +2028,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                   start: lastLegEnd,
                   end: start,
                   station: lastLeg.stationTo || 'Halt',
-                  purpose: lastLeg.purpose || 'Duty'
+                  purpose: lastLeg.purpose || ''
                 });
               }
             }
@@ -2040,7 +2040,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
             start,
             end,
             station: tripStay.initialStayStation,
-            purpose: tripStay.initialStayPurpose || globalPurpose || 'Duty'
+            purpose: tripStay.initialStayPurpose || globalPurpose || ''
           });
         }
       }
@@ -2115,7 +2115,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
           dayHrs,
           totalMileageAmountOnDay,
           dayTotalClaimed,
-          purpose: overlappingSegs.map(s => s.purpose).find(p => !!p) || globalPurpose || 'Duty',
+          purpose: overlappingSegs.map(s => s.purpose).find(p => !!p) || globalPurpose || '',
           isBreakdownDuty: overlappingSegs.some(s => s.isBreakdownDuty),
           isFreeMessingTraining: overlappingSegs.some(s => s.isFreeMessingTraining),
           isTerritorialArmy: overlappingSegs.some(s => s.isTerritorialArmy),
@@ -2255,15 +2255,19 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
           @media print {
             @page {
               size: A4 ${isLandscape ? 'landscape' : 'portrait'};
-              margin: ${isLandscape ? '4mm 6mm' : '6mm 12mm'} !important;
+              margin: 0.75in !important;
             }
             body.printing-mode {
               background-color: white !important;
               color: black !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              width: 100% !important;
+              max-width: 100% !important;
             }
             body.printing-mode #print-container {
               padding: 0 !important;
-              margin: 0 !important;
+              margin: 0 auto !important;
               width: 100% !important;
               max-width: 100% !important;
               height: auto !important;
@@ -2273,16 +2277,23 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
             }
             body.printing-mode #print-container > div {
               padding: 0 !important;
-              margin: 0 !important;
+              margin: 0 auto !important;
               width: 100% !important;
               max-width: 100% !important;
               box-sizing: border-box !important;
+              overflow: visible !important;
             }
             /* Fast fix: prevent any background clipping in table headers and keep height compact */
             th, td {
               page-break-inside: avoid !important;
               padding-top: 1px !important;
               padding-bottom: 1px !important;
+            }
+            /* Table width safety override */
+            table {
+              width: 100% !important;
+              max-width: 100% !important;
+              table-layout: fixed !important;
             }
           }
           .c75-scaled {
@@ -3253,7 +3264,7 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
     }`}>
       {/* Printable Sheet Panel (Hidden on web UI, triggered on print) */}
       <div style={{ display: 'none' }}>
-        <div ref={componentRef} className={`pl-[4mm] pr-[4mm] pt-[4mm] pb-[4mm] text-black bg-white font-serif leading-tight text-[11pt] ${isLandscape ? 'w-[297mm]' : 'w-[210mm]'}`}>
+        <div ref={componentRef} className={`pl-[4mm] pr-[4mm] pt-[4mm] pb-[4mm] text-black bg-white font-serif leading-tight text-[11pt] ${isLandscape ? 'w-[297mm]' : 'w-[210mm]'} print:w-full print:max-w-full print:p-0 print:m-0 box-border`}>
           {renderPrintSheetContent()}
         </div>
       </div>
@@ -3589,6 +3600,18 @@ export function ClaimTaManager({ showSidebars, onToggleSidebars, onBackToDashboa
                     onChange={(e) => setBillUnit(e.target.value)}
                     placeholder="Type Bill Unit code..." 
                     className="w-full text-[13px] font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm" 
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-indigo-700 uppercase tracking-wider">Default Object of Journey *</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={globalPurpose} 
+                    onChange={(e) => setGlobalPurpose(e.target.value)}
+                    placeholder="e.g. Duty / Inspecting Station Registers" 
+                    className="w-full text-[13px] font-semibold bg-white border border-indigo-300 rounded-lg px-3 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm font-bold" 
                   />
                 </div>
 

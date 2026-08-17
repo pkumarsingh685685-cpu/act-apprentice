@@ -133,33 +133,68 @@ body {
 
 @media print {
   @page {
-    margin: 20mm 35mm; /* 20mm top/bottom, 35mm left/right for letter look */
+    margin: 0.75in !important; /* Minimum 0.75 inch (19.05mm) margin on all sides */
+    size: auto;
   }
   body.printing-mode {
     background-color: white !important;
     background-image: none !important;
     color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
   }
   body.printing-mode > *:not(#print-container) {
     display: none !important;
   }
   body.printing-mode #print-container {
     display: block !important;
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
     width: 100% !important;
     max-width: 100% !important;
+    min-width: 0 !important;
     height: auto !important;
     overflow: visible !important;
     background: white !important;
-    padding: 0 20mm !important; /* Extra inner padding to ensure safe zone */
+    padding: 0 !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+  }
+  body.printing-mode #print-container > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+  body.printing-mode #print-container .print_page,
+  body.printing-mode #print-container .print-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+  }
+  body.printing-mode #print-container table {
+    width: 100% !important;
+    max-width: 100% !important;
     box-sizing: border-box !important;
   }
   body.printing-mode #print-container * {
     color-scheme: light !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    box-sizing: border-box !important;
   }
 }
 
